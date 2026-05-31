@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing } from 'react-native';
 import Svg, { Circle, Polygon, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -59,7 +59,7 @@ function PFall({ color, delay }) {
 }
 function Confetti({ type }) {
   const pal = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#fff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#ddd','#fff'] };
-  const colors = pal[type] || pal.draw, n = type==='win'?100:type==='draw'?35:20;
+  const colors = pal[type] || pal.draw, n = type==='win'?140:type==='draw'?48:30;
   // two stages like web: an up-burst AND a delayed gravity rain (~2x particles = more juice)
   const ups = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*100}))).current;
   const falls = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:300+Math.random()*450}))).current;
@@ -82,23 +82,48 @@ function RedPulse() {
   const scale = t.interpolate({inputRange:[0,0.25,1],outputRange:[0.3,1,2]}), opacity = t.interpolate({inputRange:[0,0.25,1],outputRange:[0,1,0]});
   return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'50%', left:'50%', width:460, height:460, marginLeft:-230, marginTop:-230, borderRadius:230, backgroundColor:'rgba(239,68,68,0.28)', opacity, transform:[{scale}] }} />;
 }
+// ── Max-juice explosion extras (beyond web) ──
+function CoreBloom({ color='rgba(255,255,255,0.95)' }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(t,{toValue:1,duration:380,easing:Easing.out(Easing.cubic),useNativeDriver:true}).start(); }, []);
+  const scale = t.interpolate({inputRange:[0,1],outputRange:[0.15,3.6]});
+  const opacity = t.interpolate({inputRange:[0,0.45,1],outputRange:[1,0.55,0]});
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'44%', left:'50%', width:170, height:170, marginLeft:-85, marginTop:-85, borderRadius:85, backgroundColor:color, opacity, transform:[{scale}] }} />;
+}
+function Sparkle({ delay, color }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const x = useRef((Math.random()-0.5)*340).current, y = useRef((Math.random()-0.5)*420).current, sz = useRef(4+Math.random()*5).current;
+  useEffect(() => { Animated.timing(t,{toValue:1,duration:480+Math.random()*420,delay,easing:Easing.out(Easing.quad),useNativeDriver:true}).start(); }, []);
+  const scale = t.interpolate({inputRange:[0,0.4,1],outputRange:[0,1.5,0]});
+  const opacity = t.interpolate({inputRange:[0,0.4,1],outputRange:[0,1,0]});
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'46%', left:'50%', width:sz, height:sz, marginLeft:x, marginTop:y, borderRadius:sz/2, backgroundColor:color, opacity, transform:[{scale}] }} />;
+}
+function Sparkles({ n=20, color='#fff' }) {
+  const s = useRef([...Array(n)].map(()=>({delay:Math.random()*600}))).current;
+  return <>{s.map((p,i)=><Sparkle key={i} delay={p.delay} color={color} />)}</>;
+}
 function WrongStamp() {
+  // web .cr-wrong-stamp: transition 0.25s cubic-bezier(0.34,1.56,0.64,1); scale 3->1 at fixed -12deg; opacity 0->0.9; 60px
   const a = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.spring(a,{toValue:1,friction:4,tension:140,useNativeDriver:true}).start(); hap(Haptics.ImpactFeedbackStyle.Medium); }, []);
-  const scale = a.interpolate({inputRange:[0,1],outputRange:[2.6,1]}), rotate = a.interpolate({inputRange:[0,1],outputRange:['-34deg','-12deg']});
-  return <Animated.Text pointerEvents="none" style={{ position:'absolute', alignSelf:'center', top:0, fontSize:96, color:'rgba(239,68,68,0.85)', fontFamily:F.k, opacity:a, transform:[{scale},{rotate}] }}>✕</Animated.Text>;
+  useEffect(() => { Animated.timing(a,{toValue:1,duration:250,easing:Easing.bezier(0.34,1.56,0.64,1),useNativeDriver:true}).start(); hap(Haptics.ImpactFeedbackStyle.Medium); }, []);
+  const scale = a.interpolate({inputRange:[0,1],outputRange:[3,1]});
+  const opacity = a.interpolate({inputRange:[0,1],outputRange:[0,0.9]});
+  return <Animated.Text pointerEvents="none" style={{ position:'absolute', alignSelf:'center', top:0, fontSize:60, color:C.lose, fontFamily:F.k, opacity, transform:[{scale},{rotate:'-12deg'}] }}>✕</Animated.Text>;
 }
 function Countdown({ onDone }) {
-  const [n, setN] = useState(3); const scale = useRef(new Animated.Value(1.8)).current;
+  // web @keyframes countPulse: scale 1.8 -> 1 (50%) -> 0.95; opacity 0 -> 1 -> 1; 0.8s ease-out; 800ms per count
+  const [n, setN] = useState(3); const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    let cur = 3; const pulse = () => { scale.setValue(1.8); Animated.timing(scale,{toValue:0.95,duration:600,useNativeDriver:true}).start(); };
+    let cur = 3; const pulse = () => { t.setValue(0); Animated.timing(t,{toValue:1,duration:800,easing:Easing.out(Easing.ease),useNativeDriver:true}).start(); };
     pulse();
     const tick = () => { cur--; if (cur>0){ setN(cur); pulse(); timer = setTimeout(tick,800); } else { onDone(); } };
     let timer = setTimeout(tick,800); return () => clearTimeout(timer);
   }, []);
+  const scale = t.interpolate({inputRange:[0,0.5,1],outputRange:[1.8,1,0.95]});
+  const opacity = t.interpolate({inputRange:[0,0.5,1],outputRange:[0,1,1]});
   return (<View style={[StyleSheet.absoluteFill,{ zIndex:200 }]}>
     <View style={{ flex:1, backgroundColor:'#fff', alignItems:'center', justifyContent:'center' }}>
-      <Animated.Text style={{ fontSize:120, fontFamily:F.b, color:C.accent, transform:[{scale}], textShadowColor:'rgba(108,99,255,0.25)', textShadowRadius:40 }}>{n}</Animated.Text>
+      <Animated.Text style={{ fontSize:120, fontFamily:F.b, color:C.accent, opacity, transform:[{scale}], textShadowColor:'rgba(108,99,255,0.25)', textShadowRadius:40 }}>{n}</Animated.Text>
       <Text style={{ fontSize:18, color:C.text2, fontFamily:F.m, letterSpacing:2, marginTop:16, textTransform:'uppercase' }}>Get Ready</Text>
     </View>
   </View>);
@@ -299,16 +324,16 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
     setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium);
     bannerA.setValue(0); cardA.setValue(0); btnsA.setValue(0);
     // web doExplosion: burst fires first; banner springs in at +180ms, card fades +0.4s after it, buttons at +980ms
-    Animated.spring(bannerA,{toValue:1,friction:5,tension:90,delay:180,useNativeDriver:true}).start();
-    Animated.timing(cardA,{toValue:1,duration:400,delay:580,useNativeDriver:true}).start();
-    Animated.timing(btnsA,{toValue:1,duration:300,delay:980,useNativeDriver:true}).start();
+    Animated.timing(bannerA,{toValue:1,duration:350,delay:180,easing:Easing.bezier(0.34,1.56,0.64,1),useNativeDriver:true}).start();
+    Animated.timing(cardA,{toValue:1,duration:400,delay:580,easing:Easing.bezier(0,0,0.2,1),useNativeDriver:true}).start();
+    Animated.timing(btnsA,{toValue:1,duration:300,delay:980,easing:Easing.out(Easing.ease),useNativeDriver:true}).start();
     timers.current.push(setTimeout(()=>setReady(true), 980));
   }
 
   useEffect(() => {
     const t=(fn,ms)=>{ const id=setTimeout(fn,ms); timers.current.push(id); return id; };
-    t(()=>{ Animated.spring(youA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium); if(!myCorrect) t(()=>setYouStamp(true),400); }, 200);
-    t(()=>Animated.spring(oppA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(), 800);
+    t(()=>{ Animated.timing(youA,{toValue:1,duration:400,easing:Easing.bezier(0,0,0.2,1),useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium); if(!myCorrect) t(()=>setYouStamp(true),400); }, 200);
+    t(()=>Animated.timing(oppA,{toValue:1,duration:500,easing:Easing.bezier(0,0,0.2,1),useNativeDriver:true}).start(), 800);
     t(()=>{ setOppRevealed(true); hap(Haptics.ImpactFeedbackStyle.Light); if(!oppCorrect) t(()=>setOppStamp(true),200); }, 1500);
     if (both) t(()=>setStep('race'), 2400); else t(()=>explode(), 2800);
     return ()=>timers.current.forEach(clearTimeout);
@@ -323,14 +348,18 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
       <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.3)':'rgba(239,68,68,0.45)'} />
       {win && <Flash color="rgba(255,255,255,0.6)" delay={60} />}
       {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
+      <CoreBloom color={win?'rgba(255,255,255,0.95)':draw?'rgba(245,158,11,0.6)':'rgba(239,68,68,0.6)'} />
       <Shockwave color={color} />
+      <Shockwave color={'rgba(255,255,255,0.9)'} delay={40} />
       {win && <Shockwave color={C.accent} delay={100} />}
       {win && <Shockwave color={C.draw} delay={200} />}
       {!win && !draw && <RedPulse />}
       <Confetti type={ctype} />
+      {win && <Sparkles n={22} color="#fff" />}
+      {win && <Sparkles n={10} color="#FDE68A" />}
       <View style={{flex:1,justifyContent:'center'}}>
         <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
-        <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
+        <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})},{scale:cardA.interpolate({inputRange:[0,0.7,1],outputRange:[0.92,1.03,1]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
         <Text style={st.payLabel}>Practice Mode</Text>
         <View style={st.resultCard}>
