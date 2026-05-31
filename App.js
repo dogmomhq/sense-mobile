@@ -15,6 +15,7 @@ const C = { accent:'#6C63FF', accentDark:'#5A52E0', win:'#22C55E', lose:'#EF4444
 const F = { r:'Inter_400Regular', m:'Inter_500Medium', s:'Inter_600SemiBold', b:'Inter_700Bold', x:'Inter_800ExtraBold', k:'Inter_900Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const RING = 58, CIRC = 2 * Math.PI * RING;
+const CIRC54 = 2 * Math.PI * 54;
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black });
@@ -69,31 +70,42 @@ export default function App() {
 
   let body;
   if (mode === 'play' && q) {
-    const secLeft = Math.max(0, Math.ceil((TIME_LIMIT - elapsed) / 1000));
+    const remaining = Math.max(0, TIME_LIMIT - elapsed);
+    const secs = remaining / 1000;
     const progress = Math.min(elapsed / TIME_LIMIT, 1);
-    const ringColor = secLeft <= 3 ? C.lose : secLeft <= 5 ? C.draw : C.accent;
+    const ringColor = secs <= 3 ? C.lose : secs <= 5 ? C.draw : C.accent;
+    const ans = picked !== null;
+    const ringText = ans ? (comp ? formatTime(Math.min(comp.playerTime, TIME_LIMIT)) : '—') : secs.toFixed(1);
+    const youText = ans ? (picked === -1 ? '—' : formatTime(Math.min(comp.playerTime, TIME_LIMIT))) : formatTime(elapsed);
+    const themText = ans && comp ? (comp.isCorrect ? formatTime(comp.time) : 'Wrong') : '—';
     body = (
       <>
         <Brand sub="Practice vs Computer" />
-        <View style={s.ringWrap}>
-          <Svg width={140} height={140}>
-            <Circle cx={70} cy={70} r={RING} stroke="rgba(0,0,0,0.07)" strokeWidth={10} fill="none" />
-            <Circle cx={70} cy={70} r={RING} stroke={ringColor} strokeWidth={10} fill="none" strokeDasharray={CIRC} strokeDashoffset={CIRC * progress} strokeLinecap="round" transform="rotate(-90 70 70)" />
-          </Svg>
-          <View style={s.ringCenter}><Text style={[s.ringNum, { color: ringColor }]}>{secLeft}</Text></View>
+        <View style={s.qcard}>
+          <Image source={{ uri: q.image }} style={s.qimage} resizeMode="cover" />
+          <Text style={s.qtext}>{q.text}</Text>
         </View>
-        <View style={s.card}><Image source={{ uri: q.image }} style={s.image} resizeMode="cover" /></View>
-        <Text style={s.question}>{q.text}</Text>
-        <View style={{ marginTop: 10 }}>
-          {q.options.map((opt, idx) => {
+        <View style={s.scoreRow}>
+          <Text style={s.scoreSide} numberOfLines={1}>You: <Text style={s.scoreStrong}>{youText}</Text></Text>
+          <View style={s.miniRing}>
+            <Svg width={52} height={52} viewBox="0 0 120 120">
+              <Circle cx={60} cy={60} r={54} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={8} />
+              <Circle cx={60} cy={60} r={54} fill="none" stroke={ringColor} strokeWidth={8} strokeDasharray={CIRC54} strokeDashoffset={CIRC54 * progress} strokeLinecap="round" transform="rotate(-90 60 60)" />
+            </Svg>
+            <View style={s.miniRingTextWrap}><Text style={[s.miniRingText, { color: ringColor }]}>{ringText}</Text></View>
+          </View>
+          <Text style={[s.scoreSide, { textAlign: 'right' }]} numberOfLines={1}>Them: <Text style={s.scoreStrong}>{themText}</Text></Text>
+        </View>
+        <View style={s.answerGrid}>
+          {q.options.map((opt, idx2) => {
             let bg = C.card, bd = C.border, col = C.text;
-            if (picked !== null) { if (idx === q.correctIdx) { bg = '#DCFCE7'; bd = C.win; col = '#166534'; } else if (idx === picked) { bg = '#FEE2E2'; bd = C.lose; col = '#991B1B'; } }
-            return (<Pressable key={idx} disabled={picked !== null} onPress={() => submit(idx)} style={[s.opt, { backgroundColor: bg, borderColor: bd }]}><Text style={[s.optText, { color: col }]}>{opt}</Text></Pressable>);
+            if (ans) { if (idx2 === q.correctIdx) { bg = 'rgba(34,197,94,0.15)'; bd = C.win; col = '#166534'; } else if (idx2 === picked) { bg = 'rgba(239,68,68,0.15)'; bd = C.lose; col = '#991B1B'; } }
+            return (<Pressable key={idx2} disabled={ans} onPress={() => submit(idx2)} style={[s.gridBtn, { backgroundColor: bg, borderColor: bd }]}><Text style={[s.gridBtnText, { color: col }]}>{opt}</Text></Pressable>);
           })}
         </View>
       </>
     );
-  } else if (mode === 'results' && result) {
+    } else if (mode === 'results' && result) {
     const win = result.result === 'win', draw = result.result === 'draw';
     const color = win ? C.win : draw ? C.draw : C.lose;
     const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
@@ -203,4 +215,16 @@ const s = StyleSheet.create({
   toggleLabel: { fontSize: 16, fontFamily: F.x, color: C.text }, toggle: { width: 50, height: 30, borderRadius: 15, backgroundColor: '#D6D8E3', padding: 3, justifyContent: 'center' }, knob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff' },
   nav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.95)', borderTopWidth: 1, borderTopColor: C.border, paddingVertical: 14, paddingBottom: 28 },
   navBtn: { flex: 1, alignItems: 'center' }, navText: { fontSize: 14, color: C.text2, fontFamily: F.b },
+  qcard: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 14, marginTop: 14, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+  qimage: { width: '100%', height: 190, borderRadius: 8 },
+  qtext: { fontSize: 17, fontFamily: F.s, color: C.text, marginTop: 12, textAlign: 'center', lineHeight: 23 },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, marginBottom: 10 },
+  scoreSide: { flex: 1, fontSize: 12, color: C.text2, fontFamily: 'Courier New' },
+  scoreStrong: { color: C.accent, fontFamily: 'Courier New', fontWeight: '700' },
+  miniRing: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', marginHorizontal: 6 },
+  miniRingTextWrap: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  miniRingText: { fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  answerGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  gridBtn: { width: '48.5%', borderWidth: 1.5, borderRadius: 12, paddingVertical: 16, paddingHorizontal: 8, marginBottom: 9, alignItems: 'center' },
+  gridBtnText: { fontSize: 14, fontFamily: F.s, textAlign: 'center' },
 });
