@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, getReasonText, formatTime } from './gameEngine.js';
 
-// Sense mobile — M3: polish pass. Circular timer ring, refined theme, result
-// reveal animation, screen fade, time clamp. Polish only (no online play).
+// Sense mobile — faithful-match foundation: real tokens, Inter font, background
+// image, frosted-glass cards, glossy PLAY button (from web App.css). Animations
+// (confetti/shockwave/shake/race-bar) come in the next increment.
 
 const TIME_LIMIT = 10000;
-const ACCENT = '#6C63FF';
-const INK = '#0F1222';
+const C = { accent:'#6C63FF', accentDark:'#5A52E0', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B',
+  text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
+const F = { r:'Inter_400Regular', m:'Inter_500Medium', s:'Inter_600SemiBold', b:'Inter_700Bold', x:'Inter_800ExtraBold', k:'Inter_900Black' };
+const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const RING = 58, CIRC = 2 * Math.PI * RING;
 
 export default function App() {
+  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black });
   const [tab, setTab] = useState('home');
   const [mode, setMode] = useState(null);
   const [rec, setRec] = useState({ wins: 0, losses: 0, draws: 0 });
@@ -30,44 +36,24 @@ export default function App() {
   const pop = useRef(new Animated.Value(0)).current;
 
   function fadeTo(next) {
-    // Drive navigation on a timer, NOT on the animation's completion callback.
-    // If the fade animation never completes (reduce-motion, app backgrounded
-    // mid-transition, throttling), a callback-gated setMode would strand the
-    // user on the current screen. setTimeout always fires.
     Animated.timing(fade, { toValue: 0, duration: 130, useNativeDriver: true }).start();
-    setTimeout(() => {
-      next();
-      fade.setValue(0);
-      Animated.timing(fade, { toValue: 1, duration: 160, useNativeDriver: true }).start();
-    }, 140);
+    setTimeout(() => { next(); fade.setValue(0); Animated.timing(fade, { toValue: 1, duration: 160, useNativeDriver: true }).start(); }, 140);
   }
-
   useEffect(() => {
     if (mode !== 'play' || !q) return;
-    answered.current = false;
-    startRef.current = Date.now();
-    setElapsed(0);
+    answered.current = false; startRef.current = Date.now(); setElapsed(0);
     timerRef.current = setInterval(() => {
-      const e = Date.now() - startRef.current;
-      setElapsed(e);
+      const e = Date.now() - startRef.current; setElapsed(e);
       if (e >= TIME_LIMIT) { clearInterval(timerRef.current); submit(-1); }
     }, 50);
     return () => clearInterval(timerRef.current);
   }, [q, mode]);
-
-  useEffect(() => {
-    if (mode === 'results') {
-      pop.setValue(0);
-      Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
-    }
-  }, [mode]);
+  useEffect(() => { if (mode === 'results') { pop.setValue(0); Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start(); } }, [mode]);
 
   function startPractice() { const f = getPracticeQuestion(used); setQ(f); setPicked(null); setResult(null); setComp(null); fadeTo(() => setMode('play')); }
   function submit(idx) {
-    if (answered.current) return;
-    answered.current = true;
-    clearInterval(timerRef.current);
-    const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now() - startRef.current, TIME_LIMIT); // clamp <= limit
+    if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
+    const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now() - startRef.current, TIME_LIMIT);
     setPicked(idx);
     const c = getComputerAnswer(q.correctIdx, q.options.length, history.current);
     const r = determinePracticeResult(idx, playerTime, c.answer, c.time, q.correctIdx);
@@ -79,163 +65,142 @@ export default function App() {
   function playAgain() { const nu = [...used, q.questionIdx].slice(-10); setUsed(nu); const f = getPracticeQuestion(nu); setQ(f); setPicked(null); setResult(null); setComp(null); fadeTo(() => setMode('play')); }
   function goHome() { fadeTo(() => { setMode(null); setTab('home'); }); }
 
-  // ---------- PLAY ----------
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: C.page }} />;
+
+  let body;
   if (mode === 'play' && q) {
     const secLeft = Math.max(0, Math.ceil((TIME_LIMIT - elapsed) / 1000));
     const progress = Math.min(elapsed / TIME_LIMIT, 1);
-    const ringColor = secLeft <= 3 ? '#EF4444' : secLeft <= 5 ? '#F59E0B' : ACCENT;
-    return (
-      <Animated.View style={[styles.flex, { opacity: fade }]}>
-        <SafeAreaView style={styles.safe}>
-          <StatusBar barStyle="dark-content" />
-          <Brand sub="Practice vs Computer" />
-          <View style={styles.ringWrap}>
-            <Svg width={140} height={140}>
-              <Circle cx={70} cy={70} r={RING} stroke="#ECEDF5" strokeWidth={10} fill="none" />
-              <Circle cx={70} cy={70} r={RING} stroke={ringColor} strokeWidth={10} fill="none"
-                strokeDasharray={CIRC} strokeDashoffset={CIRC * progress} strokeLinecap="round"
-                transform="rotate(-90 70 70)" />
-            </Svg>
-            <View style={styles.ringCenter}><Text style={[styles.ringNum, { color: ringColor }]}>{secLeft}</Text></View>
-          </View>
-          <View style={styles.imageCard}><Image source={{ uri: q.image }} style={styles.image} resizeMode="cover" /></View>
-          <Text style={styles.question}>{q.text}</Text>
-          <View style={{ marginTop: 10 }}>
-            {q.options.map((opt, idx) => {
-              let bg = '#FFF', border = '#E9EAF2', color = INK;
-              if (picked !== null) {
-                if (idx === q.correctIdx) { bg = '#DCFCE7'; border = '#22C55E'; color = '#166534'; }
-                else if (idx === picked) { bg = '#FEE2E2'; border = '#EF4444'; color = '#991B1B'; }
-              }
-              return (
-                <Pressable key={idx} disabled={picked !== null} onPress={() => submit(idx)} style={[styles.opt, { backgroundColor: bg, borderColor: border }]}>
-                  <Text style={[styles.optText, { color }]}>{opt}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </SafeAreaView>
-      </Animated.View>
+    const ringColor = secLeft <= 3 ? C.lose : secLeft <= 5 ? C.draw : C.accent;
+    body = (
+      <>
+        <Brand sub="Practice vs Computer" />
+        <View style={s.ringWrap}>
+          <Svg width={140} height={140}>
+            <Circle cx={70} cy={70} r={RING} stroke="rgba(0,0,0,0.07)" strokeWidth={10} fill="none" />
+            <Circle cx={70} cy={70} r={RING} stroke={ringColor} strokeWidth={10} fill="none" strokeDasharray={CIRC} strokeDashoffset={CIRC * progress} strokeLinecap="round" transform="rotate(-90 70 70)" />
+          </Svg>
+          <View style={s.ringCenter}><Text style={[s.ringNum, { color: ringColor }]}>{secLeft}</Text></View>
+        </View>
+        <View style={s.card}><Image source={{ uri: q.image }} style={s.image} resizeMode="cover" /></View>
+        <Text style={s.question}>{q.text}</Text>
+        <View style={{ marginTop: 10 }}>
+          {q.options.map((opt, idx) => {
+            let bg = C.card, bd = C.border, col = C.text;
+            if (picked !== null) { if (idx === q.correctIdx) { bg = '#DCFCE7'; bd = C.win; col = '#166534'; } else if (idx === picked) { bg = '#FEE2E2'; bd = C.lose; col = '#991B1B'; } }
+            return (<Pressable key={idx} disabled={picked !== null} onPress={() => submit(idx)} style={[s.opt, { backgroundColor: bg, borderColor: bd }]}><Text style={[s.optText, { color: col }]}>{opt}</Text></Pressable>);
+          })}
+        </View>
+      </>
     );
-  }
-
-  // ---------- RESULTS ----------
-  if (mode === 'results' && result) {
+  } else if (mode === 'results' && result) {
     const win = result.result === 'win', draw = result.result === 'draw';
-    const color = win ? '#22C55E' : draw ? '#F59E0B' : '#EF4444';
-    const title = win ? 'You Won' : draw ? 'Draw' : 'You Lost';
-    const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
-    return (
-      <Animated.View style={[styles.flex, { opacity: fade }]}>
-        <SafeAreaView style={styles.safe}>
-          <StatusBar barStyle="dark-content" />
-          <Brand sub="Practice vs Computer" />
-          <Animated.View style={[styles.banner, { backgroundColor: color, opacity: pop, transform: [{ scale }] }]}>
-            <Text style={styles.bannerText}>{title}</Text>
-          </Animated.View>
-          <Text style={styles.reason}>{getReasonText(result.reason)}</Text>
-          <View style={styles.rowCard}>
-            <View style={styles.rowItem}><Text style={styles.rowLabel}>YOU</Text><Text style={styles.rowVal}>{picked === -1 ? '—' : formatTime(comp.playerTime)}</Text></View>
-            <View style={styles.divider} />
-            <View style={styles.rowItem}><Text style={styles.rowLabel}>COMPUTER</Text><Text style={styles.rowVal}>{comp.isCorrect ? formatTime(comp.time) : 'Wrong'}</Text></View>
-          </View>
-          <Text style={styles.correctLine}>Correct: <Text style={{ fontWeight: '800', color: '#166534' }}>{q.options[q.correctIdx]}</Text></Text>
-          <Pressable style={styles.primary} onPress={playAgain}><Text style={styles.primaryText}>Play Again</Text></Pressable>
-          <Pressable style={styles.ghost} onPress={goHome}><Text style={styles.ghostText}>Home</Text></Pressable>
-        </SafeAreaView>
-      </Animated.View>
+    const color = win ? C.win : draw ? C.draw : C.lose;
+    const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
+    body = (
+      <>
+        <Brand sub="Practice vs Computer" />
+        <Animated.View style={[s.banner, { backgroundColor: color, opacity: pop, transform: [{ scale }] }]}><Text style={s.bannerText}>{win ? 'You Won' : draw ? 'Draw' : 'You Lost'}</Text></Animated.View>
+        <Text style={s.reason}>{getReasonText(result.reason)}</Text>
+        <View style={s.rowCard}>
+          <View style={s.rowItem}><Text style={s.rowLabel}>YOU</Text><Text style={s.rowVal}>{picked === -1 ? '—' : formatTime(comp.playerTime)}</Text></View>
+          <View style={s.divider} />
+          <View style={s.rowItem}><Text style={s.rowLabel}>COMPUTER</Text><Text style={s.rowVal}>{comp.isCorrect ? formatTime(comp.time) : 'Wrong'}</Text></View>
+        </View>
+        <Text style={s.correct}>Correct: <Text style={{ fontFamily: F.x, color: '#166534' }}>{q.options[q.correctIdx]}</Text></Text>
+        <GlossyButton label="Play Again" onPress={playAgain} small />
+        <Pressable style={s.ghost} onPress={goHome}><Text style={s.ghostText}>Home</Text></Pressable>
+      </>
     );
-  }
-
-  // ---------- HOME / PROFILE ----------
-  const played = rec.wins + rec.losses + rec.draws;
-  const acc = played ? Math.round((rec.wins / played) * 100) : 0;
-  return (
-    <Animated.View style={[styles.flex, { opacity: fade }]}>
-      <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="dark-content" />
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 92 }}>
+  } else {
+    const played = rec.wins + rec.losses + rec.draws;
+    const acc = played ? Math.round((rec.wins / played) * 100) : 0;
+    body = (
+      <>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 96 }}>
           {tab === 'home' ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 64 }}>
-              <Text style={styles.bigBrand}>SENSE</Text>
-              <View style={styles.accentBar} />
-              <Text style={styles.tagline}>How fast can you name the animal?</Text>
-              <View style={styles.recPill}><Text style={styles.recPillText}>{rec.wins}W · {rec.losses}L · {rec.draws}D</Text></View>
-              <Pressable style={styles.cta} onPress={startPractice}><Text style={styles.ctaText}>Play Practice</Text></Pressable>
-              <Text style={styles.note}>Free practice vs the computer. No wager.</Text>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 70 }}>
+              <Text style={s.bigBrand}>SENSE</Text>
+              <Text style={s.tagline}>How fast can you name the animal?</Text>
+              <View style={s.recPill}><Text style={s.recPillText}>{rec.wins}W · {rec.losses}L · {rec.draws}D</Text></View>
+              <View style={{ height: 30 }} />
+              <GlossyButton label="PLAY" onPress={startPractice} />
+              <Text style={s.note}>Free practice vs the computer. No wager.</Text>
             </View>
           ) : (
-            <View style={{ paddingTop: 44 }}>
-              <Text style={styles.screenTitle}>Profile</Text>
-              <View style={styles.statGrid}><Stat label="Played" value={played} /><Stat label="Wins" value={rec.wins} /><Stat label="Accuracy" value={acc + '%'} /></View>
-              <View style={styles.statGrid}><Stat label="Losses" value={rec.losses} /><Stat label="Draws" value={rec.draws} /><Stat label="Streak" value={streak(history.current)} /></View>
-              <Pressable style={styles.toggleRow} onPress={() => setSound((s) => !s)}>
-                <Text style={styles.toggleLabel}>Sound</Text>
-                <View style={[styles.toggle, sound && { backgroundColor: ACCENT }]}><View style={[styles.knob, sound && { alignSelf: 'flex-end' }]} /></View>
-              </Pressable>
-              <Text style={styles.note}>Practice stats only. Paid stats stay separate (later).</Text>
+            <View style={{ paddingTop: 48 }}>
+              <Text style={s.screenTitle}>Profile</Text>
+              <View style={s.statGrid}><Stat label="Played" value={played} /><Stat label="Wins" value={rec.wins} /><Stat label="Accuracy" value={acc + '%'} /></View>
+              <View style={s.statGrid}><Stat label="Losses" value={rec.losses} /><Stat label="Draws" value={rec.draws} /><Stat label="Streak" value={streak(history.current)} /></View>
+              <Pressable style={s.toggleRow} onPress={() => setSound((x) => !x)}><Text style={s.toggleLabel}>Sound</Text><View style={[s.toggle, sound && { backgroundColor: C.accent }]}><View style={[s.knob, sound && { alignSelf: 'flex-end' }]} /></View></Pressable>
+              <Text style={s.note}>Practice stats only. Paid stats stay separate (later).</Text>
             </View>
           )}
         </ScrollView>
-        <View style={styles.nav}>
-          <NavBtn label="Home" active={tab === 'home'} onPress={() => setTab('home')} />
-          <NavBtn label="Profile" active={tab === 'profile'} onPress={() => setTab('profile')} />
-        </View>
-      </SafeAreaView>
-    </Animated.View>
+        <View style={s.nav}><NavBtn label="Home" active={tab === 'home'} onPress={() => setTab('home')} /><NavBtn label="Profile" active={tab === 'profile'} onPress={() => setTab('profile')} /></View>
+      </>
+    );
+  }
+
+  return (
+    <ImageBackground source={{ uri: BG }} resizeMode="cover" style={{ flex: 1, backgroundColor: C.page }}>
+      <StatusBar barStyle="dark-content" />
+      <Animated.View style={{ flex: 1, opacity: fade }}>
+        <SafeAreaView style={{ flex: 1, paddingHorizontal: 22 }}>{body}</SafeAreaView>
+      </Animated.View>
+    </ImageBackground>
   );
 }
 
-function streak(h) { let s = 0; for (let i = h.length - 1; i >= 0 && h[i]; i--) s++; return s; }
-function Brand({ sub }) { return (<View style={styles.header}><Text style={styles.brand}>SENSE</Text>{sub ? <Text style={styles.sub}>{sub}</Text> : null}</View>); }
-function Stat({ label, value }) { return (<View style={styles.stat}><Text style={styles.statVal}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>); }
-function NavBtn({ label, active, onPress }) { return (<Pressable style={styles.navBtn} onPress={onPress}><Text style={[styles.navText, active && { color: ACCENT, fontWeight: '800' }]}>{label}</Text></Pressable>); }
+function GlossyButton({ label, onPress, small }) {
+  return (
+    <Pressable onPress={onPress} style={{ width: '100%', maxWidth: small ? 320 : 360, marginTop: small ? 22 : 0 }}>
+      <LinearGradient colors={['#555', '#333', '#1a1a1a', '#111', '#0a0a0a']} locations={[0, 0.2, 0.45, 0.55, 1]} style={[s.glossy, small && { paddingVertical: 16 }]}>
+        <View style={s.glossyHi} />
+        <Text style={[s.glossyText, small && { fontSize: 16, letterSpacing: 1 }]}>{label}</Text>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+function streak(h) { let n = 0; for (let i = h.length - 1; i >= 0 && h[i]; i--) n++; return n; }
+function Brand({ sub }) { return (<View style={s.header}><Text style={s.brand}>SENSE</Text>{sub ? <Text style={s.sub}>{sub}</Text> : null}</View>); }
+function Stat({ label, value }) { return (<View style={s.stat}><Text style={s.statVal}>{value}</Text><Text style={s.statLabel}>{label}</Text></View>); }
+function NavBtn({ label, active, onPress }) { return (<Pressable style={s.navBtn} onPress={onPress}><Text style={[s.navText, active && { color: C.accent, fontFamily: F.x }]}>{label}</Text></Pressable>); }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F7F8FC' },
-  safe: { flex: 1, backgroundColor: '#F7F8FC', paddingHorizontal: 22 },
+const s = StyleSheet.create({
   header: { alignItems: 'center', marginTop: 18 },
-  brand: { fontSize: 28, fontWeight: '900', letterSpacing: 4, color: ACCENT },
-  sub: { fontSize: 11, color: '#9AA0B4', letterSpacing: 2, marginTop: 2, textTransform: 'uppercase' },
-  bigBrand: { fontSize: 54, fontWeight: '900', letterSpacing: 7, color: ACCENT },
-  accentBar: { width: 46, height: 5, borderRadius: 3, backgroundColor: ACCENT, marginTop: 14, opacity: 0.5 },
-  tagline: { fontSize: 15, color: '#6B7180', marginTop: 16, textAlign: 'center' },
-  recPill: { backgroundColor: '#EEF0FF', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 9, marginTop: 22 },
-  recPillText: { color: ACCENT, fontWeight: '800', fontSize: 14 },
-  cta: { backgroundColor: ACCENT, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 60, marginTop: 28, shadowColor: ACCENT, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
-  ctaText: { color: '#FFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-  note: { color: '#9AA0B4', fontSize: 12, marginTop: 20, textAlign: 'center' },
+  brand: { fontSize: 28, fontFamily: F.k, letterSpacing: 4, color: C.accent },
+  sub: { fontSize: 11, color: C.text2, letterSpacing: 2, marginTop: 2, fontFamily: F.s, textTransform: 'uppercase' },
+  bigBrand: { fontSize: 56, fontFamily: F.k, letterSpacing: 7, color: C.accent },
+  tagline: { fontSize: 15, color: C.text2, marginTop: 14, textAlign: 'center', fontFamily: F.m },
+  recPill: { backgroundColor: 'rgba(108,99,255,0.10)', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 9, marginTop: 22 },
+  recPillText: { color: C.accent, fontFamily: F.x, fontSize: 14 },
+  glossy: { borderRadius: 36, paddingVertical: 22, alignItems: 'center', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 15, shadowOffset: { width: 0, height: 4 }, elevation: 7 },
+  glossyHi: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: 'rgba(255,255,255,0.13)' },
+  glossyText: { color: '#fff', fontSize: 22, fontFamily: F.k, letterSpacing: 3 },
+  note: { color: C.text2, fontSize: 12, marginTop: 22, textAlign: 'center', fontFamily: F.m },
   ringWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 16, height: 140 },
   ringCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  ringNum: { fontSize: 40, fontWeight: '900' },
-  imageCard: { backgroundColor: '#FFF', borderRadius: 22, overflow: 'hidden', marginTop: 14, height: 220, shadowColor: '#0F1222', shadowOpacity: 0.1, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  ringNum: { fontSize: 40, fontFamily: F.k },
+  card: { backgroundColor: C.card, borderRadius: 16, overflow: 'hidden', marginTop: 14, height: 220, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
   image: { width: '100%', height: '100%' },
-  question: { fontSize: 18, fontWeight: '800', color: INK, textAlign: 'center', marginTop: 16 },
-  opt: { borderWidth: 2, borderRadius: 15, paddingVertical: 15, paddingHorizontal: 16, marginBottom: 10 },
-  optText: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  banner: { borderRadius: 18, paddingVertical: 26, alignItems: 'center', marginTop: 30 },
-  bannerText: { color: '#FFF', fontSize: 30, fontWeight: '900', letterSpacing: 0.5 },
-  reason: { textAlign: 'center', color: '#6B7180', fontSize: 14, marginTop: 14, fontWeight: '700' },
-  rowCard: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 18, paddingVertical: 20, marginTop: 20, alignItems: 'center', shadowColor: '#0F1222', shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
-  rowItem: { flex: 1, alignItems: 'center' },
-  divider: { width: 1, height: 36, backgroundColor: '#ECEDF5' },
-  rowLabel: { fontSize: 11, color: '#9AA0B4', letterSpacing: 1.5 },
-  rowVal: { fontSize: 22, fontWeight: '900', color: INK, marginTop: 6 },
-  correctLine: { textAlign: 'center', marginTop: 20, fontSize: 15, color: '#374151' },
-  primary: { backgroundColor: INK, borderRadius: 16, paddingVertical: 17, alignItems: 'center', marginTop: 26 },
-  primaryText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  ghost: { paddingVertical: 14, alignItems: 'center', marginTop: 2 },
-  ghostText: { color: '#6B7180', fontSize: 15, fontWeight: '700' },
-  screenTitle: { fontSize: 28, fontWeight: '900', color: INK, marginBottom: 18 },
+  question: { fontSize: 18, fontFamily: F.x, color: C.text, textAlign: 'center', marginTop: 16 },
+  opt: { borderWidth: 1.5, borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, marginBottom: 10 },
+  optText: { fontSize: 16, fontFamily: F.b, textAlign: 'center' },
+  banner: { borderRadius: 16, paddingVertical: 24, alignItems: 'center', marginTop: 30 },
+  bannerText: { color: '#fff', fontSize: 28, fontFamily: F.k },
+  reason: { textAlign: 'center', color: C.text2, fontSize: 14, marginTop: 14, fontFamily: F.b },
+  rowCard: { flexDirection: 'row', backgroundColor: C.card, borderRadius: 16, paddingVertical: 20, marginTop: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+  rowItem: { flex: 1, alignItems: 'center' }, divider: { width: 1, height: 36, backgroundColor: C.border },
+  rowLabel: { fontSize: 11, color: C.text2, letterSpacing: 1.5, fontFamily: F.s }, rowVal: { fontSize: 22, fontFamily: F.k, color: C.text, marginTop: 6 },
+  correct: { textAlign: 'center', marginTop: 18, fontSize: 15, color: '#374151', fontFamily: F.m },
+  ghost: { paddingVertical: 14, alignItems: 'center', marginTop: 4 }, ghostText: { color: C.text2, fontSize: 15, fontFamily: F.b },
+  screenTitle: { fontSize: 28, fontFamily: F.k, color: C.text, marginBottom: 18 },
   statGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  stat: { backgroundColor: '#FFF', borderRadius: 18, paddingVertical: 20, flex: 1, marginHorizontal: 4, alignItems: 'center', shadowColor: '#0F1222', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  statVal: { fontSize: 24, fontWeight: '900', color: ACCENT },
-  statLabel: { fontSize: 12, color: '#9AA0B4', marginTop: 4 },
-  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 18, padding: 18, marginTop: 8 },
-  toggleLabel: { fontSize: 16, fontWeight: '800', color: INK },
-  toggle: { width: 50, height: 30, borderRadius: 15, backgroundColor: '#D6D8E3', padding: 3, justifyContent: 'center' },
-  knob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF' },
-  nav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#EEF0F5', paddingVertical: 14, paddingBottom: 28 },
-  navBtn: { flex: 1, alignItems: 'center' },
-  navText: { fontSize: 14, color: '#9AA0B4', fontWeight: '700' },
+  stat: { backgroundColor: C.card, borderRadius: 16, paddingVertical: 20, flex: 1, marginHorizontal: 4, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  statVal: { fontSize: 24, fontFamily: F.k, color: C.accent }, statLabel: { fontSize: 12, color: C.text2, marginTop: 4, fontFamily: F.m },
+  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.card, borderRadius: 16, padding: 18, marginTop: 8 },
+  toggleLabel: { fontSize: 16, fontFamily: F.x, color: C.text }, toggle: { width: 50, height: 30, borderRadius: 15, backgroundColor: '#D6D8E3', padding: 3, justifyContent: 'center' }, knob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff' },
+  nav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.95)', borderTopWidth: 1, borderTopColor: C.border, paddingVertical: 14, paddingBottom: 28 },
+  navBtn: { flex: 1, alignItems: 'center' }, navText: { fontSize: 14, color: C.text2, fontFamily: F.b },
 });
