@@ -67,9 +67,11 @@ function Countdown({ onDone }) {
     const tick = () => { cur--; if (cur>0){ setN(cur); pulse(); hap(Haptics.ImpactFeedbackStyle.Light); timer = setTimeout(tick,800); } else { onDone(); } };
     let timer = setTimeout(tick,800); return () => clearTimeout(timer);
   }, []);
-  return (<View style={[StyleSheet.absoluteFill,{ alignItems:'center', justifyContent:'center', backgroundColor:'rgba(247,248,252,0.88)', zIndex:50 }]}>
-    <Animated.Text style={{ fontSize:120, fontFamily:F.k, color:C.accent, transform:[{scale}], textShadowColor:'rgba(108,99,255,0.25)', textShadowRadius:40 }}>{n}</Animated.Text>
-    <Text style={{ color:C.text2, fontFamily:F.s, letterSpacing:2, marginTop:8 }}>GET READY</Text>
+  return (<View style={[StyleSheet.absoluteFill,{ zIndex:200 }]}>
+    <ImageBackground source={{uri:BG}} resizeMode="cover" style={{ flex:1, backgroundColor:C.page, alignItems:'center', justifyContent:'center' }}>
+      <Animated.Text style={{ fontSize:120, fontFamily:F.k, color:C.accent, transform:[{scale}], textShadowColor:'rgba(108,99,255,0.25)', textShadowRadius:40 }}>{n}</Animated.Text>
+      <Text style={{ color:C.text2, fontFamily:F.s, letterSpacing:2, marginTop:8, textTransform:'uppercase' }}>GET READY</Text>
+    </ImageBackground>
   </View>);
 }
 
@@ -157,7 +159,6 @@ export default function App() {
           return <Pressable key={i} disabled={ans} onPress={()=>submit(i)} style={[st.gridBtn,{backgroundColor:bg,borderColor:bd}]}><Text style={[st.gridBtnText,{color:col}]}>{opt}</Text></Pressable>;
         })}
       </View>
-      {countdown && <Countdown onDone={()=>setCountdown(false)} />}
     </>);
   } else if (mode === 'results' && result) {
     const win = result.result==='win', draw = result.result==='draw';
@@ -195,6 +196,7 @@ export default function App() {
   return (<ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
     <StatusBar barStyle="dark-content" />
     <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{body}</SafeAreaView></Animated.View>
+    {countdown && mode==='play' && <Countdown onDone={()=>setCountdown(false)} />}
   </ImageBackground>);
 }
 
