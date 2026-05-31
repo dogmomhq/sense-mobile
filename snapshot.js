@@ -43,9 +43,9 @@ const fs = require('fs');
   // race ticker runs 2000ms. Capture mid-fill (~1100ms in) and again once settled.
   await fresh();
   await page.evaluate(() => window.__sense({ result: 'win', myCorrect: true, oppCorrect: true, myTime: 800, oppTime: 1500 }));
-  await page.waitForTimeout(3500); // 2400 reveal + ~1100 into race: bars filling, times counting, shake building
+  await page.waitForTimeout(3300); // ~900ms into the 2000ms race: bars filling, times counting, shake building
   await shot('06_race');
-  await page.waitForTimeout(1400); // race settled (~4900ms): winner bar/time green, gap locked
+  await page.waitForTimeout(900); // ~4200ms: race just settled — winner bar/time green, gap locked (before the +700ms handoff to explode)
   await shot('08_race_end');
 
   // profile
