@@ -10,8 +10,13 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, generatePlayerName } from './gameEngine.js';
+import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './websocket.js';
+import { queue, asyncAnswer, rttPong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 
 const TIME_LIMIT = 10000;
+const SERVER_WS = PREVIEW_SERVER_WS;
+const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
+setServerUrl(SERVER_WS);
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
 const F = { r:'Inter_400Regular', m:'Inter_500Medium', s:'Inter_600SemiBold', b:'Inter_700Bold', x:'Inter_800ExtraBold', k:'Inter_900Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
@@ -198,11 +203,17 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [comp, setComp] = useState(null);
   const [oppName, setOppName] = useState('Rival');
+  const [online, setOnline] = useState(false);
+  const [matchId, setMatchId] = useState(null);
+  const [myTime, setMyTime] = useState(null);
+  const [notice, setNotice] = useState(null);
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
+  const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
+  const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null);
   const fade = useRef(new Animated.Value(1)).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
 
   function fadeTo(next) { Animated.timing(fade,{toValue:0,duration:120,useNativeDriver:true}).start(); setTimeout(()=>{ next(); fade.setValue(0); Animated.timing(fade,{toValue:1,duration:150,useNativeDriver:true}).start(); },130); }
@@ -229,12 +240,18 @@ export default function App() {
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+  function startRound(f) { onlineRef.current = false; setOnline(false); setMyTime(null); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
     const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now()-startRef.current, TIME_LIMIT);
-    setPicked(idx);
+    setPicked(idx); setMyTime(playerTime);
+    if (onlineRef.current) {
+      // Online: the server decides the result. Send our LOCAL time; wait for async-result.
+      pickedRef.current = idx; myTimeRef.current = playerTime;
+      wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));
+      return;
+    }
     const c = getComputerAnswer(q.correctIdx, q.options.length, history.current);
     const r = determinePracticeResult(idx, playerTime, c.answer, c.time, q.correctIdx);
     setComp({ ...c, playerTime }); setResult(r);
@@ -243,9 +260,57 @@ export default function App() {
     setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
     setTimeout(() => fadeTo(() => setMode('results')), 800);
   }
-  function playAgain() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
-  function goHome() { fadeTo(() => { setMode(null); setTab('home'); }); }
+  function playAgain() {
+    if (onlineRef.current) { requeueOnline(); return; }
+    const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f);
+  }
+  function goHome() { if (onlineRef.current) { try { disconnectWS(); } catch(e){} onlineRef.current = false; setOnline(false); } fadeTo(() => { setMode(null); setTab('home'); }); }
 
+  // ===== ONLINE (live server — reuses the same Play + Results screens) =====
+  function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
+  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; setOnline(false); matchIdRef.current = null; fadeTo(() => { setMode(null); setTab('home'); }); }
+  function handleOnlineMessage(msg) {
+    switch (msg.type) {
+      case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
+      case 'async-question': {
+        const img = HTTPS_BASE + '/img/' + msg.question.imageToken;
+        try { Image.prefetch(img); } catch (e) {}
+        matchIdRef.current = msg.matchId; pickedRef.current = null; myTimeRef.current = null;
+        setMatchId(msg.matchId);
+        setQ({ text: msg.question.text, image: img, options: msg.question.options, correctIdx: null });
+        setPicked(null); setResult(null); setComp(null); setMyTime(null);
+        setCountdown(true); fadeTo(() => setMode('play'));
+        break;
+      }
+      case 'answer-ack': break;     // local time already frozen on tap — ignore the server echo
+      case 'async-waiting': break;  // we answered first; waiting on opponent
+      case 'async-result': {
+        const yt = myTimeRef.current;
+        const oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
+        setComp({ answer: msg.opponent.answer, time: oppT, isCorrect: msg.opponent.answer === msg.correctIdx, playerTime: (yt != null ? yt : TIME_LIMIT), correctIdx: msg.correctIdx });
+        setResult({ result: msg.you.result, reason: msg.reason });
+        setQ(prev => prev ? { ...prev, correctIdx: msg.correctIdx } : prev);
+        setRec(p => ({ wins: p.wins + (msg.you.result === 'win'), losses: p.losses + (msg.you.result === 'loss'), draws: p.draws + (msg.you.result === 'draw') }));
+        setTimeout(() => fadeTo(() => setMode('results')), 1200);
+        break;
+      }
+      case 'rtt-ping': wsSend(rttPong(msg.nonce)); break;
+      case 'rtt-result': break;
+      case 'queue-failed': case 'game-expired': case 'match-cancelled': case 'error':
+        bailHome(msg.message || msg.error || 'Match ended');
+        break;
+    }
+  }
+  function startQueue() {
+    const send = () => wsSend(queue(myName(), 1, { paymentMode: 'none' }));
+    if (isConnected()) send();
+    else connectWS((m) => wsHandlerRef.current(m), () => {}, send, () => bailHome('Connection lost'));
+  }
+  function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; setOnline(true); setMode('joining'); startQueue(); }
+  function requeueOnline() { setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(); }
+  function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
+
+  wsHandlerRef.current = handleOnlineMessage;
   if (!fontsLoaded) return <View style={{ flex:1, backgroundColor:C.page }} />;
 
   let body;
@@ -253,8 +318,8 @@ export default function App() {
     const secLeft = Math.max(0, (TIME_LIMIT-elapsed)/1000), progress = Math.min(elapsed/TIME_LIMIT,1);
     const ringColor = secLeft<=3 ? C.lose : secLeft<=5 ? C.draw : C.accent;
     const ans = picked !== null;
-    const ringText = ans ? (comp ? formatTime(Math.min(comp.playerTime,TIME_LIMIT)) : '—') : secLeft.toFixed(1);
-    const youText = ans ? (picked===-1 ? '—' : formatTime(Math.min(comp.playerTime,TIME_LIMIT))) : formatTime(elapsed);
+    const ringText = ans ? (myTime!=null ? formatTime(Math.min(myTime,TIME_LIMIT)) : '—') : secLeft.toFixed(1);
+    const youText = ans ? (picked===-1 ? '—' : formatTime(Math.min(myTime!=null?myTime:TIME_LIMIT,TIME_LIMIT))) : formatTime(elapsed);
     const themText = ans && comp ? (comp.isCorrect ? formatTime(comp.time) : 'Wrong') : '—';
     body = (<>
       <View style={st.playHeader}><Text style={st.pnameSm}>You</Text><Text style={st.vsTiny}>vs</Text><Text style={st.pnameSm} numberOfLines={1}>{oppName||'Rival'}</Text></View>
@@ -277,6 +342,7 @@ export default function App() {
           return <Pressable key={i} disabled={ans} onPress={()=>submit(i)} style={[st.gridBtn,{backgroundColor:bg,borderColor:bd}]}><Text style={[st.gridBtnText,{color:col}]}>{opt}</Text></Pressable>;
         })}
       </View>
+      {ans && online ? <Text style={st.waitMsg}>Waiting for opponent…</Text> : null}
     </>);
   } else if (mode === 'results' && result) {
     const win = result.result==='win', draw = result.result==='draw';
@@ -284,7 +350,14 @@ export default function App() {
     const myCorrect = picked === q.correctIdx, oppCorrect = comp.isCorrect;
     const banner = pickBanner(result.result, myCorrect, oppCorrect, comp.playerTime, oppCorrect?comp.time:null);
     const ctype = win ? 'win' : draw ? 'draw' : 'loss';
-    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, reason: result.reason, q, comp, picked, rec, oppName, playAgain, goHome}} />);
+    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, reason: result.reason, q, comp, picked, rec, oppName, online, playAgain, goHome}} />);
+  } else if (mode === 'joining') {
+    body = (<View style={{flex:1,alignItems:'center',justifyContent:'center'}}>
+      <Text style={st.waitTitle}>Finding Opponent…</Text>
+      <Text style={st.waitSub}>Matching you with a live player</Text>
+      <JoiningDots />
+      <Pressable onPress={cancelOnline} style={st.cancelLink}><Text style={st.cancelText}>Cancel</Text></Pressable>
+    </View>);
   } else {
     const played = rec.wins+rec.losses+rec.draws, acc = played ? Math.round(rec.wins/played*100) : 0;
     body = (<>
@@ -295,8 +368,10 @@ export default function App() {
             <Text style={st.tagline}>How fast can you name the animal?</Text>
             <View style={st.recPill}><Text style={st.recPillText}>{rec.wins}W · {rec.losses}L · {rec.draws}D</Text></View>
             <View style={{height:30}} />
-            <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="RUN IT BACK" onPress={startPractice} /></View>
-            <Text style={st.note}>Free practice vs the computer. No wager.</Text>
+            <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="PLAY ONLINE" onPress={playOnline} /></View>
+            <Text style={st.note}>Real opponents · free · fastest correct answer wins.</Text>
+            <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
+            {notice ? <Text style={st.noticeText}>{notice}</Text> : null}
           </View>
         ) : (
           <View style={{paddingTop:48}}>
@@ -318,7 +393,7 @@ export default function App() {
   </ImageBackground>);
 }
 
-function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, playAgain, goHome }) {
+function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, online, playAgain, goHome }) {
   const both = myCorrect && oppCorrect;
   const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
   const [youStamp, setYouStamp] = useState(false); const [oppStamp, setOppStamp] = useState(false);
@@ -328,7 +403,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
   const timers = useRef([]);
   const myAns = picked === -1 ? 'Timed out' : q.options[picked];
   const oppAns = oppCorrect ? q.options[q.correctIdx] : 'Wrong';
-  const payoutText = win ? '✓ Correct' : draw ? '—' : reason === 'slower' ? '⏱ Too Slow' : '✗ Wrong';
+  const payoutText = win ? '✓ Correct' : draw ? '—' : (myCorrect ? '⏱ Too Slow' : '✗ Wrong');
   const spMs = picked===-1 ? null : comp.playerTime; // §1 juice: reward fast correct answers with a speed-tier stamp
   const speed = (win && spMs!=null) ? (spMs<600 ? {t:'🔥 INSANE',c:'#EC4899'} : spMs<1000 ? {t:'⚡ LIGHTNING',c:C.accent} : spMs<1600 ? {t:'FAST',c:C.win} : null) : null;
 
@@ -371,7 +446,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
         <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
         <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
-        <Text style={st.payLabel}>Practice Mode</Text>
+        <Text style={st.payLabel}>{online ? 'Online Match' : 'Practice Mode'}</Text>
         {speed ? <View style={[st.speedPill,{borderColor:speed.c}]}><Text style={[st.speedTxt,{color:speed.c}]}>{speed.t}</Text></View> : null}
         <View style={st.resultCard}>
           <View style={st.playerRow}>
@@ -442,6 +517,11 @@ function streak(h){ let n=0; for(let i=h.length-1;i>=0&&h[i];i--)n++; return n; 
 function Stat({ label, value }){ return (<View style={st.stat}><Text style={st.statVal}>{value}</Text><Text style={st.statLabel}>{label}</Text></View>); }
 function NavIcon({ type, color }){ return (<Svg width={22} height={22} viewBox="0 0 24 24" fill={color}>{type==='play' ? <Polygon points="6 3 20 12 6 21" /> : <><Circle cx={12} cy={8} r={4.5} /><Path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" /></>}</Svg>); }
 function NavBtn({ label, icon, active, onPress }){ const c = active?C.accent:C.text2; return (<Pressable style={st.navBtn} onPress={onPress}><NavIcon type={icon} color={c} /><Text style={[st.navText,{color:c}, active&&{fontFamily:F.x}]}>{label}</Text></Pressable>); }
+function JoiningDots(){
+  const a = useRef([0,1,2].map(()=>new Animated.Value(0.3))).current;
+  useEffect(()=>{ const loops = a.map((v,i)=>Animated.loop(Animated.sequence([Animated.delay(i*160),Animated.timing(v,{toValue:1,duration:400,useNativeDriver:true}),Animated.timing(v,{toValue:0.3,duration:400,useNativeDriver:true})]))); loops.forEach(l=>l.start()); return ()=>loops.forEach(l=>l.stop()); },[]);
+  return (<View style={{flexDirection:'row',marginTop:22,marginBottom:26}}>{a.map((v,i)=><Animated.View key={i} style={{width:10,height:10,borderRadius:5,backgroundColor:C.accent,marginHorizontal:5,opacity:v}} />)}</View>);
+}
 
 const st = StyleSheet.create({
   playHeader:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,marginTop:14}, pnameSm:{fontSize:11,color:C.text2,fontFamily:'Courier New'}, vsTiny:{fontSize:8,color:C.text2,opacity:0.4,letterSpacing:1,textTransform:'uppercase'},
@@ -471,4 +551,9 @@ const st = StyleSheet.create({
   statGrid:{flexDirection:'row',justifyContent:'space-between',marginBottom:12}, stat:{backgroundColor:C.card,borderRadius:16,paddingVertical:20,flex:1,marginHorizontal:4,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:8,shadowOffset:{width:0,height:2}}, statVal:{fontSize:24,fontFamily:F.k,color:C.accent}, statLabel:{fontSize:12,color:C.text2,marginTop:4,fontFamily:F.m},
   toggleRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:C.card,borderRadius:16,padding:18,marginTop:8}, toggleLabel:{fontSize:16,fontFamily:F.x,color:C.text}, toggle:{width:50,height:30,borderRadius:15,backgroundColor:'#D6D8E3',padding:3,justifyContent:'center'}, knob:{width:24,height:24,borderRadius:12,backgroundColor:'#fff'},
   nav:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:'rgba(255,255,255,0.95)',borderTopWidth:1,borderTopColor:C.border,paddingVertical:14,paddingBottom:28}, navBtn:{flex:1,alignItems:'center'}, navText:{fontSize:10,color:C.text2,fontFamily:F.s,marginTop:3,letterSpacing:0.3},
+  waitMsg:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:13,marginTop:6},
+  waitTitle:{fontSize:26,fontFamily:F.k,color:C.text,textAlign:'center'}, waitSub:{fontSize:14,color:C.text2,fontFamily:F.m,marginTop:8,textAlign:'center'},
+  cancelLink:{paddingVertical:12,paddingHorizontal:30,marginTop:6}, cancelText:{color:C.text2,fontSize:15,fontFamily:F.b},
+  practiceLink:{marginTop:22,paddingVertical:8,paddingHorizontal:16}, practiceLinkText:{color:C.accent,fontFamily:F.b,fontSize:14},
+  noticeText:{marginTop:18,color:C.lose,fontFamily:F.m,fontSize:13,textAlign:'center'},
 });
