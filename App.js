@@ -34,7 +34,7 @@ function pickBanner(result, myCorrect, oppCorrect, myTime, oppTime) {
 // Stage 1 — upward burst from center (web .cr-confetti-up). Tuned to match web's RENDERED size/spread on device.
 function PUp({ color, delay }) {
   const t = useRef(new Animated.Value(0)).current;
-  const dx = useRef((Math.random()-0.5)*240).current, dy = useRef(-(90+Math.random()*200)).current;
+  const dx = useRef((Math.random()-0.5)*300).current, dy = useRef(-(95+Math.random()*230)).current;
   const rot = useRef(Math.random()*900-450).current, sz = useRef(4+Math.random()*6).current, round = useRef(Math.random()>0.4).current;
   useEffect(() => { Animated.timing(t,{toValue:1,duration:600+Math.random()*500,delay,useNativeDriver:true}).start(); }, []);
   const translateX = t.interpolate({inputRange:[0,1],outputRange:[0,dx]});
@@ -47,8 +47,8 @@ function PUp({ color, delay }) {
 // Stage 2 — gravity rain from upper area, spawned after the burst (web .cr-confetti-gravity)
 function PFall({ color, delay }) {
   const t = useRef(new Animated.Value(0)).current;
-  const x0 = useRef(36+Math.random()*28).current, y0 = useRef(14+Math.random()*16).current;
-  const dx = useRef((Math.random()-0.5)*170).current, dy = useRef(100+Math.random()*160).current;
+  const x0 = useRef(30+Math.random()*40).current, y0 = useRef(12+Math.random()*18).current;
+  const dx = useRef((Math.random()-0.5)*220).current, dy = useRef(110+Math.random()*180).current;
   const rot = useRef(Math.random()*360).current, sz = useRef(4+Math.random()*6).current, round = useRef(Math.random()>0.4).current;
   useEffect(() => { Animated.timing(t,{toValue:1,duration:800+Math.random()*500,delay,useNativeDriver:true}).start(); }, []);
   const translateX = t.interpolate({inputRange:[0,1],outputRange:[0,dx]});
