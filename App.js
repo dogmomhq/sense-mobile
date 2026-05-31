@@ -51,19 +51,19 @@ function Confetti({ type }) {
 function Shockwave({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => { Animated.timing(t,{toValue:1,duration:700,delay,useNativeDriver:true}).start(); }, []);
-  const scale = t.interpolate({inputRange:[0,1],outputRange:[0.1,5]}), opacity = t.interpolate({inputRange:[0,1],outputRange:[0.7,0]});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:90, height:90, marginLeft:-45, marginTop:-45, borderRadius:45, borderWidth:3, borderColor:color, opacity, transform:[{scale}] }} />;
+  const scale = t.interpolate({inputRange:[0,1],outputRange:[0.1,5]}), opacity = t.interpolate({inputRange:[0,1],outputRange:[0.8,0]});
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:60, height:60, marginLeft:-30, marginTop:-30, borderRadius:30, borderWidth:3, borderColor:color, opacity, transform:[{scale}] }} />;
 }
 function Flash({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.sequence([Animated.delay(delay),Animated.timing(t,{toValue:1,duration:60,useNativeDriver:true}),Animated.timing(t,{toValue:0,duration:320,useNativeDriver:true})]).start(); }, []);
+  useEffect(() => { Animated.sequence([Animated.delay(delay),Animated.timing(t,{toValue:1,duration:1,useNativeDriver:true}),Animated.timing(t,{toValue:0,duration:500,useNativeDriver:true})]).start(); }, []);
   return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{ backgroundColor:color, opacity:t }]} />;
 }
 function RedPulse() {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => { Animated.timing(t,{toValue:1,duration:800,useNativeDriver:true}).start(); }, []);
   const scale = t.interpolate({inputRange:[0,0.25,1],outputRange:[0.3,1,2]}), opacity = t.interpolate({inputRange:[0,0.25,1],outputRange:[0,1,0]});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:120, height:120, marginLeft:-60, marginTop:-60, borderRadius:60, backgroundColor:'rgba(239,68,68,0.4)', opacity, transform:[{scale}] }} />;
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'50%', left:'50%', width:460, height:460, marginLeft:-230, marginTop:-230, borderRadius:230, backgroundColor:'rgba(239,68,68,0.28)', opacity, transform:[{scale}] }} />;
 }
 function WrongStamp() {
   const a = useRef(new Animated.Value(0)).current;
@@ -119,8 +119,10 @@ function TimeRace({ myT, oppT, onDone }) {
         <Text style={st.raceVs}>vs</Text>
         <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>COMPUTER</Text><Text style={[st.raceNum,{color:c2col}]}>{t2.toFixed(2)}s</Text></View>
       </View>
-      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:c1col===C.text2?'#C9CDD8':(done&&myWin?C.win:C.accent), width:w1.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
-      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:c2col===C.text2?'#C9CDD8':(done&&!myWin&&!same?C.win:C.accent), width:w2.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+      <View style={st.barRow}>
+        <View style={st.barTrack}><Animated.View style={[st.barFillR,{backgroundColor:done?(myWin?C.win:C.accent):C.accent, width:w1.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+        <View style={st.barTrack}><Animated.View style={[st.barFillL,{backgroundColor:done?((!myWin&&!same)?C.win:C.lose):C.lose, width:w2.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+      </View>
       {gap ? <Text style={[st.gap, same&&{color:C.draw}]}>{gap}</Text> : null}
     </Animated.View>
   );
@@ -361,8 +363,8 @@ const st = StyleSheet.create({
   revealLabel:{fontSize:12,color:C.text2,letterSpacing:2,fontFamily:F.s,textAlign:'center',marginTop:10}, revealAns:{fontSize:30,fontFamily:F.k,textAlign:'center',marginTop:6}, revealStatus:{fontSize:14,fontFamily:F.x,textAlign:'center',marginTop:4},
   revealDivider:{height:1,backgroundColor:C.border,marginVertical:22,marginHorizontal:40},
   raceLabel:{fontSize:14,color:C.text2,letterSpacing:2,fontFamily:F.x,textAlign:'center',marginBottom:18}, raceTimes:{flexDirection:'row',alignItems:'center',marginBottom:14}, raceName:{fontSize:11,color:C.text2,letterSpacing:1,fontFamily:F.s}, raceNum:{fontSize:26,fontFamily:F.k,marginTop:4,fontVariant:['tabular-nums']}, raceVs:{color:C.text2,fontFamily:F.s,marginHorizontal:6},
-  barTrack:{height:10,backgroundColor:'rgba(0,0,0,0.06)',borderRadius:5,marginVertical:5,overflow:'hidden'}, barFill:{height:10,borderRadius:5}, gap:{textAlign:'center',marginTop:14,fontSize:16,fontFamily:F.x,color:C.text},
-  banner:{fontSize:34,fontFamily:F.k,textAlign:'center',marginBottom:6},
+  barRow:{flexDirection:'row',height:8,marginTop:8}, barTrack:{flex:1,backgroundColor:C.border,borderRadius:4,overflow:'hidden',position:'relative',marginHorizontal:2}, barFillR:{position:'absolute',right:0,top:0,height:'100%',borderRadius:4}, barFillL:{position:'absolute',left:0,top:0,height:'100%',borderRadius:4}, gap:{textAlign:'center',marginTop:12,fontSize:13,fontFamily:F.b,color:C.text2},
+  banner:{fontSize:26,fontFamily:F.k,letterSpacing:2,textAlign:'center',marginBottom:8},
   rowCard:{flexDirection:'row',backgroundColor:C.card,borderRadius:16,paddingVertical:18,marginTop:14,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
   rowItem:{flex:1,alignItems:'center',paddingHorizontal:6}, divider:{width:1,height:48,backgroundColor:C.border}, rowLabel:{fontSize:11,color:C.text2,letterSpacing:1.5,fontFamily:F.s}, rowAns:{fontSize:13,fontFamily:F.b,marginTop:5}, rowVal:{fontSize:18,fontFamily:F.k,color:C.text,marginTop:3},
   correct:{textAlign:'center',marginTop:16,fontSize:15,color:'#374151',fontFamily:F.m},
