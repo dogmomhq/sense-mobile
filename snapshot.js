@@ -29,7 +29,7 @@ const fs = require('fs');
   for (const [n, s] of variants) {
     await fresh();
     await page.evaluate(sc => window.__sense(sc), s);
-    await page.waitForTimeout(3800); // reveal -> explode
+    await page.waitForTimeout(4400); // reveal(2800) -> explode -> banner(+180) -> card(+580) -> buttons(+980) all settled
     await shot(n);
   }
 
