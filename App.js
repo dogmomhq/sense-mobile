@@ -80,7 +80,7 @@ function SkiaExplosion({ kind }) {
     const PAL = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#ffffff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#dddddd','#ffffff'] };
     const pal = PAL[kind] || PAL.draw, n = kind==='win'?100:kind==='draw'?35:20;
     const ups=[], grav=[];
-    for (let i=0;i<n;i++){ const dur=600+rng()*500; ups.push({size:5+rng()*9,dx:(rng()-0.5)*300,dy:-(100+rng()*240),dur,delay:rng()*100,col:pal[i%pal.length],sq:rng()>0.4}); grav.push({size:5+rng()*9,dx:(rng()-0.5)*220,dy:120+rng()*200,dur:800+rng()*600,delay:dur*0.6+rng()*200,x0:(30+rng()*40)/100,y0:(10+rng()*20)/100,col:pal[i%pal.length],sq:rng()>0.4}); }
+    for (let i=0;i<n;i++){ const dur=600+rng()*500; ups.push({size:5+rng()*9,dx:(rng()-0.5)*300,dy:-(100+rng()*240),dur,delay:rng()*100,col:pal[i%pal.length],sq:rng()>0.4}); grav.push({size:5+rng()*9,dx:(rng()-0.5)*220,dy:120+rng()*200,dur:550+rng()*450,delay:dur*0.6+rng()*200,x0:(30+rng()*40)/100,y0:(10+rng()*20)/100,col:pal[i%pal.length],sq:rng()>0.4}); }
     parts.current={ups,grav};
   }
   const [t,setT]=useState(0);
@@ -90,7 +90,7 @@ function SkiaExplosion({ kind }) {
   const eo=p=>1-Math.pow(1-p,1.9), ei=p=>p*p;
   const els=[];
   const ringDefs = kind==='win'?[[0,'#22C55E'],[100,'#6C63FF'],[200,'#F59E0B']]:kind==='draw'?[[0,'#F59E0B']]:[[0,'#EF4444']];
-  ringDefs.forEach(([d,c],idx)=>{ const e=t-d; if(e>0&&e<700){ const p=e/700,ep=eo(p),scale=0.1+2.9*ep; els.push(<Circle key={'r'+idx} cx={cx} cy={ringY} r={30*scale} color={c+ah(0.8*(1-p))} style="stroke" strokeWidth={3*scale} />); } });
+  ringDefs.forEach(([d,c],idx)=>{ const e=t-d; if(e>0&&e<700){ const p=e/700,ep=eo(p),scale=0.1+2.9*ep; els.push(<Circle key={'r'+idx} cx={cx} cy={ringY} r={30*scale} color={c+ah(0.85*(1-p))} style="stroke" strokeWidth={3.6*scale} />); } });
   parts.current.ups.forEach((u,i)=>{ const e=t-u.delay; if(e<=0)return; const p=Math.min(e/u.dur,1),ep=eo(p); const op=p<=0.6?1:Math.max(0,1-(p-0.6)/0.4); if(op<=0)return; const sc=1+(0.3-1)*ep,x=cx+u.dx*ep,y=upY+u.dy*ep,ww=u.size*sc,hh=u.size*0.6*sc; els.push(u.sq?<Rect key={'u'+i} x={x-ww/2} y={y-hh/2} width={ww} height={hh} color={u.col+ah(op)} />:<Circle key={'u'+i} cx={x} cy={y} r={ww/2} color={u.col+ah(op)} />); });
   parts.current.grav.forEach((g,i)=>{ const e=t-g.delay; if(e<=0)return; const p=Math.min(e/g.dur,1),ep=ei(p),op=Math.max(0,1-p); if(op<=0)return; const x=g.x0*w+g.dx*ep,y=g.y0*h+g.dy*ep,ww=g.size,hh=g.size*0.6; els.push(g.sq?<Rect key={'g'+i} x={x-ww/2} y={y-hh/2} width={ww} height={hh} color={g.col+ah(op)} />:<Circle key={'g'+i} cx={x} cy={y} r={ww/2} color={g.col+ah(op)} />); });
   return <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">{els}</Canvas>;
