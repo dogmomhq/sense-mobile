@@ -45,7 +45,9 @@ const fs = require('fs');
   await page.evaluate(() => window.__sense({ result: 'win', myCorrect: true, oppCorrect: true, myTime: 800, oppTime: 1500 }));
   await page.waitForTimeout(3300); // ~900ms into the 2000ms race: bars filling, times counting, shake building
   await shot('06_race');
-  await page.waitForTimeout(900); // ~4200ms: race just settled — winner bar/time green, gap locked (before the +700ms handoff to explode)
+  // shake burst: rapid frames through the climax to verify the jitter walks on x/y/rotation and builds intensity
+  for (let k = 0; k < 8; k++) { await shot('10_shake_' + String(k).padStart(2, '0')); await page.waitForTimeout(60); }
+  await page.waitForTimeout(300); // ~4200ms: race just settled — winner bar/time green, gap locked (before the +700ms handoff to explode)
   await shot('08_race_end');
 
   // profile
