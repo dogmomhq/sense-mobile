@@ -1,0 +1,34 @@
+name: Build Web Preview
+
+# Exports the Expo app to a static web page and publishes it so it can be
+# opened, screenshotted, and click-tested in a normal browser (the Snack
+# editor is a live SPA that can't be screenshotted). This is the self-test
+# loop. NOTE: react-native-web is a close proxy, not a pixel-perfect mobile
+# render — real device is still the final check.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - name: Add web dependencies (correct versions for this SDK)
+        run: npx expo install react-dom react-native-web @expo/metro-runtime
+      - name: Export static web build
+        run: npx expo export --platform web --output-dir dist
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
