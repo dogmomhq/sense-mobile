@@ -33,6 +33,12 @@ const fs = require('fs');
     await shot(n);
   }
 
+  // explosion-stagger proof: banner has sprung in but the card + buttons have NOT arrived yet
+  await fresh();
+  await page.evaluate(() => window.__sense({ result: 'win', myCorrect: true, oppCorrect: false, myTime: 900 }));
+  await page.waitForTimeout(3150); // explode(2800)+~350ms: burst done, banner springing in, card(+580)/buttons(+980) still hidden
+  await shot('09_explode_mid');
+
   // both-correct time-race. Reveal hands off to the race at 2400ms, then the
   // race ticker runs 2000ms. Capture mid-fill (~1100ms in) and again once settled.
   await fresh();
