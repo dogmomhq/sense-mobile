@@ -33,11 +33,14 @@ const fs = require('fs');
     await shot(n);
   }
 
-  // both-correct time-race (capture mid-animation)
+  // both-correct time-race. Reveal hands off to the race at 2400ms, then the
+  // race ticker runs 2000ms. Capture mid-fill (~1100ms in) and again once settled.
   await fresh();
   await page.evaluate(() => window.__sense({ result: 'win', myCorrect: true, oppCorrect: true, myTime: 800, oppTime: 1500 }));
-  await page.waitForTimeout(2400);
+  await page.waitForTimeout(3500); // 2400 reveal + ~1100 into race: bars filling, times counting, shake building
   await shot('06_race');
+  await page.waitForTimeout(1400); // race settled (~4900ms): winner bar/time green, gap locked
+  await shot('08_race_end');
 
   // profile
   await fresh();
