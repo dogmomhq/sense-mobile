@@ -329,6 +329,8 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
   const myAns = picked === -1 ? 'Timed out' : q.options[picked];
   const oppAns = oppCorrect ? q.options[q.correctIdx] : 'Wrong';
   const payoutText = win ? '✓ Correct' : draw ? '—' : reason === 'slower' ? '⏱ Too Slow' : '✗ Wrong';
+  const spMs = picked===-1 ? null : comp.playerTime; // §1 juice: reward fast correct answers with a speed-tier stamp
+  const speed = (win && spMs!=null) ? (spMs<600 ? {t:'🔥 INSANE',c:'#EC4899'} : spMs<1000 ? {t:'⚡ LIGHTNING',c:C.accent} : spMs<1600 ? {t:'FAST',c:C.win} : null) : null;
 
   function explode() {
     setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium);
@@ -370,6 +372,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
         <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
         <Text style={st.payLabel}>Practice Mode</Text>
+        {speed ? <View style={[st.speedPill,{borderColor:speed.c}]}><Text style={[st.speedTxt,{color:speed.c}]}>{speed.t}</Text></View> : null}
         <View style={st.resultCard}>
           <View style={st.playerRow}>
             <Text style={st.playerLabel}>YOU</Text>
@@ -458,6 +461,7 @@ const st = StyleSheet.create({
   barRow:{flexDirection:'row',height:6,marginTop:2}, barTrack:{flex:1,backgroundColor:C.border,borderRadius:3,overflow:'hidden',position:'relative',marginHorizontal:2}, barFillR:{position:'absolute',right:0,top:0,height:'100%',borderRadius:3}, barFillL:{position:'absolute',left:0,top:0,height:'100%',borderRadius:3}, gap:{textAlign:'center',marginTop:8,fontSize:10,fontFamily:F.s,color:C.text2},
   banner:{fontSize:24,fontFamily:F.k,letterSpacing:2,textAlign:'center',marginBottom:6},
   payAmount:{fontSize:30,fontFamily:F.k,textAlign:'center',marginTop:2}, payLabel:{fontSize:10,color:C.text2,textAlign:'center',marginTop:1,marginBottom:8,fontFamily:F.s},
+  speedPill:{alignSelf:'center',borderWidth:1.5,borderRadius:999,paddingHorizontal:12,paddingVertical:4,marginBottom:10}, speedTxt:{fontSize:12,fontFamily:F.x,letterSpacing:1},
   resultCard:{backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:16,paddingVertical:4,paddingHorizontal:20,shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
   playerRow:{paddingVertical:10}, playerLabel:{fontSize:11,fontFamily:F.b,color:C.text2,letterSpacing:1,marginBottom:4}, playerData:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}, playerAns:{fontSize:16,fontFamily:F.s,flexShrink:1,paddingRight:10}, playerTime:{fontSize:16,fontFamily:'Courier New',color:C.text,fontWeight:'600'},
   hDivider:{height:1,backgroundColor:C.border}, correctRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingTop:10,paddingBottom:6}, correctLabel:{fontSize:13,color:C.text2,fontFamily:F.m}, correctValue:{fontSize:16,fontFamily:F.s,color:C.win,flexShrink:1,paddingLeft:10},
