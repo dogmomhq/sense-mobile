@@ -30,10 +30,16 @@ export default function App() {
   const pop = useRef(new Animated.Value(0)).current;
 
   function fadeTo(next) {
-    Animated.timing(fade, { toValue: 0, duration: 130, useNativeDriver: true }).start(() => {
+    // Drive navigation on a timer, NOT on the animation's completion callback.
+    // If the fade animation never completes (reduce-motion, app backgrounded
+    // mid-transition, throttling), a callback-gated setMode would strand the
+    // user on the current screen. setTimeout always fires.
+    Animated.timing(fade, { toValue: 0, duration: 130, useNativeDriver: true }).start();
+    setTimeout(() => {
       next();
+      fade.setValue(0);
       Animated.timing(fade, { toValue: 1, duration: 160, useNativeDriver: true }).start();
-    });
+    }, 140);
   }
 
   useEffect(() => {
