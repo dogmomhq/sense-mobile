@@ -201,7 +201,7 @@ export default function App() {
     const youText = ans ? (picked===-1 ? '—' : formatTime(Math.min(comp.playerTime,TIME_LIMIT))) : formatTime(elapsed);
     const themText = ans && comp ? (comp.isCorrect ? formatTime(comp.time) : 'Wrong') : '—';
     body = (<>
-      <Brand sub="Practice vs Computer" />
+      <View style={st.playHeader}><Text style={st.pnameSm}>You</Text><Text style={st.vsTiny}>vs</Text><Text style={st.pnameSm} numberOfLines={1}>{oppName||'Rival'}</Text></View>
       <View style={st.qcard}><Image source={{uri:q.image}} style={st.qimage} resizeMode="contain" /><Text style={st.qtext}>{q.text}</Text></View>
       <View style={st.scoreRow}>
         <Text style={st.scoreSide} numberOfLines={1}>You: <Text style={st.scoreStrong}>{youText}</Text></Text>
@@ -284,12 +284,11 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
   }, []);
 
   const trY = (a)=>({opacity:a, transform:[{translateY:a.interpolate({inputRange:[0,1],outputRange:[14,0]})}]});
-  if (step === 'race') return (<View style={{flex:1}}><Brand sub="Practice vs Computer" /><TimeRace myT={comp.playerTime} oppT={comp.time} oppName={oppName} onDone={explode} /></View>);
+  if (step === 'race') return (<View style={{flex:1}}><TimeRace myT={comp.playerTime} oppT={comp.time} oppName={oppName} onDone={explode} /></View>);
   if (step === 'explode') {
     const bScale = bannerA.interpolate({inputRange:[0,1],outputRange:[1.3,1]});
     const bTy = bannerA.interpolate({inputRange:[0,1],outputRange:[30,0]});
     return (<View style={{flex:1}}>
-      <Brand sub="Practice vs Computer" />
       <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.28)':'rgba(239,68,68,0.42)'} />
       {win && <Flash color="rgba(255,255,255,0.55)" delay={60} />}
       {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
@@ -335,7 +334,6 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
     </View>);
   }
   return (<View style={{flex:1}}>
-    <Brand sub="Practice vs Computer" />
     <View style={{flex:1,justifyContent:'center'}}>
       <View>
         <Animated.View style={trY(youA)}>
@@ -366,12 +364,11 @@ function GlossyButton({ label, onPress, small }) {
   </Pressable>);
 }
 function streak(h){ let n=0; for(let i=h.length-1;i>=0&&h[i];i--)n++; return n; }
-function Brand({ sub }){ return (<View style={st.header}><Text style={st.brand}>SENSE</Text>{sub?<Text style={st.sub}>{sub}</Text>:null}</View>); }
 function Stat({ label, value }){ return (<View style={st.stat}><Text style={st.statVal}>{value}</Text><Text style={st.statLabel}>{label}</Text></View>); }
 function NavBtn({ label, active, onPress }){ return (<Pressable style={st.navBtn} onPress={onPress}><Text style={[st.navText, active&&{color:C.accent,fontFamily:F.x}]}>{label}</Text></Pressable>); }
 
 const st = StyleSheet.create({
-  header:{alignItems:'center',marginTop:18}, brand:{fontSize:28,fontFamily:F.k,letterSpacing:4,color:C.accent}, sub:{fontSize:11,color:C.text2,letterSpacing:2,marginTop:2,fontFamily:F.s,textTransform:'uppercase'},
+  playHeader:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,marginTop:14}, pnameSm:{fontSize:11,color:C.text2,fontFamily:'Courier New'}, vsTiny:{fontSize:8,color:C.text2,opacity:0.4,letterSpacing:1,textTransform:'uppercase'},
   bigBrand:{fontSize:56,fontFamily:F.k,letterSpacing:7,color:C.accent}, tagline:{fontSize:15,color:C.text2,marginTop:14,textAlign:'center',fontFamily:F.m},
   recPill:{backgroundColor:'rgba(108,99,255,0.10)',borderRadius:999,paddingHorizontal:20,paddingVertical:9,marginTop:22}, recPillText:{color:C.accent,fontFamily:F.x,fontSize:14},
   glossy:{borderRadius:36,paddingVertical:22,alignItems:'center',overflow:'hidden',shadowColor:'#000',shadowOpacity:0.4,shadowRadius:15,shadowOffset:{width:0,height:4},elevation:7},
