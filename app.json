@@ -19,7 +19,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "output": "static"
+      "output": "single"
     },
     "experiments": {
       "baseUrl": "/sense-mobile"
