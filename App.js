@@ -321,7 +321,10 @@ export default function App() {
   // shared: map a server result into the practice-shaped state and show the Results screen
   function showResultsFor(msg, oppT) {
     const yt = myTimeRef.current;
-    setComp({ answer: msg.opponent.answer, time: oppT, isCorrect: msg.opponent.answer === msg.correctIdx, playerTime:(yt!=null?yt:TIME_LIMIT), correctIdx: msg.correctIdx });
+    // Free online sends R_official as you.serverTime (the number that DECIDED the game) — show that
+    // so the results card can't contradict the outcome. Practice/room have no serverTime -> local time.
+    const myShown = (msg.you && msg.you.serverTime != null) ? msg.you.serverTime : (yt != null ? yt : TIME_LIMIT);
+    setComp({ answer: msg.opponent.answer, time: oppT, isCorrect: msg.opponent.answer === msg.correctIdx, playerTime: myShown, correctIdx: msg.correctIdx });
     setResult({ result: msg.you.result, reason: msg.reason });
     setQ(prev => prev ? { ...prev, correctIdx: msg.correctIdx } : prev);
     setShowActions(false);
