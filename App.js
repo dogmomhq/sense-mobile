@@ -222,6 +222,7 @@ export default function App() {
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
+  const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
   const fade = useRef(new Animated.Value(1)).current;
   // swipe-up on the Play screen (when pending actions are showing) → re-queue, matching web
   const swipe = useRef(PanResponder.create({
@@ -230,7 +231,7 @@ export default function App() {
   })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
@@ -337,6 +338,14 @@ export default function App() {
   }
   function handleOnlineMessage(msg) {
     switch (msg.type) {
+      // ---- device-bound account ----
+      case 'registered': {
+        accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token };
+        myNameRef.current = msg.handle;
+        try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {}
+        const fn = pendingAfterReg.current; pendingAfterReg.current = null; if (fn) fn(); // resume the queue we were starting
+        break;
+      }
       // ---- async matchmaking ----
       case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
       case 'async-question': loadQuestion(msg.matchId, msg.question); break;
@@ -398,7 +407,13 @@ export default function App() {
     }
   }
   function ensureConn(after) { if (isConnected()) { after && after(); } else connectWS((m) => wsHandlerRef.current(m), () => {}, () => after && after(), () => bailHome('Connection lost')); }
-  function startQueue() { ensureConn(() => wsSend(queue(myName(), 1, { paymentMode: 'none' }))); }
+  function sendQueueMsg() { wsSend({ ...queue(myName(), 1, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined }); }
+  function startQueue() {
+    ensureConn(() => {
+      if (accountRef.current && accountRef.current.token) sendQueueMsg();
+      else { pendingAfterReg.current = sendQueueMsg; wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
+    });
+  }
   function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue(); }
   function requeueOnline() { setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(); }
   function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
