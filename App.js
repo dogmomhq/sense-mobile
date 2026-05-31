@@ -267,12 +267,22 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
   const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
   const [youStamp, setYouStamp] = useState(false); const [oppStamp, setOppStamp] = useState(false);
   const youA = useRef(new Animated.Value(0)).current, oppA = useRef(new Animated.Value(0)).current, bannerA = useRef(new Animated.Value(0)).current;
+  const cardA = useRef(new Animated.Value(0)).current, btnsA = useRef(new Animated.Value(0)).current;
+  const [ready, setReady] = useState(false);
   const timers = useRef([]);
   const myAns = picked === -1 ? 'Timed out' : q.options[picked];
   const oppAns = oppCorrect ? q.options[q.correctIdx] : 'Wrong';
   const payoutText = win ? '✓ Correct' : draw ? '—' : reason === 'slower' ? '⏱ Too Slow' : '✗ Wrong';
 
-  function explode() { setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium); bannerA.setValue(0); Animated.spring(bannerA,{toValue:1,friction:5,tension:90,useNativeDriver:true}).start(); }
+  function explode() {
+    setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium);
+    bannerA.setValue(0); cardA.setValue(0); btnsA.setValue(0);
+    // web doExplosion: burst fires first; banner springs in at +180ms, card fades +0.4s after it, buttons at +980ms
+    Animated.spring(bannerA,{toValue:1,friction:5,tension:90,delay:180,useNativeDriver:true}).start();
+    Animated.timing(cardA,{toValue:1,duration:400,delay:580,useNativeDriver:true}).start();
+    Animated.timing(btnsA,{toValue:1,duration:300,delay:980,useNativeDriver:true}).start();
+    timers.current.push(setTimeout(()=>setReady(true), 980));
+  }
 
   useEffect(() => {
     const t=(fn,ms)=>{ const id=setTimeout(fn,ms); timers.current.push(id); return id; };
@@ -289,8 +299,8 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
     const bScale = bannerA.interpolate({inputRange:[0,1],outputRange:[1.3,1]});
     const bTy = bannerA.interpolate({inputRange:[0,1],outputRange:[30,0]});
     return (<View style={{flex:1}}>
-      <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.28)':'rgba(239,68,68,0.42)'} />
-      {win && <Flash color="rgba(255,255,255,0.55)" delay={60} />}
+      <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.3)':'rgba(239,68,68,0.45)'} />
+      {win && <Flash color="rgba(255,255,255,0.6)" delay={60} />}
       {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
       <Shockwave color={color} />
       {win && <Shockwave color={C.accent} delay={100} />}
@@ -299,6 +309,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
       <Confetti type={ctype} />
       <View style={{flex:1,justifyContent:'center'}}>
         <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
+        <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
         <Text style={st.payLabel}>Practice Mode</Text>
         <View style={st.resultCard}>
@@ -328,8 +339,11 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
           <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.draw}]}>{rec.draws}</Text><Text style={st.miniStatLabel}>DRAWS</Text></View>
           <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.lose}]}>{rec.losses}</Text><Text style={st.miniStatLabel}>LOSSES</Text></View>
         </View>
+        </Animated.View>
+        <Animated.View style={{ opacity:btnsA }} pointerEvents={ready?'auto':'none'}>
         <View style={{ width:'100%', alignItems:'center', marginTop:18 }}><GlossyButton label="RUN IT BACK" onPress={playAgain} small /></View>
         <Pressable style={st.ghost} onPress={goHome}><Text style={st.ghostText}>Home</Text></Pressable>
+        </Animated.View>
       </View>
     </View>);
   }
