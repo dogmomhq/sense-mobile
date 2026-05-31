@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Polygon, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -251,7 +251,7 @@ export default function App() {
           </View>
         )}
       </ScrollView>
-      <View style={st.nav}><NavBtn label="Home" active={tab==='home'} onPress={()=>setTab('home')} /><NavBtn label="Profile" active={tab==='profile'} onPress={()=>setTab('profile')} /></View>
+      <View style={st.nav}><NavBtn label="Play" icon="play" active={tab==='home'} onPress={()=>setTab('home')} /><NavBtn label="Profile" icon="profile" active={tab==='profile'} onPress={()=>setTab('profile')} /></View>
     </>);
   }
 
@@ -365,7 +365,8 @@ function GlossyButton({ label, onPress, small }) {
 }
 function streak(h){ let n=0; for(let i=h.length-1;i>=0&&h[i];i--)n++; return n; }
 function Stat({ label, value }){ return (<View style={st.stat}><Text style={st.statVal}>{value}</Text><Text style={st.statLabel}>{label}</Text></View>); }
-function NavBtn({ label, active, onPress }){ return (<Pressable style={st.navBtn} onPress={onPress}><Text style={[st.navText, active&&{color:C.accent,fontFamily:F.x}]}>{label}</Text></Pressable>); }
+function NavIcon({ type, color }){ return (<Svg width={22} height={22} viewBox="0 0 24 24" fill={color}>{type==='play' ? <Polygon points="6 3 20 12 6 21" /> : <><Circle cx={12} cy={8} r={4.5} /><Path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" /></>}</Svg>); }
+function NavBtn({ label, icon, active, onPress }){ const c = active?C.accent:C.text2; return (<Pressable style={st.navBtn} onPress={onPress}><NavIcon type={icon} color={c} /><Text style={[st.navText,{color:c}, active&&{fontFamily:F.x}]}>{label}</Text></Pressable>); }
 
 const st = StyleSheet.create({
   playHeader:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,marginTop:14}, pnameSm:{fontSize:11,color:C.text2,fontFamily:'Courier New'}, vsTiny:{fontSize:8,color:C.text2,opacity:0.4,letterSpacing:1,textTransform:'uppercase'},
@@ -393,5 +394,5 @@ const st = StyleSheet.create({
   screenTitle:{fontSize:28,fontFamily:F.k,color:C.text,marginBottom:18},
   statGrid:{flexDirection:'row',justifyContent:'space-between',marginBottom:12}, stat:{backgroundColor:C.card,borderRadius:16,paddingVertical:20,flex:1,marginHorizontal:4,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:8,shadowOffset:{width:0,height:2}}, statVal:{fontSize:24,fontFamily:F.k,color:C.accent}, statLabel:{fontSize:12,color:C.text2,marginTop:4,fontFamily:F.m},
   toggleRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:C.card,borderRadius:16,padding:18,marginTop:8}, toggleLabel:{fontSize:16,fontFamily:F.x,color:C.text}, toggle:{width:50,height:30,borderRadius:15,backgroundColor:'#D6D8E3',padding:3,justifyContent:'center'}, knob:{width:24,height:24,borderRadius:12,backgroundColor:'#fff'},
-  nav:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:'rgba(255,255,255,0.95)',borderTopWidth:1,borderTopColor:C.border,paddingVertical:14,paddingBottom:28}, navBtn:{flex:1,alignItems:'center'}, navText:{fontSize:14,color:C.text2,fontFamily:F.b},
+  nav:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:'rgba(255,255,255,0.95)',borderTopWidth:1,borderTopColor:C.border,paddingVertical:14,paddingBottom:28}, navBtn:{flex:1,alignItems:'center'}, navText:{fontSize:10,color:C.text2,fontFamily:F.s,marginTop:3,letterSpacing:0.3},
 });
