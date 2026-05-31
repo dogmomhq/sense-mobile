@@ -13,7 +13,6 @@ const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background
 const CIRC54 = 2 * Math.PI * 54;
 function hap(style) { try { Haptics.impactAsync(style); } catch (e) {} }
 
-// ── Dynamic banner text (ported verbatim from web Results.jsx) ──
 const BANNERS = {
   win_blowout:["DESTROYED","WRECKED","NOT EVEN CLOSE"], win_comfortable:["LET'S GO","EASY MONEY","TOO FAST"],
   win_photo:["BY A HAIR","BARELY","CLUTCH"], win_opp_wrong:["BUILT DIFFERENT","KNOWLEDGE","BRAIN > SPEED"],
@@ -40,12 +39,12 @@ function Particle({ color, delay }) {
   const translateY = t.interpolate({inputRange:[0,0.45,1],outputRange:[0,up,up+fall]});
   const opacity = t.interpolate({inputRange:[0,0.75,1],outputRange:[1,1,0]});
   const rotate = t.interpolate({inputRange:[0,1],outputRange:['0deg',rot+'deg']});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:'50%', top:'46%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:1, opacity, transform:[{translateX},{translateY},{rotate}] }} />;
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:'50%', top:'44%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:1, opacity, transform:[{translateX},{translateY},{rotate}] }} />;
 }
 function Confetti({ type }) {
-  const pal = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#fff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#fff'] };
-  const colors = pal[type] || pal.draw, n = type==='win'?80:type==='draw'?32:20;
-  const parts = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*120}))).current;
+  const pal = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#fff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#ddd','#fff'] };
+  const colors = pal[type] || pal.draw, n = type==='win'?100:type==='draw'?35:20;
+  const parts = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*140}))).current;
   return <>{parts.map((p,i)=><Particle key={i} {...p} />)}</>;
 }
 function Shockwave({ color, delay=0 }) {
@@ -54,10 +53,16 @@ function Shockwave({ color, delay=0 }) {
   const scale = t.interpolate({inputRange:[0,1],outputRange:[0.1,5]}), opacity = t.interpolate({inputRange:[0,1],outputRange:[0.7,0]});
   return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:90, height:90, marginLeft:-45, marginTop:-45, borderRadius:45, borderWidth:3, borderColor:color, opacity, transform:[{scale}] }} />;
 }
-function Flash({ color }) {
+function Flash({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.sequence([Animated.timing(t,{toValue:1,duration:60,useNativeDriver:true}),Animated.timing(t,{toValue:0,duration:320,useNativeDriver:true})]).start(); }, []);
+  useEffect(() => { Animated.sequence([Animated.delay(delay),Animated.timing(t,{toValue:1,duration:60,useNativeDriver:true}),Animated.timing(t,{toValue:0,duration:320,useNativeDriver:true})]).start(); }, []);
   return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{ backgroundColor:color, opacity:t }]} />;
+}
+function RedPulse() {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(t,{toValue:1,duration:800,useNativeDriver:true}).start(); }, []);
+  const scale = t.interpolate({inputRange:[0,0.25,1],outputRange:[0.3,1,2]}), opacity = t.interpolate({inputRange:[0,0.25,1],outputRange:[0,1,0]});
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:120, height:120, marginLeft:-60, marginTop:-60, borderRadius:60, backgroundColor:'rgba(239,68,68,0.4)', opacity, transform:[{scale}] }} />;
 }
 function Countdown({ onDone }) {
   const [n, setN] = useState(3); const scale = useRef(new Animated.Value(1.8)).current;
@@ -68,11 +73,45 @@ function Countdown({ onDone }) {
     let timer = setTimeout(tick,800); return () => clearTimeout(timer);
   }, []);
   return (<View style={[StyleSheet.absoluteFill,{ zIndex:200 }]}>
-    <ImageBackground source={{uri:BG}} resizeMode="cover" style={{ flex:1, backgroundColor:C.page, alignItems:'center', justifyContent:'center' }}>
-      <Animated.Text style={{ fontSize:120, fontFamily:F.k, color:C.accent, transform:[{scale}], textShadowColor:'rgba(108,99,255,0.25)', textShadowRadius:40 }}>{n}</Animated.Text>
-      <Text style={{ color:C.text2, fontFamily:F.s, letterSpacing:2, marginTop:8, textTransform:'uppercase' }}>GET READY</Text>
-    </ImageBackground>
+    <View style={{ flex:1, backgroundColor:'#fff', alignItems:'center', justifyContent:'center' }}>
+      <Animated.Text style={{ fontSize:120, fontFamily:F.b, color:C.accent, transform:[{scale}], textShadowColor:'rgba(108,99,255,0.25)', textShadowRadius:40 }}>{n}</Animated.Text>
+      <Text style={{ fontSize:18, color:C.text2, fontFamily:F.m, letterSpacing:2, marginTop:16, textTransform:'uppercase' }}>Get Ready</Text>
+    </View>
   </View>);
+}
+
+function TimeRace({ myT, oppT, onDone }) {
+  const myS = myT/1000, oppS = oppT/1000, maxS = Math.max(myS, oppS, 0.01);
+  const [t1, setT1] = useState(0); const [t2, setT2] = useState(0); const [gap, setGap] = useState('');
+  const w1 = useRef(new Animated.Value(0)).current, w2 = useRef(new Animated.Value(0)).current, shake = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(w1,{toValue:myS/maxS,duration:2000,useNativeDriver:false}).start();
+    Animated.timing(w2,{toValue:oppS/maxS,duration:2000,useNativeDriver:false}).start();
+    Animated.loop(Animated.sequence([Animated.timing(shake,{toValue:1,duration:60,useNativeDriver:true}),Animated.timing(shake,{toValue:-1,duration:60,useNativeDriver:true})])).start();
+    const dur=2000, stp=25; let el=0; let gShown=false;
+    const iv = setInterval(() => {
+      el += stp; const p = Math.min(el/dur,1); const dm = maxS*p*1.1;
+      setT1(Math.min(dm,myS)); setT2(Math.min(dm,oppS));
+      if (!gShown && p>=1) { setGap(myS===oppS?'EXACT SAME TIME':`+${Math.abs(myS-oppS).toFixed(2)}s gap`); gShown=true; }
+      if (el>=dur) { clearInterval(iv); shake.stopAnimation(()=>shake.setValue(0)); setT1(myS); setT2(oppS); hap(Haptics.ImpactFeedbackStyle.Heavy); setTimeout(onDone,700); }
+    }, stp);
+    return () => clearInterval(iv);
+  }, []);
+  const tx = shake.interpolate({inputRange:[-1,1],outputRange:[-6,6]});
+  const myWin = myS < oppS, oppWin = oppS < myS;
+  return (
+    <Animated.View style={{ flex:1, justifyContent:'center', transform:[{translateX:tx}] }}>
+      <Text style={st.raceLabel}>{myS===oppS?'COMPARING TIMES...':'WHO WAS FASTER?'}</Text>
+      <View style={st.raceTimes}>
+        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>YOU</Text><Text style={[st.raceNum,{color:gap&&myWin?C.win:C.text}]}>{t1.toFixed(2)}s</Text></View>
+        <Text style={st.raceVs}>vs</Text>
+        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>COMPUTER</Text><Text style={[st.raceNum,{color:gap&&oppWin?C.win:C.text}]}>{t2.toFixed(2)}s</Text></View>
+      </View>
+      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:gap&&myWin?C.win:C.accent, width:w1.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:gap&&oppWin?C.win:C.accent, width:w2.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+      {gap ? <Text style={st.gap}>{gap}</Text> : null}
+    </Animated.View>
+  );
 }
 
 export default function App() {
@@ -88,10 +127,8 @@ export default function App() {
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState(null);
   const [comp, setComp] = useState(null);
-  const [phase, setPhase] = useState(0); // results: 0 reveal, 1 explode
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const fade = useRef(new Animated.Value(1)).current;
-  const phaseTimers = useRef([]);
 
   function fadeTo(next) { Animated.timing(fade,{toValue:0,duration:120,useNativeDriver:true}).start(); setTimeout(()=>{ next(); fade.setValue(0); Animated.timing(fade,{toValue:1,duration:150,useNativeDriver:true}).start(); },130); }
 
@@ -102,17 +139,7 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
 
-  // Results reveal orchestration (timer-driven, never gated on animation callbacks)
-  useEffect(() => {
-    if (mode !== 'results') return;
-    setPhase(0); hap(Haptics.ImpactFeedbackStyle.Medium);
-    const both = comp && picked === comp.correctIdxForResult; // not used; explode timing below
-    const t1 = setTimeout(() => { setPhase(1); hap(result.result === 'win' ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium); }, 1500);
-    phaseTimers.current = [t1];
-    return () => phaseTimers.current.forEach(clearTimeout);
-  }, [mode]);
-
-  function startRound(f) { setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+  function startRound(f) { try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { startRound(getPracticeQuestion(used)); }
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
@@ -123,7 +150,7 @@ export default function App() {
     setComp({ ...c, playerTime }); setResult(r);
     history.current = [...history.current, r.result === 'win'];
     setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
-    setTimeout(() => fadeTo(() => setMode('results')), 650);
+    setTimeout(() => fadeTo(() => setMode('results')), 800);
   }
   function playAgain() { const nu=[...used,q.questionIdx].slice(-10); setUsed(nu); startRound(getPracticeQuestion(nu)); }
   function goHome() { fadeTo(() => { setMode(null); setTab('home'); }); }
@@ -140,12 +167,12 @@ export default function App() {
     const themText = ans && comp ? (comp.isCorrect ? formatTime(comp.time) : 'Wrong') : '—';
     body = (<>
       <Brand sub="Practice vs Computer" />
-      <View style={st.qcard}><Image source={{uri:q.image}} style={st.qimage} resizeMode="cover" /><Text style={st.qtext}>{q.text}</Text></View>
+      <View style={st.qcard}><Image source={{uri:q.image}} style={st.qimage} resizeMode="contain" /><Text style={st.qtext}>{q.text}</Text></View>
       <View style={st.scoreRow}>
         <Text style={st.scoreSide} numberOfLines={1}>You: <Text style={st.scoreStrong}>{youText}</Text></Text>
         <View style={st.miniRing}>
           <Svg width={52} height={52} viewBox="0 0 120 120">
-            <Circle cx={60} cy={60} r={54} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={8} />
+            <Circle cx={60} cy={60} r={54} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={8} />
             <Circle cx={60} cy={60} r={54} fill="none" stroke={ringColor} strokeWidth={8} strokeDasharray={CIRC54} strokeDashoffset={CIRC54*progress} strokeLinecap="round" transform="rotate(-90 60 60)" />
           </Svg>
           <View style={st.miniRingTextWrap}><Text style={[st.miniRingText,{color:ringColor}]}>{ringText}</Text></View>
@@ -155,7 +182,7 @@ export default function App() {
       <View style={st.answerGrid}>
         {q.options.map((opt,i) => {
           let bg=C.card, bd=C.border, col=C.text;
-          if (ans){ if(i===q.correctIdx){bg='rgba(34,197,94,0.15)';bd=C.win;col='#166534';} else if(i===picked){bg='rgba(239,68,68,0.15)';bd=C.lose;col='#991B1B';} }
+          if (ans){ if(i===q.correctIdx){bg='rgba(0,212,170,0.18)';bd='#00D4AA';col='#0F766E';} else if(i===picked){bg='rgba(255,71,87,0.18)';bd='#FF4757';col='#991B1B';} }
           return <Pressable key={i} disabled={ans} onPress={()=>submit(i)} style={[st.gridBtn,{backgroundColor:bg,borderColor:bd}]}><Text style={[st.gridBtnText,{color:col}]}>{opt}</Text></Pressable>;
         })}
       </View>
@@ -164,9 +191,9 @@ export default function App() {
     const win = result.result==='win', draw = result.result==='draw';
     const color = win ? C.win : draw ? C.draw : C.lose;
     const myCorrect = picked === q.correctIdx, oppCorrect = comp.isCorrect;
-    const banner = (mode === 'results') ? pickBanner(result.result, myCorrect, oppCorrect, comp.playerTime, oppCorrect?comp.time:null) : '';
+    const banner = pickBanner(result.result, myCorrect, oppCorrect, comp.playerTime, oppCorrect?comp.time:null);
     const ctype = win ? 'win' : draw ? 'draw' : 'loss';
-    body = (<ResultsView {...{phase, win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome}} />);
+    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome}} />);
   } else {
     const played = rec.wins+rec.losses+rec.draws, acc = played ? Math.round(rec.wins/played*100) : 0;
     body = (<>
@@ -200,49 +227,74 @@ export default function App() {
   </ImageBackground>);
 }
 
-function ResultsView({ phase, win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome }) {
-  const bannerAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => { if (phase===1){ bannerAnim.setValue(0); Animated.spring(bannerAnim,{toValue:1,friction:5,tension:90,useNativeDriver:true}).start(); } }, [phase]);
+function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome }) {
+  const both = myCorrect && oppCorrect;
+  const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
+  const youA = useRef(new Animated.Value(0)).current, oppA = useRef(new Animated.Value(0)).current, bannerA = useRef(new Animated.Value(0)).current;
+  const timers = useRef([]);
   const myAns = picked === -1 ? 'Timed out' : q.options[picked];
   const oppAns = oppCorrect ? q.options[q.correctIdx] : 'Wrong';
-  const bScale = bannerAnim.interpolate({inputRange:[0,1],outputRange:[0.7,1]});
-  return (
-    <View style={{ flex:1 }}>
+
+  function explode() { setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium); bannerA.setValue(0); Animated.spring(bannerA,{toValue:1,friction:5,tension:90,useNativeDriver:true}).start(); }
+
+  useEffect(() => {
+    const t=(fn,ms)=>{ const id=setTimeout(fn,ms); timers.current.push(id); return id; };
+    Animated.spring(youA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium);
+    t(()=>Animated.spring(oppA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(), 600);
+    t(()=>{ setOppRevealed(true); hap(Haptics.ImpactFeedbackStyle.Light); }, 1500);
+    if (both) t(()=>setStep('race'), 2300); else t(()=>explode(), 2700);
+    return ()=>timers.current.forEach(clearTimeout);
+  }, []);
+
+  const trY = (a)=>({opacity:a, transform:[{translateY:a.interpolate({inputRange:[0,1],outputRange:[14,0]})}]});
+  if (step === 'race') return (<View style={{flex:1}}><Brand sub="Practice vs Computer" /><TimeRace myT={comp.playerTime} oppT={comp.time} onDone={explode} /></View>);
+  if (step === 'explode') {
+    const bScale = bannerA.interpolate({inputRange:[0,1],outputRange:[0.7,1]});
+    return (<View style={{flex:1}}>
       <Brand sub="Practice vs Computer" />
-      {phase === 0 ? (
-        <View style={{ flex:1, justifyContent:'center' }}>
-          <Text style={st.revealLabel}>YOUR ANSWER</Text>
-          <Text style={[st.revealAns,{color:myCorrect?C.win:C.lose}]}>{myAns}</Text>
-          <Text style={[st.revealStatus,{color:myCorrect?C.win:C.lose}]}>{myCorrect?'✓ CORRECT':'✕ WRONG'}</Text>
-          <View style={st.revealDivider} />
-          <Text style={st.revealLabel}>COMPUTER</Text>
-          <Text style={[st.revealAns,{color:oppCorrect?C.win:C.lose}]}>{oppAns}</Text>
-          <Text style={[st.revealStatus,{color:oppCorrect?C.win:C.lose}]}>{oppCorrect?'✓ CORRECT':'✕ WRONG'}</Text>
+      <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.28)':'rgba(239,68,68,0.42)'} />
+      {win && <Flash color="rgba(255,255,255,0.55)" delay={60} />}
+      {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
+      <Shockwave color={color} />
+      {win && <Shockwave color={C.accent} delay={100} />}
+      {win && <Shockwave color={C.draw} delay={200} />}
+      {!win && !draw && <RedPulse />}
+      <Confetti type={ctype} />
+      <View style={{flex:1,justifyContent:'center'}}>
+        <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{scale:bScale}] }]}>{banner}</Animated.Text>
+        <View style={st.rowCard}>
+          <View style={st.rowItem}><Text style={st.rowLabel}>YOU</Text><Text style={[st.rowAns,{color:myCorrect?C.win:C.lose}]} numberOfLines={1}>{myAns}</Text><Text style={st.rowVal}>{picked===-1?'—':formatTime(comp.playerTime)}</Text></View>
+          <View style={st.divider} />
+          <View style={st.rowItem}><Text style={st.rowLabel}>COMPUTER</Text><Text style={[st.rowAns,{color:oppCorrect?C.win:C.lose}]} numberOfLines={1}>{oppAns}</Text><Text style={st.rowVal}>{oppCorrect?formatTime(comp.time):'—'}</Text></View>
         </View>
-      ) : (
-        <View style={{ flex:1 }}>
-          {phase===1 && <Flash color={win?'rgba(34,197,94,0.30)':draw?'rgba(245,158,11,0.28)':'rgba(239,68,68,0.4)'} />}
-          {phase===1 && <Shockwave color={color} />}
-          {phase===1 && win && <Shockwave color={C.accent} delay={100} />}
-          {phase===1 && <Confetti type={ctype} />}
-          <Animated.Text style={[st.banner,{ color, opacity:bannerAnim, transform:[{scale:bScale}] }]}>{banner}</Animated.Text>
-          <View style={st.rowCard}>
-            <View style={st.rowItem}><Text style={st.rowLabel}>YOU</Text><Text style={[st.rowAns,{color:myCorrect?C.win:C.lose}]} numberOfLines={1}>{myAns}</Text><Text style={st.rowVal}>{picked===-1?'—':formatTime(comp.playerTime)}</Text></View>
-            <View style={st.divider} />
-            <View style={st.rowItem}><Text style={st.rowLabel}>COMPUTER</Text><Text style={[st.rowAns,{color:oppCorrect?C.win:C.lose}]} numberOfLines={1}>{oppAns}</Text><Text style={st.rowVal}>{oppCorrect?formatTime(comp.time):'—'}</Text></View>
-          </View>
-          <Text style={st.correct}>Correct: <Text style={{fontFamily:F.x,color:'#166534'}}>{q.options[q.correctIdx]}</Text></Text>
-          <View style={st.statsRow}>
-            <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.win}]}>{rec.wins}</Text><Text style={st.miniStatLabel}>WINS</Text></View>
-            <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.draw}]}>{rec.draws}</Text><Text style={st.miniStatLabel}>DRAWS</Text></View>
-            <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.lose}]}>{rec.losses}</Text><Text style={st.miniStatLabel}>LOSSES</Text></View>
-          </View>
-          <View style={{ width:'100%', alignItems:'center', marginTop:18 }}><GlossyButton label="RUN IT BACK" onPress={playAgain} small /></View>
-          <Pressable style={st.ghost} onPress={goHome}><Text style={st.ghostText}>Home</Text></Pressable>
+        <Text style={st.correct}>Correct: <Text style={{fontFamily:F.x,color:'#166534'}}>{q.options[q.correctIdx]}</Text></Text>
+        <View style={st.statsRow}>
+          <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.win}]}>{rec.wins}</Text><Text style={st.miniStatLabel}>WINS</Text></View>
+          <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.draw}]}>{rec.draws}</Text><Text style={st.miniStatLabel}>DRAWS</Text></View>
+          <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.lose}]}>{rec.losses}</Text><Text style={st.miniStatLabel}>LOSSES</Text></View>
         </View>
-      )}
+        <View style={{ width:'100%', alignItems:'center', marginTop:18 }}><GlossyButton label="RUN IT BACK" onPress={playAgain} small /></View>
+        <Pressable style={st.ghost} onPress={goHome}><Text style={st.ghostText}>Home</Text></Pressable>
+      </View>
+    </View>);
+  }
+  // reveal step
+  return (<View style={{flex:1}}>
+    <Brand sub="Practice vs Computer" />
+    <View style={{flex:1,justifyContent:'center'}}>
+      <Animated.View style={trY(youA)}>
+        <Text style={st.revealLabel}>YOUR ANSWER</Text>
+        <Text style={[st.revealAns,{color:myCorrect?C.win:C.lose}]}>{myAns}</Text>
+        <Text style={[st.revealStatus,{color:myCorrect?C.win:C.lose}]}>{myCorrect?'✓ CORRECT':'✕ WRONG'}</Text>
+      </Animated.View>
+      <View style={st.revealDivider} />
+      <Animated.View style={trY(oppA)}>
+        <Text style={st.revealLabel}>COMPUTER</Text>
+        <Text style={[st.revealAns,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?oppAns:'???'}</Text>
+        <Text style={[st.revealStatus,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?(oppCorrect?'✓ CORRECT':'✕ WRONG'):'...'}</Text>
+      </Animated.View>
     </View>
-  );
+  </View>);
 }
 
 function GlossyButton({ label, onPress, small }) {
@@ -265,13 +317,15 @@ const st = StyleSheet.create({
   glossyHi:{position:'absolute',top:0,left:0,right:0,height:'50%',backgroundColor:'rgba(255,255,255,0.13)'}, glossyText:{color:'#fff',fontSize:22,fontFamily:F.k,letterSpacing:3},
   note:{color:C.text2,fontSize:12,marginTop:22,textAlign:'center',fontFamily:F.m},
   qcard:{backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:14,padding:14,marginTop:14,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
-  qimage:{width:'100%',height:190,borderRadius:8}, qtext:{fontSize:17,fontFamily:F.s,color:C.text,marginTop:12,textAlign:'center',lineHeight:23},
+  qimage:{width:'100%',height:200,borderRadius:8,backgroundColor:'rgba(108,99,255,0.04)'}, qtext:{fontSize:17,fontFamily:F.s,color:C.text,marginTop:12,textAlign:'center',lineHeight:23},
   scoreRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',marginTop:8,marginBottom:10}, scoreSide:{flex:1,fontSize:12,color:C.text2,fontFamily:'Courier New'}, scoreStrong:{color:C.accent,fontFamily:'Courier New',fontWeight:'700'},
   miniRing:{width:52,height:52,alignItems:'center',justifyContent:'center',marginHorizontal:6}, miniRingTextWrap:{position:'absolute',alignItems:'center',justifyContent:'center'}, miniRingText:{fontSize:11,fontWeight:'700',fontVariant:['tabular-nums']},
-  answerGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'}, gridBtn:{width:'48.5%',borderWidth:1.5,borderRadius:12,paddingVertical:16,paddingHorizontal:8,marginBottom:9,alignItems:'center'}, gridBtnText:{fontSize:14,fontFamily:F.s,textAlign:'center'},
+  answerGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'}, gridBtn:{width:'48.5%',borderWidth:1,borderRadius:12,paddingVertical:14,paddingHorizontal:12,marginBottom:8,alignItems:'center'}, gridBtnText:{fontSize:14,fontFamily:F.s,textAlign:'center'},
   revealLabel:{fontSize:12,color:C.text2,letterSpacing:2,fontFamily:F.s,textAlign:'center',marginTop:10}, revealAns:{fontSize:30,fontFamily:F.k,textAlign:'center',marginTop:6}, revealStatus:{fontSize:14,fontFamily:F.x,textAlign:'center',marginTop:4},
   revealDivider:{height:1,backgroundColor:C.border,marginVertical:22,marginHorizontal:40},
-  banner:{fontSize:34,fontFamily:F.k,textAlign:'center',marginTop:24,marginBottom:6}, 
+  raceLabel:{fontSize:14,color:C.text2,letterSpacing:2,fontFamily:F.x,textAlign:'center',marginBottom:18}, raceTimes:{flexDirection:'row',alignItems:'center',marginBottom:14}, raceName:{fontSize:11,color:C.text2,letterSpacing:1,fontFamily:F.s}, raceNum:{fontSize:26,fontFamily:F.k,marginTop:4,fontVariant:['tabular-nums']}, raceVs:{color:C.text2,fontFamily:F.s,marginHorizontal:6},
+  barTrack:{height:10,backgroundColor:'rgba(0,0,0,0.06)',borderRadius:5,marginVertical:5,overflow:'hidden'}, barFill:{height:10,borderRadius:5}, gap:{textAlign:'center',marginTop:14,fontSize:16,fontFamily:F.x,color:C.text},
+  banner:{fontSize:34,fontFamily:F.k,textAlign:'center',marginBottom:6},
   rowCard:{flexDirection:'row',backgroundColor:C.card,borderRadius:16,paddingVertical:18,marginTop:14,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
   rowItem:{flex:1,alignItems:'center',paddingHorizontal:6}, divider:{width:1,height:48,backgroundColor:C.border}, rowLabel:{fontSize:11,color:C.text2,letterSpacing:1.5,fontFamily:F.s}, rowAns:{fontSize:13,fontFamily:F.b,marginTop:5}, rowVal:{fontSize:18,fontFamily:F.k,color:C.text,marginTop:3},
   correct:{textAlign:'center',marginTop:16,fontSize:15,color:'#374151',fontFamily:F.m},
