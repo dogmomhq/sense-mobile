@@ -3,6 +3,7 @@ import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView
 import Svg, { Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime } from './gameEngine.js';
 
@@ -64,12 +65,18 @@ function RedPulse() {
   const scale = t.interpolate({inputRange:[0,0.25,1],outputRange:[0.3,1,2]}), opacity = t.interpolate({inputRange:[0,0.25,1],outputRange:[0,1,0]});
   return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:120, height:120, marginLeft:-60, marginTop:-60, borderRadius:60, backgroundColor:'rgba(239,68,68,0.4)', opacity, transform:[{scale}] }} />;
 }
+function WrongStamp() {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.spring(a,{toValue:1,friction:4,tension:140,useNativeDriver:true}).start(); hap(Haptics.ImpactFeedbackStyle.Medium); }, []);
+  const scale = a.interpolate({inputRange:[0,1],outputRange:[2.6,1]}), rotate = a.interpolate({inputRange:[0,1],outputRange:['-34deg','-12deg']});
+  return <Animated.Text pointerEvents="none" style={{ position:'absolute', alignSelf:'center', top:0, fontSize:96, color:'rgba(239,68,68,0.85)', fontFamily:F.k, opacity:a, transform:[{scale},{rotate}] }}>✕</Animated.Text>;
+}
 function Countdown({ onDone }) {
   const [n, setN] = useState(3); const scale = useRef(new Animated.Value(1.8)).current;
   useEffect(() => {
     let cur = 3; const pulse = () => { scale.setValue(1.8); Animated.timing(scale,{toValue:0.95,duration:600,useNativeDriver:true}).start(); };
-    pulse(); hap(Haptics.ImpactFeedbackStyle.Light);
-    const tick = () => { cur--; if (cur>0){ setN(cur); pulse(); hap(Haptics.ImpactFeedbackStyle.Light); timer = setTimeout(tick,800); } else { onDone(); } };
+    pulse();
+    const tick = () => { cur--; if (cur>0){ setN(cur); pulse(); timer = setTimeout(tick,800); } else { onDone(); } };
     let timer = setTimeout(tick,800); return () => clearTimeout(timer);
   }, []);
   return (<View style={[StyleSheet.absoluteFill,{ zIndex:200 }]}>
@@ -82,34 +89,39 @@ function Countdown({ onDone }) {
 
 function TimeRace({ myT, oppT, onDone }) {
   const myS = myT/1000, oppS = oppT/1000, maxS = Math.max(myS, oppS, 0.01);
-  const [t1, setT1] = useState(0); const [t2, setT2] = useState(0); const [gap, setGap] = useState('');
+  const same = myS === oppS, myWin = myS < oppS;
+  const [t1, setT1] = useState(0); const [t2, setT2] = useState(0); const [gap, setGap] = useState(''); const [done, setDone] = useState(false);
   const w1 = useRef(new Animated.Value(0)).current, w2 = useRef(new Animated.Value(0)).current, shake = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(w1,{toValue:myS/maxS,duration:2000,useNativeDriver:false}).start();
     Animated.timing(w2,{toValue:oppS/maxS,duration:2000,useNativeDriver:false}).start();
-    Animated.loop(Animated.sequence([Animated.timing(shake,{toValue:1,duration:60,useNativeDriver:true}),Animated.timing(shake,{toValue:-1,duration:60,useNativeDriver:true})])).start();
+    Animated.loop(Animated.sequence([Animated.timing(shake,{toValue:1,duration:55,useNativeDriver:true}),Animated.timing(shake,{toValue:-1,duration:55,useNativeDriver:true})])).start();
     const dur=2000, stp=25; let el=0; let gShown=false;
     const iv = setInterval(() => {
       el += stp; const p = Math.min(el/dur,1); const dm = maxS*p*1.1;
-      setT1(Math.min(dm,myS)); setT2(Math.min(dm,oppS));
-      if (!gShown && p>=1) { setGap(myS===oppS?'EXACT SAME TIME':`+${Math.abs(myS-oppS).toFixed(2)}s gap`); gShown=true; }
-      if (el>=dur) { clearInterval(iv); shake.stopAnimation(()=>shake.setValue(0)); setT1(myS); setT2(oppS); hap(Haptics.ImpactFeedbackStyle.Heavy); setTimeout(onDone,700); }
+      const c1 = Math.min(dm,myS), c2 = Math.min(dm,oppS); setT1(c1); setT2(c2);
+      if (!gShown) { // reveal gap the instant the faster side locks while the other still climbs
+        if (c1 >= myS && c2 < oppS) { setGap(same?'EXACT SAME TIME':`+${(oppS-myS).toFixed(2)}s gap`); gShown=true; hap(Haptics.ImpactFeedbackStyle.Light); }
+        else if (c2 >= oppS && c1 < myS) { setGap(`+${(myS-oppS).toFixed(2)}s gap`); gShown=true; hap(Haptics.ImpactFeedbackStyle.Light); }
+      }
+      if (el>=dur) { clearInterval(iv); shake.stopAnimation(()=>shake.setValue(0)); setT1(myS); setT2(oppS); if(same) setGap('EXACT SAME TIME'); setDone(true); hap(Haptics.ImpactFeedbackStyle.Heavy); setTimeout(onDone,700); }
     }, stp);
     return () => clearInterval(iv);
   }, []);
   const tx = shake.interpolate({inputRange:[-1,1],outputRange:[-6,6]});
-  const myWin = myS < oppS, oppWin = oppS < myS;
+  const c1col = done ? (same?C.draw:(myWin?C.win:C.text2)) : C.text;
+  const c2col = done ? (same?C.draw:(!myWin?C.win:C.text2)) : C.text;
   return (
     <Animated.View style={{ flex:1, justifyContent:'center', transform:[{translateX:tx}] }}>
-      <Text style={st.raceLabel}>{myS===oppS?'COMPARING TIMES...':'WHO WAS FASTER?'}</Text>
+      <Text style={st.raceLabel}>{same?'COMPARING TIMES...':'WHO WAS FASTER?'}</Text>
       <View style={st.raceTimes}>
-        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>YOU</Text><Text style={[st.raceNum,{color:gap&&myWin?C.win:C.text}]}>{t1.toFixed(2)}s</Text></View>
+        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>YOU</Text><Text style={[st.raceNum,{color:c1col}]}>{t1.toFixed(2)}s</Text></View>
         <Text style={st.raceVs}>vs</Text>
-        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>COMPUTER</Text><Text style={[st.raceNum,{color:gap&&oppWin?C.win:C.text}]}>{t2.toFixed(2)}s</Text></View>
+        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>COMPUTER</Text><Text style={[st.raceNum,{color:c2col}]}>{t2.toFixed(2)}s</Text></View>
       </View>
-      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:gap&&myWin?C.win:C.accent, width:w1.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
-      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:gap&&oppWin?C.win:C.accent, width:w2.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
-      {gap ? <Text style={st.gap}>{gap}</Text> : null}
+      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:c1col===C.text2?'#C9CDD8':(done&&myWin?C.win:C.accent), width:w1.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+      <View style={st.barTrack}><Animated.View style={[st.barFill,{backgroundColor:c2col===C.text2?'#C9CDD8':(done&&!myWin&&!same?C.win:C.accent), width:w2.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
+      {gap ? <Text style={[st.gap, same&&{color:C.draw}]}>{gap}</Text> : null}
     </Animated.View>
   );
 }
@@ -130,6 +142,10 @@ export default function App() {
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const fade = useRef(new Animated.Value(1)).current;
 
+  // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); } catch (e) {} })(); }, []);
+  useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
+
   function fadeTo(next) { Animated.timing(fade,{toValue:0,duration:120,useNativeDriver:true}).start(); setTimeout(()=>{ next(); fade.setValue(0); Animated.timing(fade,{toValue:1,duration:150,useNativeDriver:true}).start(); },130); }
 
   useEffect(() => {
@@ -139,8 +155,6 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
 
-  // Test harness (gated on ?test): trigger any result variant instantly to
-  // watch every reveal path live. e.g. window.__sense({result:'win',myCorrect:true,oppCorrect:true,myTime:800,oppTime:1400}) -> both-correct time-race.
   useEffect(() => {
     if (typeof window === 'undefined' || !/[?&]test/.test(window.location.search || '')) return;
     window.__sense = (pp = {}) => {
@@ -154,8 +168,9 @@ export default function App() {
     };
   }, [q]);
 
+  function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
   function startRound(f) { try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
-  function startPractice() { startRound(getPracticeQuestion(used)); }
+  function startPractice() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
     const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now()-startRef.current, TIME_LIMIT);
@@ -164,10 +179,11 @@ export default function App() {
     const r = determinePracticeResult(idx, playerTime, c.answer, c.time, q.correctIdx);
     setComp({ ...c, playerTime }); setResult(r);
     history.current = [...history.current, r.result === 'win'];
+    try { AsyncStorage.setItem('sense_hist', JSON.stringify(history.current)); } catch (e) {}
     setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
     setTimeout(() => fadeTo(() => setMode('results')), 800);
   }
-  function playAgain() { const nu=[...used,q.questionIdx].slice(-10); setUsed(nu); startRound(getPracticeQuestion(nu)); }
+  function playAgain() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   function goHome() { fadeTo(() => { setMode(null); setTab('home'); }); }
 
   if (!fontsLoaded) return <View style={{ flex:1, backgroundColor:C.page }} />;
@@ -245,6 +261,7 @@ export default function App() {
 function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome }) {
   const both = myCorrect && oppCorrect;
   const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
+  const [youStamp, setYouStamp] = useState(false); const [oppStamp, setOppStamp] = useState(false);
   const youA = useRef(new Animated.Value(0)).current, oppA = useRef(new Animated.Value(0)).current, bannerA = useRef(new Animated.Value(0)).current;
   const timers = useRef([]);
   const myAns = picked === -1 ? 'Timed out' : q.options[picked];
@@ -254,9 +271,9 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
 
   useEffect(() => {
     const t=(fn,ms)=>{ const id=setTimeout(fn,ms); timers.current.push(id); return id; };
-    Animated.spring(youA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium);
-    t(()=>Animated.spring(oppA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(), 600);
-    t(()=>{ setOppRevealed(true); hap(Haptics.ImpactFeedbackStyle.Light); }, 1500);
+    t(()=>{ Animated.spring(youA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium); if(!myCorrect) t(()=>setYouStamp(true),400); }, 200);
+    t(()=>Animated.spring(oppA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(), 800);
+    t(()=>{ setOppRevealed(true); hap(Haptics.ImpactFeedbackStyle.Light); if(!oppCorrect) t(()=>setOppStamp(true),200); }, 1500);
     if (both) t(()=>setStep('race'), 2300); else t(()=>explode(), 2700);
     return ()=>timers.current.forEach(clearTimeout);
   }, []);
@@ -293,21 +310,26 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
       </View>
     </View>);
   }
-  // reveal step
   return (<View style={{flex:1}}>
     <Brand sub="Practice vs Computer" />
     <View style={{flex:1,justifyContent:'center'}}>
-      <Animated.View style={trY(youA)}>
-        <Text style={st.revealLabel}>YOUR ANSWER</Text>
-        <Text style={[st.revealAns,{color:myCorrect?C.win:C.lose}]}>{myAns}</Text>
-        <Text style={[st.revealStatus,{color:myCorrect?C.win:C.lose}]}>{myCorrect?'✓ CORRECT':'✕ WRONG'}</Text>
-      </Animated.View>
+      <View>
+        <Animated.View style={trY(youA)}>
+          <Text style={st.revealLabel}>YOUR ANSWER</Text>
+          <Text style={[st.revealAns,{color:myCorrect?C.win:C.lose}]}>{myAns}</Text>
+          <Text style={[st.revealStatus,{color:myCorrect?C.win:C.lose}]}>{myCorrect?'✓ CORRECT':'✕ WRONG'}</Text>
+        </Animated.View>
+        {youStamp && <WrongStamp />}
+      </View>
       <View style={st.revealDivider} />
-      <Animated.View style={trY(oppA)}>
-        <Text style={st.revealLabel}>COMPUTER</Text>
-        <Text style={[st.revealAns,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?oppAns:'???'}</Text>
-        <Text style={[st.revealStatus,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?(oppCorrect?'✓ CORRECT':'✕ WRONG'):'...'}</Text>
-      </Animated.View>
+      <View>
+        <Animated.View style={trY(oppA)}>
+          <Text style={st.revealLabel}>COMPUTER</Text>
+          <Text style={[st.revealAns,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?oppAns:'???'}</Text>
+          <Text style={[st.revealStatus,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?(oppCorrect?'✓ CORRECT':'✕ WRONG'):'...'}</Text>
+        </Animated.View>
+        {oppStamp && <WrongStamp />}
+      </View>
     </View>
   </View>);
 }
