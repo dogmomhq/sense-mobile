@@ -39,6 +39,12 @@ const fs = require('fs');
   await page.waitForTimeout(3150); // explode(2800)+~350ms: burst done, banner springing in, card(+580)/buttons(+980) still hidden
   await shot('09_explode_mid');
 
+  // explosion SEQUENCE — rapid frames through the whole explosion for frame-by-frame motion comparison vs web
+  await fresh();
+  await page.evaluate(() => window.__sense({ result: 'win', myCorrect: true, oppCorrect: false, myTime: 900 }));
+  await page.waitForTimeout(2800); // reveal -> explode start (flash t0)
+  for (let k = 0; k < 16; k++) { await shot('11_exp_' + String(k).padStart(2, '0')); await page.waitForTimeout(70); }
+
   // both-correct time-race. Reveal hands off to the race at 2400ms, then the
   // race ticker runs 2000ms. Capture mid-fill (~1100ms in) and again once settled.
   await fresh();
