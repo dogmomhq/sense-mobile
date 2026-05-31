@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions } from 'react-native';
-// Skia only on native (Expo Go SDK56 bundles it); web falls back to the RN-View explosion so the snapshot/web build stays alive.
-let SK = null; if (Platform.OS !== 'web') { try { SK = require('@shopify/react-native-skia'); } catch (e) { SK = null; } }
+// Skia native (Expo Go SDK56 bundles it) AND web (CanvasKit loaded from CDN) so CI can capture the REAL Skia render.
+let SK = null; try { SK = require('@shopify/react-native-skia'); } catch (e) { SK = null; }
+let SKIA_READY = Platform.OS !== 'web';
+if (Platform.OS === 'web' && SK) {
+  import('@shopify/react-native-skia/lib/module/web')
+    .then(m => m.LoadSkiaWeb({ locateFile: (f) => 'https://cdn.jsdelivr.net/npm/canvaskit-wasm@0.41.0/bin/full/' + f }))
+    .then(() => { SKIA_READY = true; })
+    .catch(() => { SKIA_READY = false; });
+}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function ah(a){const v=Math.max(0,Math.min(255,Math.round(a*255)));return v.toString(16).padStart(2,'0');}
 import Svg, { Circle, Polygon, Path } from 'react-native-svg';
@@ -359,7 +366,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
       {win && <Flash color="rgba(255,255,255,0.6)" delay={60} />}
       {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
       {!win && !draw && <RedPulse />}
-      {SK ? <SkiaExplosion kind={ctype} /> : (<>
+      {(SK && SKIA_READY) ? <SkiaExplosion kind={ctype} /> : (<>
         <Shockwave color={color} />
         {win && <Shockwave color={C.accent} delay={100} />}
         {win && <Shockwave color={C.draw} delay={200} />}
