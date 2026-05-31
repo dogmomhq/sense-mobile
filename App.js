@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions } from 'react-native';
+// Skia only on native (Expo Go SDK56 bundles it); web falls back to the RN-View explosion so the snapshot/web build stays alive.
+let SK = null; if (Platform.OS !== 'web') { try { SK = require('@shopify/react-native-skia'); } catch (e) { SK = null; } }
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function ah(a){const v=Math.max(0,Math.min(255,Math.round(a*255)));return v.toString(16).padStart(2,'0');}
 import Svg, { Circle, Polygon, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -66,6 +70,30 @@ function Confetti({ type }) {
   const ups = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*100}))).current;
   const falls = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:360+Math.random()*500}))).current;
   return <>{ups.map((p,i)=><PUp key={'u'+i} {...p} />)}{falls.map((p,i)=><PFall key={'f'+i} {...p} />)}</>;
+}
+// NATIVE explosion drawn in Skia (deterministic, faithful primitives) — same math validated against web in explosion_ref.py.
+function SkiaExplosion({ kind }) {
+  const { width: w, height: h } = useWindowDimensions();
+  const parts = useRef(null);
+  if (!parts.current) {
+    const rng = mulberry32(1234);
+    const PAL = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#ffffff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#dddddd','#ffffff'] };
+    const pal = PAL[kind] || PAL.draw, n = kind==='win'?100:kind==='draw'?35:20;
+    const ups=[], grav=[];
+    for (let i=0;i<n;i++){ const dur=600+rng()*500; ups.push({size:5+rng()*9,dx:(rng()-0.5)*300,dy:-(100+rng()*240),dur,delay:rng()*100,col:pal[i%pal.length],sq:rng()>0.4}); grav.push({size:5+rng()*9,dx:(rng()-0.5)*220,dy:120+rng()*200,dur:800+rng()*600,delay:dur*0.6+rng()*200,x0:(30+rng()*40)/100,y0:(10+rng()*20)/100,col:pal[i%pal.length],sq:rng()>0.4}); }
+    parts.current={ups,grav};
+  }
+  const [t,setT]=useState(0);
+  useEffect(()=>{ let raf,start=Date.now(); const loop=()=>{ const e=Date.now()-start; setT(e); if(e<2600) raf=requestAnimationFrame(loop); }; raf=requestAnimationFrame(loop); return ()=>cancelAnimationFrame(raf); },[]);
+  const { Canvas, Circle, Rect } = SK;
+  const cx=w/2, upY=h*0.55, ringY=h*0.5;
+  const eo=p=>1-Math.pow(1-p,1.9), ei=p=>p*p;
+  const els=[];
+  const ringDefs = kind==='win'?[[0,'#22C55E'],[100,'#6C63FF'],[200,'#F59E0B']]:kind==='draw'?[[0,'#F59E0B']]:[[0,'#EF4444']];
+  ringDefs.forEach(([d,c],idx)=>{ const e=t-d; if(e>0&&e<700){ const p=e/700,ep=eo(p),scale=0.1+2.9*ep; els.push(<Circle key={'r'+idx} cx={cx} cy={ringY} r={30*scale} color={c+ah(0.8*(1-p))} style="stroke" strokeWidth={3*scale} />); } });
+  parts.current.ups.forEach((u,i)=>{ const e=t-u.delay; if(e<=0)return; const p=Math.min(e/u.dur,1),ep=eo(p); const op=p<=0.6?1:Math.max(0,1-(p-0.6)/0.4); if(op<=0)return; const sc=1+(0.3-1)*ep,x=cx+u.dx*ep,y=upY+u.dy*ep,ww=u.size*sc,hh=u.size*0.6*sc; els.push(u.sq?<Rect key={'u'+i} x={x-ww/2} y={y-hh/2} width={ww} height={hh} color={u.col+ah(op)} />:<Circle key={'u'+i} cx={x} cy={y} r={ww/2} color={u.col+ah(op)} />); });
+  parts.current.grav.forEach((g,i)=>{ const e=t-g.delay; if(e<=0)return; const p=Math.min(e/g.dur,1),ep=ei(p),op=Math.max(0,1-p); if(op<=0)return; const x=g.x0*w+g.dx*ep,y=g.y0*h+g.dy*ep,ww=g.size,hh=g.size*0.6; els.push(g.sq?<Rect key={'g'+i} x={x-ww/2} y={y-hh/2} width={ww} height={hh} color={g.col+ah(op)} />:<Circle key={'g'+i} cx={x} cy={y} r={ww/2} color={g.col+ah(op)} />); });
+  return <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">{els}</Canvas>;
 }
 function Shockwave({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
@@ -330,11 +358,13 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
       <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.3)':'rgba(239,68,68,0.45)'} />
       {win && <Flash color="rgba(255,255,255,0.6)" delay={60} />}
       {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
-      <Shockwave color={color} />
-      {win && <Shockwave color={C.accent} delay={100} />}
-      {win && <Shockwave color={C.draw} delay={200} />}
       {!win && !draw && <RedPulse />}
-      <Confetti type={ctype} />
+      {SK ? <SkiaExplosion kind={ctype} /> : (<>
+        <Shockwave color={color} />
+        {win && <Shockwave color={C.accent} delay={100} />}
+        {win && <Shockwave color={C.draw} delay={200} />}
+        <Confetti type={ctype} />
+      </>)}
       <View style={{flex:1,justifyContent:'center'}}>
         <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
         <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
