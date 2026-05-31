@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
-import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime } from './gameEngine.js';
+import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, generatePlayerName } from './gameEngine.js';
 
 const TIME_LIMIT = 10000;
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
@@ -87,7 +87,7 @@ function Countdown({ onDone }) {
   </View>);
 }
 
-function TimeRace({ myT, oppT, onDone }) {
+function TimeRace({ myT, oppT, oppName, onDone }) {
   const myS = myT/1000, oppS = oppT/1000, maxS = Math.max(myS, oppS, 0.01);
   const same = myS === oppS, myWin = myS < oppS;
   const [t1, setT1] = useState(0); const [t2, setT2] = useState(0); const [gap, setGap] = useState(''); const [done, setDone] = useState(false);
@@ -117,7 +117,7 @@ function TimeRace({ myT, oppT, onDone }) {
       <View style={st.raceTimes}>
         <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>YOU</Text><Text style={[st.raceNum,{color:c1col}]}>{t1.toFixed(2)}s</Text></View>
         <Text style={st.raceVs}>vs</Text>
-        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>COMPUTER</Text><Text style={[st.raceNum,{color:c2col}]}>{t2.toFixed(2)}s</Text></View>
+        <View style={{alignItems:'center',flex:1}}><Text style={st.raceName} numberOfLines={1}>{(oppName||'RIVAL').toUpperCase()}</Text><Text style={[st.raceNum,{color:c2col}]}>{t2.toFixed(2)}s</Text></View>
       </View>
       <View style={st.barRow}>
         <View style={st.barTrack}><Animated.View style={[st.barFillR,{backgroundColor:done?(myWin?C.win:C.accent):C.accent, width:w1.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]} /></View>
@@ -141,6 +141,7 @@ export default function App() {
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState(null);
   const [comp, setComp] = useState(null);
+  const [oppName, setOppName] = useState('Rival');
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const fade = useRef(new Animated.Value(1)).current;
 
@@ -166,12 +167,13 @@ export default function App() {
       setQ(qq); setPicked(picked);
       setComp({ answer: pp.oppCorrect ? ci : wrong, time: pp.oppTime ?? 1500, isCorrect: !!pp.oppCorrect, playerTime: pp.myTimeout ? TIME_LIMIT : (pp.myTime ?? 1200), correctIdx: ci });
       setResult({ result: pp.result || 'win', reason: '' });
+      setOppName(generatePlayerName());
       setCountdown(false); setMode('results');
     };
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+  function startRound(f) { setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
@@ -226,7 +228,7 @@ export default function App() {
     const myCorrect = picked === q.correctIdx, oppCorrect = comp.isCorrect;
     const banner = pickBanner(result.result, myCorrect, oppCorrect, comp.playerTime, oppCorrect?comp.time:null);
     const ctype = win ? 'win' : draw ? 'draw' : 'loss';
-    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome}} />);
+    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, oppName, playAgain, goHome}} />);
   } else {
     const played = rec.wins+rec.losses+rec.draws, acc = played ? Math.round(rec.wins/played*100) : 0;
     body = (<>
@@ -260,7 +262,7 @@ export default function App() {
   </ImageBackground>);
 }
 
-function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, playAgain, goHome }) {
+function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, oppName, playAgain, goHome }) {
   const both = myCorrect && oppCorrect;
   const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
   const [youStamp, setYouStamp] = useState(false); const [oppStamp, setOppStamp] = useState(false);
@@ -281,7 +283,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
   }, []);
 
   const trY = (a)=>({opacity:a, transform:[{translateY:a.interpolate({inputRange:[0,1],outputRange:[14,0]})}]});
-  if (step === 'race') return (<View style={{flex:1}}><Brand sub="Practice vs Computer" /><TimeRace myT={comp.playerTime} oppT={comp.time} onDone={explode} /></View>);
+  if (step === 'race') return (<View style={{flex:1}}><Brand sub="Practice vs Computer" /><TimeRace myT={comp.playerTime} oppT={comp.time} oppName={oppName} onDone={explode} /></View>);
   if (step === 'explode') {
     const bScale = bannerA.interpolate({inputRange:[0,1],outputRange:[0.7,1]});
     return (<View style={{flex:1}}>
@@ -299,7 +301,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
         <View style={st.rowCard}>
           <View style={st.rowItem}><Text style={st.rowLabel}>YOU</Text><Text style={[st.rowAns,{color:myCorrect?C.win:C.lose}]} numberOfLines={1}>{myAns}</Text><Text style={st.rowVal}>{picked===-1?'—':formatTime(comp.playerTime)}</Text></View>
           <View style={st.divider} />
-          <View style={st.rowItem}><Text style={st.rowLabel}>COMPUTER</Text><Text style={[st.rowAns,{color:oppCorrect?C.win:C.lose}]} numberOfLines={1}>{oppAns}</Text><Text style={st.rowVal}>{oppCorrect?formatTime(comp.time):'—'}</Text></View>
+          <View style={st.rowItem}><Text style={st.rowLabel} numberOfLines={1}>{(oppName||'RIVAL').toUpperCase()}</Text><Text style={[st.rowAns,{color:oppCorrect?C.win:C.lose}]} numberOfLines={1}>{oppAns}</Text><Text style={st.rowVal}>{oppCorrect?formatTime(comp.time):'—'}</Text></View>
         </View>
         <Text style={st.correct}>Correct: <Text style={{fontFamily:F.x,color:'#166534'}}>{q.options[q.correctIdx]}</Text></Text>
         <View style={st.statsRow}>
@@ -326,7 +328,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
       <View style={st.revealDivider} />
       <View>
         <Animated.View style={trY(oppA)}>
-          <Text style={st.revealLabel}>COMPUTER</Text>
+          <Text style={st.revealLabel}>{(oppName||'RIVAL').toUpperCase()}</Text>
           <Text style={[st.revealAns,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?oppAns:'???'}</Text>
           <Text style={[st.revealStatus,{color:oppRevealed?(oppCorrect?C.win:C.lose):C.text2}]}>{oppRevealed?(oppCorrect?'✓ CORRECT':'✕ WRONG'):'...'}</Text>
         </Animated.View>
