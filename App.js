@@ -156,7 +156,7 @@ export default function App() {
   }, [q, mode, countdown]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !/[?&]test/.test(window.location.search || '')) return;
+    if (typeof window === 'undefined' || !window.location || !/[?&]test/.test(window.location.search || '')) return;
     window.__sense = (pp = {}) => {
       const qq = q || getPracticeQuestion([]);
       const ci = qq.correctIdx, wrong = (ci + 1) % qq.options.length;
