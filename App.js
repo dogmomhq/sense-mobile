@@ -59,7 +59,7 @@ function PFall({ color, delay }) {
 }
 function Confetti({ type }) {
   const pal = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#fff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#ddd','#fff'] };
-  const colors = pal[type] || pal.draw, n = type==='win'?140:type==='draw'?48:30;
+  const colors = pal[type] || pal.draw, n = type==='win'?100:type==='draw'?35:20;
   // two stages like web: an up-burst AND a delayed gravity rain (~2x particles = more juice)
   const ups = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*100}))).current;
   const falls = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:300+Math.random()*450}))).current;
@@ -81,26 +81,6 @@ function RedPulse() {
   useEffect(() => { Animated.timing(t,{toValue:1,duration:800,useNativeDriver:true}).start(); }, []);
   const scale = t.interpolate({inputRange:[0,0.25,1],outputRange:[0.3,1,2]}), opacity = t.interpolate({inputRange:[0,0.25,1],outputRange:[0,1,0]});
   return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'50%', left:'50%', width:460, height:460, marginLeft:-230, marginTop:-230, borderRadius:230, backgroundColor:'rgba(239,68,68,0.28)', opacity, transform:[{scale}] }} />;
-}
-// ── Max-juice explosion extras (beyond web) ──
-function CoreBloom({ color='rgba(255,255,255,0.95)' }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.timing(t,{toValue:1,duration:380,easing:Easing.out(Easing.cubic),useNativeDriver:true}).start(); }, []);
-  const scale = t.interpolate({inputRange:[0,1],outputRange:[0.15,3.6]});
-  const opacity = t.interpolate({inputRange:[0,0.45,1],outputRange:[1,0.55,0]});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'44%', left:'50%', width:170, height:170, marginLeft:-85, marginTop:-85, borderRadius:85, backgroundColor:color, opacity, transform:[{scale}] }} />;
-}
-function Sparkle({ delay, color }) {
-  const t = useRef(new Animated.Value(0)).current;
-  const x = useRef((Math.random()-0.5)*340).current, y = useRef((Math.random()-0.5)*420).current, sz = useRef(4+Math.random()*5).current;
-  useEffect(() => { Animated.timing(t,{toValue:1,duration:480+Math.random()*420,delay,easing:Easing.out(Easing.quad),useNativeDriver:true}).start(); }, []);
-  const scale = t.interpolate({inputRange:[0,0.4,1],outputRange:[0,1.5,0]});
-  const opacity = t.interpolate({inputRange:[0,0.4,1],outputRange:[0,1,0]});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'46%', left:'50%', width:sz, height:sz, marginLeft:x, marginTop:y, borderRadius:sz/2, backgroundColor:color, opacity, transform:[{scale}] }} />;
-}
-function Sparkles({ n=20, color='#fff' }) {
-  const s = useRef([...Array(n)].map(()=>({delay:Math.random()*600}))).current;
-  return <>{s.map((p,i)=><Sparkle key={i} delay={p.delay} color={color} />)}</>;
 }
 function WrongStamp() {
   // web .cr-wrong-stamp: transition 0.25s cubic-bezier(0.34,1.56,0.64,1); scale 3->1 at fixed -12deg; opacity 0->0.9; 60px
@@ -348,18 +328,14 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
       <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.3)':'rgba(239,68,68,0.45)'} />
       {win && <Flash color="rgba(255,255,255,0.6)" delay={60} />}
       {win && <Flash color="rgba(34,197,94,0.25)" delay={150} />}
-      <CoreBloom color={win?'rgba(255,255,255,0.95)':draw?'rgba(245,158,11,0.6)':'rgba(239,68,68,0.6)'} />
       <Shockwave color={color} />
-      <Shockwave color={'rgba(255,255,255,0.9)'} delay={40} />
       {win && <Shockwave color={C.accent} delay={100} />}
       {win && <Shockwave color={C.draw} delay={200} />}
       {!win && !draw && <RedPulse />}
       <Confetti type={ctype} />
-      {win && <Sparkles n={22} color="#fff" />}
-      {win && <Sparkles n={10} color="#FDE68A" />}
       <View style={{flex:1,justifyContent:'center'}}>
         <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
-        <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})},{scale:cardA.interpolate({inputRange:[0,0.7,1],outputRange:[0.92,1.03,1]})}] }}>
+        <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
         <Text style={st.payLabel}>Practice Mode</Text>
         <View style={st.resultCard}>
