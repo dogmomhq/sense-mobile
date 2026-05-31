@@ -31,22 +31,39 @@ function pickBanner(result, myCorrect, oppCorrect, myTime, oppTime) {
   const m = BANNERS[k] || BANNERS.draw_both_wrong; return m[Math.floor(Math.random()*m.length)];
 }
 
-function Particle({ color, delay }) {
+// Stage 1 — upward burst from center (web .cr-confetti-up)
+function PUp({ color, delay }) {
   const t = useRef(new Animated.Value(0)).current;
-  const dx = useRef((Math.random()-0.5)*280).current, up = useRef(-(110+Math.random()*210)).current, fall = useRef(170+Math.random()*220).current;
-  const rot = useRef(Math.random()*720-360).current, sz = useRef(5+Math.random()*8).current;
-  useEffect(() => { Animated.timing(t,{toValue:1,duration:900+Math.random()*400,delay,useNativeDriver:true}).start(); }, []);
+  const dx = useRef((Math.random()-0.5)*300).current, dy = useRef(-(100+Math.random()*240)).current;
+  const rot = useRef(Math.random()*900-450).current, sz = useRef(5+Math.random()*9).current, round = useRef(Math.random()>0.4).current;
+  useEffect(() => { Animated.timing(t,{toValue:1,duration:600+Math.random()*500,delay,useNativeDriver:true}).start(); }, []);
   const translateX = t.interpolate({inputRange:[0,1],outputRange:[0,dx]});
-  const translateY = t.interpolate({inputRange:[0,0.45,1],outputRange:[0,up,up+fall]});
-  const opacity = t.interpolate({inputRange:[0,0.75,1],outputRange:[1,1,0]});
+  const translateY = t.interpolate({inputRange:[0,1],outputRange:[0,dy]});
+  const opacity = t.interpolate({inputRange:[0,0.6,1],outputRange:[1,1,0]});
+  const scale = t.interpolate({inputRange:[0,1],outputRange:[1,0.3]});
   const rotate = t.interpolate({inputRange:[0,1],outputRange:['0deg',rot+'deg']});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:'50%', top:'44%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:1, opacity, transform:[{translateX},{translateY},{rotate}] }} />;
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:'50%', top:'55%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:round?sz:1, opacity, transform:[{translateX},{translateY},{scale},{rotate}] }} />;
+}
+// Stage 2 — gravity rain from upper area, spawned after the burst (web .cr-confetti-gravity)
+function PFall({ color, delay }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const x0 = useRef(30+Math.random()*40).current, y0 = useRef(10+Math.random()*20).current;
+  const dx = useRef((Math.random()-0.5)*220).current, dy = useRef(120+Math.random()*200).current;
+  const rot = useRef(Math.random()*360).current, sz = useRef(5+Math.random()*9).current, round = useRef(Math.random()>0.4).current;
+  useEffect(() => { Animated.timing(t,{toValue:1,duration:800+Math.random()*600,delay,useNativeDriver:true}).start(); }, []);
+  const translateX = t.interpolate({inputRange:[0,1],outputRange:[0,dx]});
+  const translateY = t.interpolate({inputRange:[0,1],outputRange:[0,dy]});
+  const opacity = t.interpolate({inputRange:[0,1],outputRange:[1,0]});
+  const rotate = t.interpolate({inputRange:[0,1],outputRange:['0deg',rot+'deg']});
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:x0+'%', top:y0+'%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:round?sz:1, opacity, transform:[{translateX},{translateY},{rotate}] }} />;
 }
 function Confetti({ type }) {
   const pal = { win:['#22C55E','#6C63FF','#F59E0B','#00D4AA','#fff','#34D399','#A78BFA','#EC4899'], loss:['#EF4444','#991B1B','#7F1D1D','#6B7B94'], draw:['#F59E0B','#FBBF24','#6B7B94','#ddd','#fff'] };
   const colors = pal[type] || pal.draw, n = type==='win'?100:type==='draw'?35:20;
-  const parts = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*140}))).current;
-  return <>{parts.map((p,i)=><Particle key={i} {...p} />)}</>;
+  // two stages like web: an up-burst AND a delayed gravity rain (~2x particles = more juice)
+  const ups = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*100}))).current;
+  const falls = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:300+Math.random()*450}))).current;
+  return <>{ups.map((p,i)=><PUp key={'u'+i} {...p} />)}{falls.map((p,i)=><PFall key={'f'+i} {...p} />)}</>;
 }
 function Shockwave({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
@@ -400,8 +417,8 @@ const st = StyleSheet.create({
   answerGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'}, gridBtn:{width:'48.5%',borderWidth:1,borderRadius:12,paddingVertical:14,paddingHorizontal:12,marginBottom:8,alignItems:'center'}, gridBtnText:{fontSize:14,fontFamily:F.s,textAlign:'center'},
   revealLabel:{fontSize:12,color:C.text2,letterSpacing:2,fontFamily:F.s,textAlign:'center',marginTop:10}, revealAns:{fontSize:30,fontFamily:F.k,textAlign:'center',marginTop:6}, revealStatus:{fontSize:14,fontFamily:F.x,textAlign:'center',marginTop:4},
   revealDivider:{height:1,backgroundColor:C.border,marginVertical:22,marginHorizontal:40},
-  raceLabel:{fontSize:14,color:C.text2,letterSpacing:2,fontFamily:F.x,textAlign:'center',marginBottom:18}, raceTimes:{flexDirection:'row',alignItems:'center',marginBottom:14}, raceName:{fontSize:11,color:C.text2,letterSpacing:1,fontFamily:F.s}, raceNum:{fontSize:26,fontFamily:F.k,marginTop:4,fontVariant:['tabular-nums']}, raceVs:{color:C.text2,fontFamily:F.s,marginHorizontal:6},
-  barRow:{flexDirection:'row',height:8,marginTop:8}, barTrack:{flex:1,backgroundColor:C.border,borderRadius:4,overflow:'hidden',position:'relative',marginHorizontal:2}, barFillR:{position:'absolute',right:0,top:0,height:'100%',borderRadius:4}, barFillL:{position:'absolute',left:0,top:0,height:'100%',borderRadius:4}, gap:{textAlign:'center',marginTop:12,fontSize:13,fontFamily:F.b,color:C.text2},
+  raceLabel:{fontSize:11,color:C.text2,letterSpacing:2,fontFamily:F.b,textAlign:'center',marginBottom:12}, raceTimes:{flexDirection:'row',alignItems:'center',marginBottom:12}, raceName:{fontSize:10,color:C.text2,letterSpacing:0.5,fontFamily:F.b,marginBottom:3}, raceNum:{fontSize:24,fontFamily:F.k,fontVariant:['tabular-nums']}, raceVs:{fontSize:14,color:'#C7CDD9',fontFamily:F.k,marginHorizontal:8},
+  barRow:{flexDirection:'row',height:6,marginTop:2}, barTrack:{flex:1,backgroundColor:C.border,borderRadius:3,overflow:'hidden',position:'relative',marginHorizontal:2}, barFillR:{position:'absolute',right:0,top:0,height:'100%',borderRadius:3}, barFillL:{position:'absolute',left:0,top:0,height:'100%',borderRadius:3}, gap:{textAlign:'center',marginTop:8,fontSize:10,fontFamily:F.s,color:C.text2},
   banner:{fontSize:24,fontFamily:F.k,letterSpacing:2,textAlign:'center',marginBottom:6},
   payAmount:{fontSize:30,fontFamily:F.k,textAlign:'center',marginTop:2}, payLabel:{fontSize:10,color:C.text2,textAlign:'center',marginTop:1,marginBottom:8,fontFamily:F.s},
   resultCard:{backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:16,paddingVertical:4,paddingHorizontal:20,shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
