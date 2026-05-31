@@ -24,7 +24,7 @@ jobs:
           node-version: '20'
       - run: npm install --no-audit --no-fund
       - name: Add web dependencies (correct versions for this SDK)
-        run: npx expo install react-dom react-native-web @expo/metro-runtime react-native-svg expo-linear-gradient @expo-google-fonts/inter expo-font
+        run: npx expo install react-dom react-native-web @expo/metro-runtime react-native-svg expo-linear-gradient @expo-google-fonts/inter expo-font expo-haptics
       - name: Export static web build
         run: npx expo export --platform web --output-dir dist
       - name: Deploy to GitHub Pages
