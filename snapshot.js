@@ -16,8 +16,8 @@ const fs = require('fs');
   await fresh();
   await shot('01_home');
 
-  // Play screen (click RUN IT BACK, wait past the 3-2-1 countdown)
-  try { await page.getByText('RUN IT BACK').last().click({ timeout: 3000 }); } catch (e) {}
+  // Play screen (start a practice game, wait past the 3-2-1 countdown)
+  try { await page.getByText('Practice vs computer').last().click({ timeout: 3000 }); } catch (e) {}
   await page.waitForTimeout(3200);
   await shot('02_play');
 
