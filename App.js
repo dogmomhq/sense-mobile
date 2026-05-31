@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
 let SK = null; if (Platform.OS !== 'web') { try { SK = require('@shopify/react-native-skia'); } catch (e) { SK = null; } }
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -9,9 +9,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
-import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, generatePlayerName } from './gameEngine.js';
+import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, getReasonText, generatePlayerName } from './gameEngine.js';
 import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './websocket.js';
-import { queue, asyncAnswer, rttPong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
+import { queue, asyncAnswer, answer as roomAnswer, rttPong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
+import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 
 const TIME_LIMIT = 10000;
 const SERVER_WS = PREVIEW_SERVER_WS;
@@ -207,14 +208,26 @@ export default function App() {
   const [matchId, setMatchId] = useState(null);
   const [myTime, setMyTime] = useState(null);
   const [notice, setNotice] = useState(null);
+  // online/challenge parity state
+  const [onlineRec, setOnlineRec] = useState({ wins:0, losses:0, draws:0 });
+  const [matchLog, setMatchLog] = useState([]);      // settled online/challenge matches
+  const [pending, setPending] = useState({});         // matchId -> {opponent, myTime, ts}
+  const [banners, setBanners] = useState([]);         // background-result notifications
+  const [showActions, setShowActions] = useState(false); // play-screen Play Again/History/Home
+  const [challenge, setChallenge] = useState(null);   // challengeService snapshot
+  const [joinCode, setJoinCode] = useState('');
+  const [rematchReq, setRematchReq] = useState(false);
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
+  const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null);
   const fade = useRef(new Animated.Value(1)).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
+  useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
+  useEffect(() => onChallengeChange(setChallenge), []);
 
   function fadeTo(next) { Animated.timing(fade,{toValue:0,duration:120,useNativeDriver:true}).start(); setTimeout(()=>{ next(); fade.setValue(0); Animated.timing(fade,{toValue:1,duration:150,useNativeDriver:true}).start(); },130); }
 
@@ -240,16 +253,24 @@ export default function App() {
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { onlineRef.current = false; setOnline(false); setMyTime(null); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
     const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now()-startRef.current, TIME_LIMIT);
     setPicked(idx); setMyTime(playerTime);
     if (onlineRef.current) {
-      // Online: the server decides the result. Send our LOCAL time; wait for async-result.
+      // Online: the server decides the result. Send our LOCAL time; wait for the result message.
       pickedRef.current = idx; myTimeRef.current = playerTime;
-      wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));
+      if (isChallengeRef.current) {
+        wsSend(roomAnswer(idx, Math.round(playerTime)));   // challenge ROOM engine
+      } else {
+        wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));  // async matchmaking
+        const mid = matchIdRef.current;
+        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now() } }));
+        if (pendTimer.current) clearTimeout(pendTimer.current);
+        pendTimer.current = setTimeout(() => { if (onlineRef.current) setShowActions(true); }, 4000); // web: actions appear at +4s
+      }
       return;
     }
     const c = getComputerAnswer(q.correctIdx, q.options.length, history.current);
@@ -261,39 +282,91 @@ export default function App() {
     setTimeout(() => fadeTo(() => setMode('results')), 800);
   }
   function playAgain() {
+    if (isChallengeRef.current) { doRematch(); return; }
     if (onlineRef.current) { requeueOnline(); return; }
     const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f);
   }
-  function goHome() { if (onlineRef.current) { try { disconnectWS(); } catch(e){} onlineRef.current = false; setOnline(false); } fadeTo(() => { setMode(null); setTab('home'); }); }
+  function goHome() {
+    if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }
+    onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setShowActions(false); closeChallenge();
+    fadeTo(() => { setMode(null); setTab('home'); });
+  }
 
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
-  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; setOnline(false); matchIdRef.current = null; fadeTo(() => { setMode(null); setTab('home'); }); }
+  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; setOnline(false); matchIdRef.current = null; fadeTo(() => { setMode(null); setTab('home'); }); }
+  // shared: load the incoming question onto the (reused) Play screen
+  function loadQuestion(mid, question) {
+    const img = HTTPS_BASE + '/img/' + question.imageToken;
+    try { Image.prefetch(img); } catch (e) {}
+    activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
+    setMatchId(mid);
+    setQ({ text: question.text, image: img, options: question.options, correctIdx: null });
+    setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
+    setCountdown(true); fadeTo(() => setMode('play'));
+  }
+  // shared: record a settled online/challenge match + bump online stats + clear pending
+  function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm) {
+    setOnlineRec(p => ({ wins:p.wins+(res==='win'), losses:p.losses+(res==='loss'), draws:p.draws+(res==='draw') }));
+    setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
+    setPending(p => { const n = { ...p }; delete n[mid]; return n; });
+  }
+  // shared: map a server result into the practice-shaped state and show the Results screen
+  function showResultsFor(msg, oppT) {
+    const yt = myTimeRef.current;
+    setComp({ answer: msg.opponent.answer, time: oppT, isCorrect: msg.opponent.answer === msg.correctIdx, playerTime:(yt!=null?yt:TIME_LIMIT), correctIdx: msg.correctIdx });
+    setResult({ result: msg.you.result, reason: msg.reason });
+    setQ(prev => prev ? { ...prev, correctIdx: msg.correctIdx } : prev);
+    setShowActions(false);
+    setTimeout(() => fadeTo(() => setMode('results')), 1200);
+  }
+  function pushBanner(res, oppNm, mid) {
+    const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
+    setBanners(prev => [...prev, { id, result:res, text:`${word} vs ${oppNm}`, mid }]);
+    setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 4000);
+  }
   function handleOnlineMessage(msg) {
     switch (msg.type) {
+      // ---- async matchmaking ----
       case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
-      case 'async-question': {
-        const img = HTTPS_BASE + '/img/' + msg.question.imageToken;
-        try { Image.prefetch(img); } catch (e) {}
-        matchIdRef.current = msg.matchId; pickedRef.current = null; myTimeRef.current = null;
-        setMatchId(msg.matchId);
-        setQ({ text: msg.question.text, image: img, options: msg.question.options, correctIdx: null });
-        setPicked(null); setResult(null); setComp(null); setMyTime(null);
-        setCountdown(true); fadeTo(() => setMode('play'));
-        break;
-      }
+      case 'async-question': loadQuestion(msg.matchId, msg.question); break;
       case 'answer-ack': break;     // local time already frozen on tap — ignore the server echo
       case 'async-waiting': break;  // we answered first; waiting on opponent
       case 'async-result': {
-        const yt = myTimeRef.current;
-        const oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
-        setComp({ answer: msg.opponent.answer, time: oppT, isCorrect: msg.opponent.answer === msg.correctIdx, playerTime: (yt != null ? yt : TIME_LIMIT), correctIdx: msg.correctIdx });
-        setResult({ result: msg.you.result, reason: msg.reason });
-        setQ(prev => prev ? { ...prev, correctIdx: msg.correctIdx } : prev);
-        setRec(p => ({ wins: p.wins + (msg.you.result === 'win'), losses: p.losses + (msg.you.result === 'loss'), draws: p.draws + (msg.you.result === 'draw') }));
-        setTimeout(() => fadeTo(() => setMode('results')), 1200);
+        const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
+        const oppNm = (msg.opponent && msg.opponent.name) || (pending[msg.matchId] && pending[msg.matchId].opponent) || oppName || 'Opponent';
+        const myT = (pending[msg.matchId] && pending[msg.matchId].myTime != null) ? pending[msg.matchId].myTime : myTimeRef.current;
+        logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm);
+        // foreground only if this is the match currently on the Play screen — else a background banner
+        if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
+        else pushBanner(res, oppNm, msg.matchId);
         break;
       }
+      // ---- challenge ROOM engine ----
+      case 'created': handleChallengeMessage(msg); break;
+      case 'joined': handleChallengeMessage(msg); break;
+      case 'opponent-joined': handleChallengeMessage(msg); setOppName(msg.name || oppName); break;
+      case 'opponent-wants-rematch': handleChallengeMessage(msg); break;
+      case 'opponent-disconnected': handleChallengeMessage(msg); setNotice('Opponent disconnected'); break;
+      case 'round-start': {
+        isChallengeRef.current = true; onlineRef.current = true; setOnline(true); setRematchReq(false);
+        const cs = getChallenge();
+        const oppNm = cs && (cs.role==='host' ? cs.joinerName : cs.hostName);
+        if (oppNm) setOppName(oppNm);
+        loadQuestion('room', msg.question);
+        break;
+      }
+      case 'round-go': break; // informational — the 3-2-1 countdown drives timer start (matches web)
+      case 'result': {        // challenge room result: opponent.time (no serverTime)
+        const res = msg.you.result, oppT = msg.opponent.time;
+        const cs = getChallenge();
+        const oppNm = (cs && (cs.role==='host' ? cs.joinerName : cs.hostName)) || oppName || 'Opponent';
+        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm);
+        setRematchReq(false);
+        showResultsFor(msg, oppT);
+        break;
+      }
+      // ---- shared ----
       case 'rtt-ping': wsSend(rttPong(msg.nonce)); break;
       case 'rtt-result': break;
       case 'queue-failed': case 'game-expired': case 'match-cancelled': case 'error':
@@ -301,16 +374,21 @@ export default function App() {
         break;
     }
   }
-  function startQueue() {
-    const send = () => wsSend(queue(myName(), 1, { paymentMode: 'none' }));
-    if (isConnected()) send();
-    else connectWS((m) => wsHandlerRef.current(m), () => {}, send, () => bailHome('Connection lost'));
-  }
-  function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; setOnline(true); setMode('joining'); startQueue(); }
+  function ensureConn(after) { if (isConnected()) { after && after(); } else connectWS((m) => wsHandlerRef.current(m), () => {}, () => after && after(), () => bailHome('Connection lost')); }
+  function startQueue() { ensureConn(() => wsSend(queue(myName(), 1, { paymentMode: 'none' }))); }
+  function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue(); }
   function requeueOnline() { setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(); }
   function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
+  // ---- challenge (friend room) ----
+  function doCreateChallenge() { setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => createChallenge({ tier:1, playerName: myName(), paymentMode:'none' })); }
+  function doJoinChallenge() { const code = (joinCode||'').trim(); if (!code) return; setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => acceptChallenge({ gameId: code, playerName: myName() })); }
+  function doRematch() { requestRematch(); setRematchReq(true); }
+  function shareCode(code) { try { Share.share({ message: `Play me on Sense — join with code ${code}` }); } catch (e) {} }
+  function leaveChallenge() { try { disconnectWS(); } catch(e){} onlineRef.current=false; isChallengeRef.current=false; setOnline(false); closeChallenge(); setJoinCode(''); }
+  function navTo(t) { setShowActions(false); fadeTo(() => { setMode(null); setTab(t); }); }
 
   wsHandlerRef.current = handleOnlineMessage;
+  modeRef.current = mode;
   if (!fontsLoaded) return <View style={{ flex:1, backgroundColor:C.page }} />;
 
   let body;
@@ -343,6 +421,15 @@ export default function App() {
         })}
       </View>
       {ans && online ? <Text style={st.waitMsg}>Waiting for opponent…</Text> : null}
+      {showActions ? (
+        <View style={st.pendingActions}>
+          <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="RUN IT BACK" onPress={()=>{ setShowActions(false); requeueOnline(); }} small /></View>
+          <View style={st.pendingRow}>
+            <Pressable style={st.pendBtn} onPress={()=>navTo('history')}><Text style={st.pendBtnText}>History</Text></Pressable>
+            <Pressable style={st.pendBtn} onPress={()=>navTo('home')}><Text style={st.pendBtnText}>Home</Text></Pressable>
+          </View>
+        </View>
+      ) : null}
     </>);
   } else if (mode === 'results' && result) {
     const win = result.result==='win', draw = result.result==='draw';
@@ -350,7 +437,9 @@ export default function App() {
     const myCorrect = picked === q.correctIdx, oppCorrect = comp.isCorrect;
     const banner = pickBanner(result.result, myCorrect, oppCorrect, comp.playerTime, oppCorrect?comp.time:null);
     const ctype = win ? 'win' : draw ? 'draw' : 'loss';
-    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, reason: result.reason, q, comp, picked, rec, oppName, online, playAgain, goHome}} />);
+    const isChal = isChallengeRef.current;
+    const statRec = online ? onlineRec : rec;
+    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, reason: result.reason, q, comp, picked, rec: statRec, oppName, online, isChallenge: isChal, rematchReq, oppWantsRematch: challenge && challenge.opponentWantsRematch, onRematch: doRematch, playAgain, goHome}} />);
   } else if (mode === 'joining') {
     body = (<View style={{flex:1,alignItems:'center',justifyContent:'center'}}>
       <Text style={st.waitTitle}>Finding Opponent…</Text>
@@ -359,41 +448,59 @@ export default function App() {
       <Pressable onPress={cancelOnline} style={st.cancelLink}><Text style={st.cancelText}>Cancel</Text></Pressable>
     </View>);
   } else {
-    const played = rec.wins+rec.losses+rec.draws, acc = played ? Math.round(rec.wins/played*100) : 0;
+    let screen;
+    if (tab === 'home') {
+      screen = (
+        <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingTop:70}}>
+          <Text style={st.bigBrand}>SENSE</Text>
+          <Text style={st.tagline}>How fast can you name the animal?</Text>
+          <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
+          <View style={{height:30}} />
+          <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="PLAY ONLINE" onPress={playOnline} /></View>
+          <Text style={st.note}>Real opponents · free · fastest correct answer wins.</Text>
+          <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
+          {notice ? <Text style={st.noticeText}>{notice}</Text> : null}
+        </View>
+      );
+    } else if (tab === 'challenge') {
+      screen = <ChallengeScreen challenge={challenge} joinCode={joinCode} setJoinCode={setJoinCode} onCreate={doCreateChallenge} onJoin={doJoinChallenge} onShare={shareCode} onCancel={leaveChallenge} />;
+    } else if (tab === 'leaderboard') {
+      screen = <LeaderboardScreen httpsBase={HTTPS_BASE} />;
+    } else if (tab === 'history') {
+      screen = <HistoryScreen matchLog={matchLog} pending={pending} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} setPending(p=>{ const n={...p}; delete n[mid]; return n; }); }} />;
+    } else {
+      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={myName()} />;
+    }
     body = (<>
-      <ScrollView contentContainerStyle={{flexGrow:1,paddingBottom:96}}>
-        {tab === 'home' ? (
-          <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingTop:70}}>
-            <Text style={st.bigBrand}>SENSE</Text>
-            <Text style={st.tagline}>How fast can you name the animal?</Text>
-            <View style={st.recPill}><Text style={st.recPillText}>{rec.wins}W · {rec.losses}L · {rec.draws}D</Text></View>
-            <View style={{height:30}} />
-            <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="PLAY ONLINE" onPress={playOnline} /></View>
-            <Text style={st.note}>Real opponents · free · fastest correct answer wins.</Text>
-            <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
-            {notice ? <Text style={st.noticeText}>{notice}</Text> : null}
-          </View>
-        ) : (
-          <View style={{paddingTop:48}}>
-            <Text style={st.screenTitle}>Profile</Text>
-            <View style={st.statGrid}><Stat label="Played" value={played} /><Stat label="Wins" value={rec.wins} /><Stat label="Accuracy" value={acc+'%'} /></View>
-            <View style={st.statGrid}><Stat label="Losses" value={rec.losses} /><Stat label="Draws" value={rec.draws} /><Stat label="Streak" value={streak(history.current)} /></View>
-            <Pressable style={st.toggleRow} onPress={()=>setSound(x=>!x)}><Text style={st.toggleLabel}>Sound</Text><View style={[st.toggle,sound&&{backgroundColor:C.accent}]}><View style={[st.knob,sound&&{alignSelf:'flex-end'}]} /></View></Pressable>
-          </View>
-        )}
-      </ScrollView>
-      <View style={st.nav}><NavBtn label="Play" icon="play" active={tab==='home'} onPress={()=>setTab('home')} /><NavBtn label="Profile" icon="profile" active={tab==='profile'} onPress={()=>setTab('profile')} /></View>
+      <ScrollView contentContainerStyle={{flexGrow:1,paddingBottom:96}}>{screen}</ScrollView>
+      <View style={st.nav}>
+        <NavBtn label="Play" icon="play" active={tab==='home'} onPress={()=>setTab('home')} />
+        <NavBtn label="Challenge" icon="challenge" active={tab==='challenge'} onPress={()=>setTab('challenge')} />
+        <NavBtn label="Profile" icon="profile" active={tab==='profile'} onPress={()=>setTab('profile')} />
+        <NavBtn label="Hosts" icon="hosts" active={tab==='leaderboard'} onPress={()=>setTab('leaderboard')} />
+        <NavBtn label="History" icon="history" active={tab==='history'} onPress={()=>setTab('history')} badge={Object.keys(pending).length} />
+      </View>
     </>);
   }
 
   return (<ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
     <StatusBar barStyle="dark-content" />
     <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{body}</SafeAreaView></Animated.View>
+    {banners.length > 0 && (
+      <View style={st.bannerWrap} pointerEvents="box-none">
+        {banners.map(b => (
+          <Pressable key={b.id} onPress={()=>{ setBanners(prev=>prev.filter(x=>x.id!==b.id)); navTo('history'); }} style={[st.banner2, { borderLeftColor: b.result==='win'?C.win:b.result==='loss'?C.lose:C.draw }]}>
+            <Text style={st.banner2Text}>{b.text}</Text>
+            <Text style={st.banner2Tap}>Tap for details</Text>
+          </Pressable>
+        ))}
+      </View>
+    )}
     {countdown && mode==='play' && <Countdown onDone={()=>setCountdown(false)} />}
   </ImageBackground>);
 }
 
-function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, online, playAgain, goHome }) {
+function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, online, isChallenge, rematchReq, oppWantsRematch, onRematch, playAgain, goHome }) {
   const both = myCorrect && oppCorrect;
   const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
   const [youStamp, setYouStamp] = useState(false); const [oppStamp, setOppStamp] = useState(false);
@@ -446,7 +553,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
         <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
         <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
-        <Text style={st.payLabel}>{online ? 'Online Match' : 'Practice Mode'}</Text>
+        <Text style={st.payLabel}>{isChallenge ? 'Challenge' : online ? 'Online Match' : 'Practice Mode'}</Text>
         {speed ? <View style={[st.speedPill,{borderColor:speed.c}]}><Text style={[st.speedTxt,{color:speed.c}]}>{speed.t}</Text></View> : null}
         <View style={st.resultCard}>
           <View style={st.playerRow}>
@@ -477,7 +584,13 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
         </View>
         </Animated.View>
         <Animated.View style={{ opacity:btnsA }} pointerEvents={ready?'auto':'none'}>
-        <View style={{ width:'100%', alignItems:'center', marginTop:18 }}><GlossyButton label="RUN IT BACK" onPress={playAgain} small /></View>
+        {isChallenge && oppWantsRematch && !rematchReq ? <Text style={st.rematchHint}>{(oppName||'Rival')} wants a rematch</Text> : null}
+        <View style={{ width:'100%', alignItems:'center', marginTop:18 }}>
+          <GlossyButton
+            label={isChallenge ? (rematchReq ? 'WAITING…' : (oppWantsRematch ? 'ACCEPT REMATCH' : 'REMATCH')) : 'RUN IT BACK'}
+            onPress={isChallenge ? (rematchReq ? ()=>{} : onRematch) : playAgain}
+            small />
+        </View>
         <Pressable style={st.ghost} onPress={goHome}><Text style={st.ghostText}>Home</Text></Pressable>
         </Animated.View>
       </View>
@@ -515,8 +628,95 @@ function GlossyButton({ label, onPress, small }) {
 }
 function streak(h){ let n=0; for(let i=h.length-1;i>=0&&h[i];i--)n++; return n; }
 function Stat({ label, value }){ return (<View style={st.stat}><Text style={st.statVal}>{value}</Text><Text style={st.statLabel}>{label}</Text></View>); }
-function NavIcon({ type, color }){ return (<Svg width={22} height={22} viewBox="0 0 24 24" fill={color}>{type==='play' ? <Polygon points="6 3 20 12 6 21" /> : <><Circle cx={12} cy={8} r={4.5} /><Path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" /></>}</Svg>); }
-function NavBtn({ label, icon, active, onPress }){ const c = active?C.accent:C.text2; return (<Pressable style={st.navBtn} onPress={onPress}><NavIcon type={icon} color={c} /><Text style={[st.navText,{color:c}, active&&{fontFamily:F.x}]}>{label}</Text></Pressable>); }
+function NavIcon({ type, color }){
+  return (<Svg width={22} height={22} viewBox="0 0 24 24" fill={color}>
+    {type==='play' ? <Polygon points="6 3 20 12 6 21" />
+     : type==='challenge' ? <Path d="M5 3h14v2H5zm0 2v4c0 1.1.4 2 1 2.7V20h3v-4h6v4h3v-8.3c.6-.7 1-1.6 1-2.7V5h-2v4c0 .6-.4 1-1 1h-2V5H9v5H7c-.6 0-1-.4-1-1V5H5zM3 5a2 2 0 00-1 3.5V10l2-1V5H3zm18 0v4l2 1V8.5A2 2 0 0021 5z" />
+     : type==='hosts' ? <><Circle cx={9} cy={7} r={4} /><Path d="M2 21v-2c0-2.2 1.8-4 4-4h6c2.2 0 4 1.8 4 4v2H2z" /><Circle cx={17} cy={7} r={3} /><Path d="M22 21v-2c0-1.5-.8-2.8-2-3.5-.4.3-.8.6-1.3.8 1.3.7 2.3 2 2.3 3.7v1h1z" /></>
+     : type==='history' ? <Path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.1.8-1.3-4.5-2.7V7z" />
+     : <><Circle cx={12} cy={8} r={4.5} /><Path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" /></>}
+  </Svg>);
+}
+function NavBtn({ label, icon, active, onPress, badge=0 }){ const c = active?C.accent:C.text2; return (<Pressable style={st.navBtn} onPress={onPress}><View><NavIcon type={icon} color={c} />{badge>0 ? <View style={st.navBadge}><Text style={st.navBadgeText}>{badge}</Text></View> : null}</View><Text style={[st.navText,{color:c}, active&&{fontFamily:F.x}]}>{label}</Text></Pressable>); }
+// ===== Tab screens (online parity) =====
+function ChallengeScreen({ challenge, joinCode, setJoinCode, onCreate, onJoin, onShare, onCancel }) {
+  const status = challenge && challenge.status;
+  if (status === 'waiting' && challenge.role === 'host') {
+    return (<View style={{paddingTop:48,alignItems:'center'}}>
+      <Text style={st.screenTitle}>Challenge Created</Text>
+      <Text style={st.waitSub}>Share this code with a friend</Text>
+      <View style={st.codeBox}><Text style={st.codeText}>{challenge.gameId}</Text></View>
+      <View style={{width:'100%',alignItems:'center',marginTop:8}}><GlossyButton label="SHARE CODE" onPress={()=>onShare(challenge.gameId)} small /></View>
+      <View style={st.waitRow}><Text style={st.waitSub}>Waiting for opponent</Text><JoiningDots /></View>
+      <Pressable onPress={onCancel} style={st.cancelLink}><Text style={st.cancelText}>Cancel</Text></Pressable>
+    </View>);
+  }
+  if (status === 'joined' && challenge.role === 'host') {
+    return (<View style={{paddingTop:80,alignItems:'center'}}><Text style={st.screenTitle}>Opponent Joined!</Text><Text style={st.waitSub}>{challenge.joinerName} accepted — starting…</Text><JoiningDots /></View>);
+  }
+  if (status === 'accepting' || (status === 'joined' && challenge.role === 'joiner')) {
+    return (<View style={{paddingTop:80,alignItems:'center'}}><Text style={st.screenTitle}>{status==='joined'?'Challenge Accepted!':'Joining…'}</Text>{status==='joined'?<Text style={st.waitSub}>Playing against {challenge.hostName} — starting…</Text>:null}<JoiningDots /></View>);
+  }
+  return (<View style={{paddingTop:48}}>
+    <Text style={st.screenTitle}>Challenge a Friend</Text>
+    <Text style={st.waitSub}>Create a game, send the code — first to answer fastest wins.</Text>
+    <View style={{height:24}} />
+    <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="CREATE CHALLENGE" onPress={onCreate} /></View>
+    <View style={st.orRow}><View style={st.orLine} /><Text style={st.orText}>OR JOIN WITH A CODE</Text><View style={st.orLine} /></View>
+    <View style={st.joinRow}>
+      <TextInput value={joinCode} onChangeText={setJoinCode} placeholder="Enter code" placeholderTextColor={C.text2} autoCapitalize="none" autoCorrect={false} style={st.joinInput} />
+      <Pressable onPress={onJoin} style={[st.joinBtn, !joinCode && {opacity:0.5}]} disabled={!joinCode}><Text style={st.joinBtnText}>Join</Text></Pressable>
+    </View>
+  </View>);
+}
+function LeaderboardScreen({ httpsBase }) {
+  const [data, setData] = useState([]); const [mode, setMode] = useState('free'); const [sortBy, setSortBy] = useState('wins'); const [loading, setLoading] = useState(false);
+  useEffect(() => { let alive=true; setLoading(true);
+    fetch(`${httpsBase}/api/leaderboard?mode=${mode}&limit=20`).then(r=>r.json()).then(d=>{ if(!alive)return; const players = Array.isArray(d)?d:(d.leaderboard||d.players||[]); setData(players); setLoading(false); }).catch(()=>{ if(!alive)return; setData([]); setLoading(false); });
+    return ()=>{ alive=false; }; }, [mode]);
+  const sorted = [...data].sort((a,b)=>{ if(sortBy==='wins')return (b.wins||0)-(a.wins||0); if(sortBy==='winrate'){ const ar=(a.wins+a.losses+a.draws)>=10?a.wins/(a.wins+a.losses+a.draws):0, br=(b.wins+b.losses+b.draws)>=10?b.wins/(b.wins+b.losses+b.draws):0; return br-ar; } if(sortBy==='earnings')return (b.net_pnl||0)-(a.net_pnl||0); return 0; });
+  return (<View style={{paddingTop:48}}>
+    <Text style={st.screenTitle}>Leaderboard</Text>
+    <View style={st.segRow}>{['free','paid'].map(m=><Pressable key={m} onPress={()=>setMode(m)} style={[st.seg, mode===m&&st.segOn]}><Text style={[st.segText, mode===m&&st.segTextOn]}>{m==='free'?'Free':'Paid'}</Text></Pressable>)}</View>
+    <View style={st.sortRow}><Text style={st.sortLabel}>Sort:</Text>{[['wins','Wins'],['winrate','Win Rate'],['earnings','Earnings']].map(([k,l])=><Pressable key={k} onPress={()=>setSortBy(k)} style={st.sortBtn}><Text style={[st.sortText, sortBy===k&&{color:C.accent,fontFamily:F.x}]}>{l}</Text></Pressable>)}</View>
+    {loading ? <Text style={st.emptyText}>Loading…</Text> : sorted.length===0 ? <Text style={st.emptyText}>No players yet.</Text> : (
+      <View style={st.lbTable}>
+        <View style={st.lbHead}><Text style={[st.lbCellRank,st.lbHeadText]}>#</Text><Text style={[st.lbCellName,st.lbHeadText]}>Player</Text><Text style={[st.lbCell,st.lbHeadText]}>W</Text><Text style={[st.lbCell,st.lbHeadText]}>L</Text><Text style={[st.lbCell,st.lbHeadText]}>D</Text><Text style={[st.lbCellNet,st.lbHeadText]}>Net</Text></View>
+        {sorted.map((p,i)=>(<View key={p.name+i} style={st.lbRow}><Text style={st.lbCellRank}>{i+1}</Text><Text style={st.lbCellName} numberOfLines={1}>{p.name}</Text><Text style={[st.lbCell,{color:C.win}]}>{p.wins}</Text><Text style={[st.lbCell,{color:C.lose}]}>{p.losses}</Text><Text style={st.lbCell}>{p.draws}</Text><Text style={[st.lbCellNet,{color:(p.net_pnl||0)>=0?C.win:C.lose}]}>${((p.net_pnl||0)/100).toFixed(2)}</Text></View>))}
+      </View>
+    )}
+  </View>);
+}
+function timeAgo(ts){ if(!ts)return''; const d=Date.now()-new Date(ts).getTime(), m=Math.floor(d/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+function HistoryScreen({ matchLog, pending, onCancel }) {
+  const pend = Object.entries(pending||{});
+  return (<View style={{paddingTop:48}}>
+    <Text style={st.screenTitle}>Match History</Text>
+    {pend.length>0 && (<View style={{marginBottom:8}}><Text style={st.sectionSub}>Pending</Text>
+      {pend.map(([mid,d])=>(<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching…'}</Text></View><Pressable onPress={()=>onCancel(mid)} style={st.histCancel}><Text style={st.histCancelText}>Cancel</Text></Pressable></View>))}
+    </View>)}
+    {matchLog.length===0 && pend.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
+    {matchLog.map((m,idx)=>{ const rc = m.result==='win'?C.win:m.result==='loss'?C.lose:C.draw; const rl = m.result==='win'?'WIN':m.result==='loss'?'LOSS':'DRAW';
+      return (<View key={m.matchId||idx} style={st.histRow}>
+        <View style={st.histMain}><View style={[st.badge,{backgroundColor:rc+'22'}]}><Text style={[st.badgeText,{color:rc}]}>{rl}</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {m.opponent}</Text></View>
+        <View style={st.histDetails}><Text style={st.histDetail}>You: {m.myTime!=null?formatTime(m.myTime):'—'}</Text><Text style={st.histDetail}>Them: {m.oppTime!=null?formatTime(m.oppTime):'—'}</Text><Text style={st.histDetail}>{getReasonText(m.reason)}</Text>{m.timestamp?<Text style={st.histDetail}>{timeAgo(m.timestamp)}</Text>:null}</View>
+      </View>); })}
+  </View>);
+}
+function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle }) {
+  const oplayed = onlineRec.wins+onlineRec.losses+onlineRec.draws, oacc = oplayed?Math.round(onlineRec.wins/oplayed*100):0;
+  return (<View style={{paddingTop:48}}>
+    <Text style={st.screenTitle}>Profile</Text>
+    <View style={st.profSection}><Text style={st.profLabel}>Handle</Text><Text style={st.profValue}>{handle}</Text></View>
+    <Text style={st.profLabel}>Online Stats</Text>
+    <View style={st.statGrid}><Stat label="Played" value={oplayed} /><Stat label="Wins" value={onlineRec.wins} /><Stat label="Accuracy" value={oacc+'%'} /></View>
+    <View style={st.statGrid}><Stat label="Losses" value={onlineRec.losses} /><Stat label="Draws" value={onlineRec.draws} /><Stat label="Streak" value={streakVal} /></View>
+    <View style={{height:10}} />
+    <Text style={st.profLabel}>Practice Stats</Text>
+    <View style={st.statGrid}><Stat label="Wins" value={rec.wins} /><Stat label="Losses" value={rec.losses} /><Stat label="Draws" value={rec.draws} /></View>
+    <Pressable style={st.toggleRow} onPress={()=>setSound(x=>!x)}><Text style={st.toggleLabel}>Sound</Text><View style={[st.toggle,sound&&{backgroundColor:C.accent}]}><View style={[st.knob,sound&&{alignSelf:'flex-end'}]} /></View></Pressable>
+  </View>);
+}
 function JoiningDots(){
   const a = useRef([0,1,2].map(()=>new Animated.Value(0.3))).current;
   useEffect(()=>{ const loops = a.map((v,i)=>Animated.loop(Animated.sequence([Animated.delay(i*160),Animated.timing(v,{toValue:1,duration:400,useNativeDriver:true}),Animated.timing(v,{toValue:0.3,duration:400,useNativeDriver:true})]))); loops.forEach(l=>l.start()); return ()=>loops.forEach(l=>l.stop()); },[]);
@@ -556,4 +756,30 @@ const st = StyleSheet.create({
   cancelLink:{paddingVertical:12,paddingHorizontal:30,marginTop:6}, cancelText:{color:C.text2,fontSize:15,fontFamily:F.b},
   practiceLink:{marginTop:22,paddingVertical:8,paddingHorizontal:16}, practiceLinkText:{color:C.accent,fontFamily:F.b,fontSize:14},
   noticeText:{marginTop:18,color:C.lose,fontFamily:F.m,fontSize:13,textAlign:'center'},
+  // play-screen pending actions
+  pendingActions:{marginTop:14,alignItems:'center'}, pendingRow:{flexDirection:'row',justifyContent:'center',marginTop:10,gap:10},
+  pendBtn:{paddingVertical:10,paddingHorizontal:22,borderRadius:12,borderWidth:1,borderColor:C.border,backgroundColor:C.card}, pendBtnText:{color:C.text2,fontFamily:F.b,fontSize:13},
+  // background-result banners
+  bannerWrap:{position:'absolute',top:54,left:14,right:14}, banner2:{backgroundColor:'rgba(255,255,255,0.97)',borderRadius:12,borderLeftWidth:4,paddingVertical:10,paddingHorizontal:14,marginBottom:8,shadowColor:'#000',shadowOpacity:0.12,shadowRadius:10,shadowOffset:{width:0,height:3},elevation:6,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}, banner2Text:{color:C.text,fontFamily:F.x,fontSize:13}, banner2Tap:{color:C.text2,fontFamily:F.m,fontSize:11},
+  rematchHint:{textAlign:'center',color:C.accent,fontFamily:F.b,fontSize:13,marginTop:4},
+  // nav badge
+  navBadge:{position:'absolute',top:-4,right:-8,minWidth:16,height:16,borderRadius:8,backgroundColor:C.lose,alignItems:'center',justifyContent:'center',paddingHorizontal:4}, navBadgeText:{color:'#fff',fontSize:10,fontFamily:F.x},
+  // challenge
+  codeBox:{backgroundColor:C.card,borderWidth:1,borderColor:C.accent,borderRadius:14,paddingVertical:16,paddingHorizontal:34,marginTop:16,marginBottom:6}, codeText:{fontSize:34,fontFamily:F.k,color:C.accent,letterSpacing:6,textAlign:'center'},
+  waitRow:{alignItems:'center',marginTop:18},
+  orRow:{flexDirection:'row',alignItems:'center',marginVertical:24}, orLine:{flex:1,height:1,backgroundColor:C.border}, orText:{color:C.text2,fontFamily:F.s,fontSize:11,letterSpacing:1,marginHorizontal:12},
+  joinRow:{flexDirection:'row',alignItems:'center',gap:10}, joinInput:{flex:1,backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:12,paddingVertical:14,paddingHorizontal:16,fontFamily:F.s,fontSize:16,color:C.text}, joinBtn:{backgroundColor:C.accent,borderRadius:12,paddingVertical:14,paddingHorizontal:24}, joinBtnText:{color:'#fff',fontFamily:F.x,fontSize:15},
+  // leaderboard
+  segRow:{flexDirection:'row',backgroundColor:C.card,borderRadius:12,padding:4,marginBottom:12,borderWidth:1,borderColor:C.border}, seg:{flex:1,paddingVertical:9,alignItems:'center',borderRadius:9}, segOn:{backgroundColor:C.accent}, segText:{fontFamily:F.b,fontSize:14,color:C.text2}, segTextOn:{color:'#fff'},
+  sortRow:{flexDirection:'row',alignItems:'center',marginBottom:12}, sortLabel:{color:C.text2,fontFamily:F.m,fontSize:12,marginRight:8}, sortBtn:{marginRight:14}, sortText:{color:C.text2,fontFamily:F.b,fontSize:13},
+  lbTable:{backgroundColor:C.card,borderRadius:14,borderWidth:1,borderColor:C.border,overflow:'hidden'}, lbHead:{flexDirection:'row',paddingVertical:10,paddingHorizontal:12,borderBottomWidth:1,borderBottomColor:C.border}, lbHeadText:{color:C.text2,fontFamily:F.b,fontSize:11}, lbRow:{flexDirection:'row',paddingVertical:11,paddingHorizontal:12,borderBottomWidth:1,borderBottomColor:'rgba(0,0,0,0.04)',alignItems:'center'},
+  lbCellRank:{width:24,fontFamily:F.b,fontSize:13,color:C.text}, lbCellName:{flex:1,fontFamily:F.s,fontSize:14,color:C.text,paddingRight:6}, lbCell:{width:30,textAlign:'center',fontFamily:F.s,fontSize:13,color:C.text}, lbCellNet:{width:64,textAlign:'right',fontFamily:F.s,fontSize:13},
+  emptyText:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:14,marginTop:40},
+  // history
+  sectionSub:{color:C.text2,fontFamily:F.b,fontSize:12,letterSpacing:1,marginBottom:8,textTransform:'uppercase'},
+  histRow:{backgroundColor:C.card,borderRadius:12,borderWidth:1,borderColor:C.border,paddingVertical:11,paddingHorizontal:14,marginBottom:8}, histMain:{flexDirection:'row',alignItems:'center'}, badge:{borderRadius:6,paddingVertical:3,paddingHorizontal:8,marginRight:10}, badgeText:{fontFamily:F.x,fontSize:10,letterSpacing:0.5}, histOpp:{flex:1,fontFamily:F.s,fontSize:15,color:C.text},
+  histCancel:{paddingVertical:6,paddingHorizontal:12,borderRadius:8,backgroundColor:'rgba(239,68,68,0.1)'}, histCancelText:{color:C.lose,fontFamily:F.b,fontSize:12},
+  histDetails:{flexDirection:'row',flexWrap:'wrap',gap:12,marginTop:8}, histDetail:{color:C.text2,fontFamily:F.m,fontSize:12},
+  // profile
+  profSection:{marginBottom:16}, profLabel:{color:C.text2,fontFamily:F.b,fontSize:12,letterSpacing:1,marginBottom:6,textTransform:'uppercase'}, profValue:{color:C.text,fontFamily:F.s,fontSize:16},
 });
