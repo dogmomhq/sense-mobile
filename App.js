@@ -139,6 +139,21 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
 
+  // Test harness (gated on ?test): trigger any result variant instantly to
+  // watch every reveal path live. e.g. window.__sense({result:'win',myCorrect:true,oppCorrect:true,myTime:800,oppTime:1400}) -> both-correct time-race.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !/[?&]test/.test(window.location.search || '')) return;
+    window.__sense = (pp = {}) => {
+      const qq = q || getPracticeQuestion([]);
+      const ci = qq.correctIdx, wrong = (ci + 1) % qq.options.length;
+      const picked = pp.myCorrect ? ci : (pp.myTimeout ? -1 : wrong);
+      setQ(qq); setPicked(picked);
+      setComp({ answer: pp.oppCorrect ? ci : wrong, time: pp.oppTime ?? 1500, isCorrect: !!pp.oppCorrect, playerTime: pp.myTimeout ? TIME_LIMIT : (pp.myTime ?? 1200), correctIdx: ci });
+      setResult({ result: pp.result || 'win', reason: '' });
+      setCountdown(false); setMode('results');
+    };
+  }, [q]);
+
   function startRound(f) { try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { startRound(getPracticeQuestion(used)); }
   function submit(idx) {
