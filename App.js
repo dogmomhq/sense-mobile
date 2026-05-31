@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
 let SK = null; if (Platform.OS !== 'web') { try { SK = require('@shopify/react-native-skia'); } catch (e) { SK = null; } }
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, getReasonText, generatePlayerName } from './gameEngine.js';
 import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './websocket.js';
-import { queue, asyncAnswer, answer as roomAnswer, rttPong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
+import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 
 const TIME_LIMIT = 10000;
@@ -208,6 +208,7 @@ export default function App() {
   const [matchId, setMatchId] = useState(null);
   const [myTime, setMyTime] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [toast, setToast] = useState(null);
   // online/challenge parity state
   const [onlineRec, setOnlineRec] = useState({ wins:0, losses:0, draws:0 });
   const [matchLog, setMatchLog] = useState([]);      // settled online/challenge matches
@@ -220,8 +221,13 @@ export default function App() {
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
-  const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null);
+  const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const fade = useRef(new Animated.Value(1)).current;
+  // swipe-up on the Play screen (when pending actions are showing) → re-queue, matching web
+  const swipe = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (e, g) => showActionsRef.current && g.dy < -16,
+    onPanResponderRelease: (e, g) => { if (showActionsRef.current && g.dy < -60) { setShowActions(false); requeueOnline(); } },
+  })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
   useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; } catch (e) {} })(); }, []);
@@ -294,6 +300,7 @@ export default function App() {
 
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
+  function showToast(m) { setToast(m); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
   function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; setOnline(false); matchIdRef.current = null; fadeTo(() => { setMode(null); setTab('home'); }); }
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
@@ -347,7 +354,8 @@ export default function App() {
       case 'joined': handleChallengeMessage(msg); break;
       case 'opponent-joined': handleChallengeMessage(msg); setOppName(msg.name || oppName); break;
       case 'opponent-wants-rematch': handleChallengeMessage(msg); break;
-      case 'opponent-disconnected': handleChallengeMessage(msg); setNotice('Opponent disconnected'); break;
+      case 'opponent-disconnected': handleChallengeMessage(msg); showToast('Opponent disconnected'); break;
+      case 'opponent-answered': break; // informational (matches web)
       case 'round-start': {
         isChallengeRef.current = true; onlineRef.current = true; setOnline(true); setRematchReq(false);
         const cs = getChallenge();
@@ -368,9 +376,21 @@ export default function App() {
       }
       // ---- shared ----
       case 'rtt-ping': wsSend(rttPong(msg.nonce)); break;
+      case 'ping': wsSend(pong(msg.nonce)); break;   // room latency probe (web replies pong)
       case 'rtt-result': break;
-      case 'queue-failed': case 'game-expired': case 'match-cancelled': case 'error':
-        bailHome(msg.message || msg.error || 'Match ended');
+      case 'match-cancelled':  // a pending async game was cancelled — just drop it, don't navigate
+        if (msg.matchId) setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
+        break;
+      case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule)
+        if (msg.matchId) setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
+        if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
+        else showToast('A pending game expired');
+        break;
+      }
+      case 'queue-failed': bailHome(msg.error || 'Could not find a match'); break;
+      case 'error':
+        if (modeRef.current === 'joining' || modeRef.current === 'play') bailHome(msg.message || 'Server error');
+        else showToast(msg.message || 'Server error');
         break;
     }
   }
@@ -389,18 +409,20 @@ export default function App() {
 
   wsHandlerRef.current = handleOnlineMessage;
   modeRef.current = mode;
+  showActionsRef.current = showActions;
   if (!fontsLoaded) return <View style={{ flex:1, backgroundColor:C.page }} />;
 
   let body;
   if (mode === 'play' && q) {
     const secLeft = Math.max(0, (TIME_LIMIT-elapsed)/1000), progress = Math.min(elapsed/TIME_LIMIT,1);
-    const ringColor = secLeft<=3 ? C.lose : secLeft<=5 ? C.draw : C.accent;
     const ans = picked !== null;
+    const ringColor = ans ? C.accent : (secLeft<=3 ? C.lose : secLeft<=5 ? C.draw : C.accent); // web: ring snaps to accent on answer
     const ringText = ans ? (myTime!=null ? formatTime(Math.min(myTime,TIME_LIMIT)) : '—') : secLeft.toFixed(1);
     const youText = ans ? (picked===-1 ? '—' : formatTime(Math.min(myTime!=null?myTime:TIME_LIMIT,TIME_LIMIT))) : formatTime(elapsed);
     const themText = ans && comp ? (comp.isCorrect ? formatTime(comp.time) : 'Wrong') : '—';
-    body = (<>
+    body = (<View style={{flex:1}} {...swipe.panHandlers}>
       <View style={st.playHeader}><Text style={st.pnameSm}>You</Text><Text style={st.vsTiny}>vs</Text><Text style={st.pnameSm} numberOfLines={1}>{oppName||'Rival'}</Text></View>
+      {online ? <Text style={st.gameIdLine}>{isChallengeRef.current ? 'challenge · free' : ('#'+String(matchId||'').slice(0,4)+' · free')}</Text> : null}
       <View style={st.qcard}><Image source={{uri:q.image}} style={st.qimage} resizeMode="contain" /><Text style={st.qtext}>{q.text}</Text></View>
       <View style={st.scoreRow}>
         <Text style={st.scoreSide} numberOfLines={1}>You: <Text style={st.scoreStrong}>{youText}</Text></Text>
@@ -428,9 +450,10 @@ export default function App() {
             <Pressable style={st.pendBtn} onPress={()=>navTo('history')}><Text style={st.pendBtnText}>History</Text></Pressable>
             <Pressable style={st.pendBtn} onPress={()=>navTo('home')}><Text style={st.pendBtnText}>Home</Text></Pressable>
           </View>
+          <Text style={st.swipeHint}>swipe up to play again</Text>
         </View>
       ) : null}
-    </>);
+    </View>);
   } else if (mode === 'results' && result) {
     const win = result.result==='win', draw = result.result==='draw';
     const color = win ? C.win : draw ? C.draw : C.lose;
@@ -488,14 +511,10 @@ export default function App() {
     <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{body}</SafeAreaView></Animated.View>
     {banners.length > 0 && (
       <View style={st.bannerWrap} pointerEvents="box-none">
-        {banners.map(b => (
-          <Pressable key={b.id} onPress={()=>{ setBanners(prev=>prev.filter(x=>x.id!==b.id)); navTo('history'); }} style={[st.banner2, { borderLeftColor: b.result==='win'?C.win:b.result==='loss'?C.lose:C.draw }]}>
-            <Text style={st.banner2Text}>{b.text}</Text>
-            <Text style={st.banner2Tap}>Tap for details</Text>
-          </Pressable>
-        ))}
+        {banners.map(b => <Banner key={b.id} data={b} onPress={()=>{ setBanners(prev=>prev.filter(x=>x.id!==b.id)); navTo('history'); }} />)}
       </View>
     )}
+    {toast ? <View style={st.toastWrap} pointerEvents="none"><View style={st.toast}><Text style={st.toastText}>{toast}</Text></View></View> : null}
     {countdown && mode==='play' && <Countdown onDone={()=>setCountdown(false)} />}
   </ImageBackground>);
 }
@@ -722,6 +741,13 @@ function JoiningDots(){
   useEffect(()=>{ const loops = a.map((v,i)=>Animated.loop(Animated.sequence([Animated.delay(i*160),Animated.timing(v,{toValue:1,duration:400,useNativeDriver:true}),Animated.timing(v,{toValue:0.3,duration:400,useNativeDriver:true})]))); loops.forEach(l=>l.start()); return ()=>loops.forEach(l=>l.stop()); },[]);
   return (<View style={{flexDirection:'row',marginTop:22,marginBottom:26}}>{a.map((v,i)=><Animated.View key={i} style={{width:10,height:10,borderRadius:5,backgroundColor:C.accent,marginHorizontal:5,opacity:v}} />)}</View>);
 }
+function Banner({ data, onPress }) {
+  // fade in (200ms), hold, fade out (300ms) before the 4s removal — matches web .result-notification + fade-out
+  const o = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(o,{toValue:1,duration:200,useNativeDriver:true}).start(); const t=setTimeout(()=>Animated.timing(o,{toValue:0,duration:300,useNativeDriver:true}).start(),3600); return ()=>clearTimeout(t); }, []);
+  const c = data.result==='win'?C.win:data.result==='loss'?C.lose:C.draw;
+  return (<Animated.View style={{opacity:o}}><Pressable onPress={onPress} style={[st.banner2,{borderLeftColor:c}]}><Text style={st.banner2Text}>{data.text}</Text><Text style={st.banner2Tap}>Tap for details</Text></Pressable></Animated.View>);
+}
 
 const st = StyleSheet.create({
   playHeader:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,marginTop:14}, pnameSm:{fontSize:11,color:C.text2,fontFamily:'Courier New'}, vsTiny:{fontSize:8,color:C.text2,opacity:0.4,letterSpacing:1,textTransform:'uppercase'},
@@ -782,4 +808,7 @@ const st = StyleSheet.create({
   histDetails:{flexDirection:'row',flexWrap:'wrap',gap:12,marginTop:8}, histDetail:{color:C.text2,fontFamily:F.m,fontSize:12},
   // profile
   profSection:{marginBottom:16}, profLabel:{color:C.text2,fontFamily:F.b,fontSize:12,letterSpacing:1,marginBottom:6,textTransform:'uppercase'}, profValue:{color:C.text,fontFamily:F.s,fontSize:16},
+  gameIdLine:{textAlign:'center',color:C.text2,fontFamily:'Courier New',fontSize:11,marginTop:3,opacity:0.7},
+  swipeHint:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:11,marginTop:10,opacity:0.7},
+  toastWrap:{position:'absolute',bottom:36,left:0,right:0,alignItems:'center'}, toast:{backgroundColor:'rgba(26,26,46,0.95)',borderRadius:12,paddingVertical:12,paddingHorizontal:20,maxWidth:'86%'}, toastText:{color:'#fff',fontFamily:F.s,fontSize:14,textAlign:'center'},
 });
