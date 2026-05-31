@@ -62,6 +62,25 @@ const fs = require('fs');
   await page.waitForTimeout(700);
   await shot('07_profile');
 
+  // === NEW online-parity tab screens ===
+  await fresh();
+  try { await page.getByText('Challenge').last().click({ timeout: 3000 }); } catch (e) {}
+  await page.waitForTimeout(700);
+  await shot('12_challenge');
+
+  await fresh();
+  try { await page.getByText('Hosts').last().click({ timeout: 3000 }); } catch (e) {}
+  await page.waitForTimeout(3000); // leaderboard fetches live /api/leaderboard
+  await shot('13_leaderboard');
+
+  await fresh();
+  try { await page.getByText('History').last().click({ timeout: 3000 }); } catch (e) {}
+  await page.waitForTimeout(700);
+  await shot('14_history');
+
+  await fresh();
+  await shot('15_home_nav'); // confirms the 5-tab bottom nav
+
   await browser.close();
   try { srv.kill(); } catch (e) {}
   console.log('snapshots done');
