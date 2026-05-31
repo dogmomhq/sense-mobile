@@ -91,11 +91,11 @@ function TimeRace({ myT, oppT, oppName, onDone }) {
   const myS = myT/1000, oppS = oppT/1000, maxS = Math.max(myS, oppS, 0.01);
   const same = myS === oppS, myWin = myS < oppS;
   const [t1, setT1] = useState(0); const [t2, setT2] = useState(0); const [gap, setGap] = useState(''); const [done, setDone] = useState(false);
-  const w1 = useRef(new Animated.Value(0)).current, w2 = useRef(new Animated.Value(0)).current, shake = useRef(new Animated.Value(0)).current;
+  const w1 = useRef(new Animated.Value(0)).current, w2 = useRef(new Animated.Value(0)).current;
+  const sx = useRef(new Animated.Value(0)).current, sy = useRef(new Animated.Value(0)).current, srot = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(w1,{toValue:myS/maxS,duration:2000,useNativeDriver:false}).start();
     Animated.timing(w2,{toValue:oppS/maxS,duration:2000,useNativeDriver:false}).start();
-    Animated.loop(Animated.sequence([Animated.timing(shake,{toValue:1,duration:55,useNativeDriver:true}),Animated.timing(shake,{toValue:-1,duration:55,useNativeDriver:true})])).start();
     const dur=2000, stp=25; let el=0; let gShown=false;
     const iv = setInterval(() => {
       el += stp; const p = Math.min(el/dur,1); const dm = maxS*p*1.1;
@@ -104,15 +104,19 @@ function TimeRace({ myT, oppT, oppName, onDone }) {
         if (c1 >= myS && c2 < oppS) { setGap(same?'EXACT SAME TIME':`+${(oppS-myS).toFixed(2)}s gap`); gShown=true; hap(Haptics.ImpactFeedbackStyle.Light); }
         else if (c2 >= oppS && c1 < myS) { setGap(`+${(myS-oppS).toFixed(2)}s gap`); gShown=true; hap(Haptics.ImpactFeedbackStyle.Light); }
       }
-      if (el>=dur) { clearInterval(iv); shake.stopAnimation(()=>shake.setValue(0)); setT1(myS); setT2(oppS); if(same) setGap('EXACT SAME TIME'); setDone(true); hap(Haptics.ImpactFeedbackStyle.Heavy); setTimeout(onDone,700); }
+      // web-match shake: random jitter, intensity builds 2->14 across the race; x + 0.4*y + 0.08*deg rotation
+      const intensity = 2 + Math.pow(p,1.5)*12;
+      sx.setValue((Math.random()-0.5)*intensity); sy.setValue((Math.random()-0.5)*intensity*0.4); srot.setValue((Math.random()-0.5)*intensity*0.08);
+      if (p>0.7 && el%50===0) hap(Haptics.ImpactFeedbackStyle.Light);
+      if (el>=dur) { clearInterval(iv); sx.setValue(0); sy.setValue(0); srot.setValue(0); setT1(myS); setT2(oppS); if(same) setGap('EXACT SAME TIME'); setDone(true); hap(Haptics.ImpactFeedbackStyle.Heavy); setTimeout(onDone,700); }
     }, stp);
     return () => clearInterval(iv);
   }, []);
-  const tx = shake.interpolate({inputRange:[-1,1],outputRange:[-6,6]});
+  const rotI = srot.interpolate({inputRange:[-360,360],outputRange:['-360deg','360deg']});
   const c1col = done ? (same?C.draw:(myWin?C.win:C.text2)) : C.text;
   const c2col = done ? (same?C.draw:(!myWin?C.win:C.text2)) : C.text;
   return (
-    <Animated.View style={{ flex:1, justifyContent:'center', transform:[{translateX:tx}] }}>
+    <Animated.View style={{ flex:1, justifyContent:'center', transform:[{translateX:sx},{translateY:sy},{rotate:rotI}] }}>
       <Text style={st.raceLabel}>{same?'COMPARING TIMES...':'WHO WAS FASTER?'}</Text>
       <View style={st.raceTimes}>
         <View style={{alignItems:'center',flex:1}}><Text style={st.raceName}>YOU</Text><Text style={[st.raceNum,{color:c1col}]}>{t1.toFixed(2)}s</Text></View>
