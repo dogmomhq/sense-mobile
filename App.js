@@ -228,7 +228,7 @@ export default function App() {
     const myCorrect = picked === q.correctIdx, oppCorrect = comp.isCorrect;
     const banner = pickBanner(result.result, myCorrect, oppCorrect, comp.playerTime, oppCorrect?comp.time:null);
     const ctype = win ? 'win' : draw ? 'draw' : 'loss';
-    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, oppName, playAgain, goHome}} />);
+    body = (<ResultsView {...{win, draw, color, banner, ctype, myCorrect, oppCorrect, reason: result.reason, q, comp, picked, rec, oppName, playAgain, goHome}} />);
   } else {
     const played = rec.wins+rec.losses+rec.draws, acc = played ? Math.round(rec.wins/played*100) : 0;
     body = (<>
@@ -262,7 +262,7 @@ export default function App() {
   </ImageBackground>);
 }
 
-function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q, comp, picked, rec, oppName, playAgain, goHome }) {
+function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, playAgain, goHome }) {
   const both = myCorrect && oppCorrect;
   const [step, setStep] = useState('reveal'); const [oppRevealed, setOppRevealed] = useState(false);
   const [youStamp, setYouStamp] = useState(false); const [oppStamp, setOppStamp] = useState(false);
@@ -270,6 +270,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
   const timers = useRef([]);
   const myAns = picked === -1 ? 'Timed out' : q.options[picked];
   const oppAns = oppCorrect ? q.options[q.correctIdx] : 'Wrong';
+  const payoutText = win ? '✓ Correct' : draw ? '—' : reason === 'slower' ? '⏱ Too Slow' : '✗ Wrong';
 
   function explode() { setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium); bannerA.setValue(0); Animated.spring(bannerA,{toValue:1,friction:5,tension:90,useNativeDriver:true}).start(); }
 
@@ -278,14 +279,15 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
     t(()=>{ Animated.spring(youA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium); if(!myCorrect) t(()=>setYouStamp(true),400); }, 200);
     t(()=>Animated.spring(oppA,{toValue:1,friction:6,tension:80,useNativeDriver:true}).start(), 800);
     t(()=>{ setOppRevealed(true); hap(Haptics.ImpactFeedbackStyle.Light); if(!oppCorrect) t(()=>setOppStamp(true),200); }, 1500);
-    if (both) t(()=>setStep('race'), 2300); else t(()=>explode(), 2700);
+    if (both) t(()=>setStep('race'), 2400); else t(()=>explode(), 2800);
     return ()=>timers.current.forEach(clearTimeout);
   }, []);
 
   const trY = (a)=>({opacity:a, transform:[{translateY:a.interpolate({inputRange:[0,1],outputRange:[14,0]})}]});
   if (step === 'race') return (<View style={{flex:1}}><Brand sub="Practice vs Computer" /><TimeRace myT={comp.playerTime} oppT={comp.time} oppName={oppName} onDone={explode} /></View>);
   if (step === 'explode') {
-    const bScale = bannerA.interpolate({inputRange:[0,1],outputRange:[0.7,1]});
+    const bScale = bannerA.interpolate({inputRange:[0,1],outputRange:[1.3,1]});
+    const bTy = bannerA.interpolate({inputRange:[0,1],outputRange:[30,0]});
     return (<View style={{flex:1}}>
       <Brand sub="Practice vs Computer" />
       <Flash color={win?'rgba(34,197,94,0.35)':draw?'rgba(245,158,11,0.28)':'rgba(239,68,68,0.42)'} />
@@ -297,13 +299,31 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, q
       {!win && !draw && <RedPulse />}
       <Confetti type={ctype} />
       <View style={{flex:1,justifyContent:'center'}}>
-        <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{scale:bScale}] }]}>{banner}</Animated.Text>
-        <View style={st.rowCard}>
-          <View style={st.rowItem}><Text style={st.rowLabel}>YOU</Text><Text style={[st.rowAns,{color:myCorrect?C.win:C.lose}]} numberOfLines={1}>{myAns}</Text><Text style={st.rowVal}>{picked===-1?'—':formatTime(comp.playerTime)}</Text></View>
-          <View style={st.divider} />
-          <View style={st.rowItem}><Text style={st.rowLabel} numberOfLines={1}>{(oppName||'RIVAL').toUpperCase()}</Text><Text style={[st.rowAns,{color:oppCorrect?C.win:C.lose}]} numberOfLines={1}>{oppAns}</Text><Text style={st.rowVal}>{oppCorrect?formatTime(comp.time):'—'}</Text></View>
+        <Animated.Text style={[st.banner,{ color, opacity:bannerA, transform:[{translateY:bTy},{scale:bScale}] }]}>{banner}</Animated.Text>
+        <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
+        <Text style={st.payLabel}>Practice Mode</Text>
+        <View style={st.resultCard}>
+          <View style={st.playerRow}>
+            <Text style={st.playerLabel}>YOU</Text>
+            <View style={st.playerData}>
+              <Text style={[st.playerAns,{color:myCorrect?C.win:C.lose}]} numberOfLines={1}>{myAns}</Text>
+              <Text style={st.playerTime}>{picked===-1?'—':formatTime(comp.playerTime)}</Text>
+            </View>
+          </View>
+          <View style={st.hDivider} />
+          <View style={st.playerRow}>
+            <Text style={st.playerLabel} numberOfLines={1}>{(oppName||'RIVAL').toUpperCase()}</Text>
+            <View style={st.playerData}>
+              <Text style={[st.playerAns,{color:oppCorrect?C.win:C.lose}]} numberOfLines={1}>{oppAns}</Text>
+              <Text style={st.playerTime}>{oppCorrect?formatTime(comp.time):'—'}</Text>
+            </View>
+          </View>
+          <View style={st.hDivider} />
+          <View style={st.correctRow}>
+            <Text style={st.correctLabel}>Correct answer</Text>
+            <Text style={st.correctValue} numberOfLines={1}>{q.options[q.correctIdx]}</Text>
+          </View>
         </View>
-        <Text style={st.correct}>Correct: <Text style={{fontFamily:F.x,color:'#166534'}}>{q.options[q.correctIdx]}</Text></Text>
         <View style={st.statsRow}>
           <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.win}]}>{rec.wins}</Text><Text style={st.miniStatLabel}>WINS</Text></View>
           <View style={st.miniStat}><Text style={[st.miniStatNum,{color:C.draw}]}>{rec.draws}</Text><Text style={st.miniStatLabel}>DRAWS</Text></View>
@@ -366,11 +386,12 @@ const st = StyleSheet.create({
   revealDivider:{height:1,backgroundColor:C.border,marginVertical:22,marginHorizontal:40},
   raceLabel:{fontSize:14,color:C.text2,letterSpacing:2,fontFamily:F.x,textAlign:'center',marginBottom:18}, raceTimes:{flexDirection:'row',alignItems:'center',marginBottom:14}, raceName:{fontSize:11,color:C.text2,letterSpacing:1,fontFamily:F.s}, raceNum:{fontSize:26,fontFamily:F.k,marginTop:4,fontVariant:['tabular-nums']}, raceVs:{color:C.text2,fontFamily:F.s,marginHorizontal:6},
   barRow:{flexDirection:'row',height:8,marginTop:8}, barTrack:{flex:1,backgroundColor:C.border,borderRadius:4,overflow:'hidden',position:'relative',marginHorizontal:2}, barFillR:{position:'absolute',right:0,top:0,height:'100%',borderRadius:4}, barFillL:{position:'absolute',left:0,top:0,height:'100%',borderRadius:4}, gap:{textAlign:'center',marginTop:12,fontSize:13,fontFamily:F.b,color:C.text2},
-  banner:{fontSize:26,fontFamily:F.k,letterSpacing:2,textAlign:'center',marginBottom:8},
-  rowCard:{flexDirection:'row',backgroundColor:C.card,borderRadius:16,paddingVertical:18,marginTop:14,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
-  rowItem:{flex:1,alignItems:'center',paddingHorizontal:6}, divider:{width:1,height:48,backgroundColor:C.border}, rowLabel:{fontSize:11,color:C.text2,letterSpacing:1.5,fontFamily:F.s}, rowAns:{fontSize:13,fontFamily:F.b,marginTop:5}, rowVal:{fontSize:18,fontFamily:F.k,color:C.text,marginTop:3},
-  correct:{textAlign:'center',marginTop:16,fontSize:15,color:'#374151',fontFamily:F.m},
-  statsRow:{flexDirection:'row',justifyContent:'center',marginTop:16,gap:28}, miniStat:{alignItems:'center'}, miniStatNum:{fontSize:22,fontFamily:F.k}, miniStatLabel:{fontSize:10,color:C.text2,letterSpacing:1,fontFamily:F.s,marginTop:2},
+  banner:{fontSize:24,fontFamily:F.k,letterSpacing:2,textAlign:'center',marginBottom:6},
+  payAmount:{fontSize:30,fontFamily:F.k,textAlign:'center',marginTop:2}, payLabel:{fontSize:10,color:C.text2,textAlign:'center',marginTop:1,marginBottom:8,fontFamily:F.s},
+  resultCard:{backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:16,paddingVertical:4,paddingHorizontal:20,shadowColor:'#000',shadowOpacity:0.06,shadowRadius:10,shadowOffset:{width:0,height:2}},
+  playerRow:{paddingVertical:10}, playerLabel:{fontSize:11,fontFamily:F.b,color:C.text2,letterSpacing:1,marginBottom:4}, playerData:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}, playerAns:{fontSize:16,fontFamily:F.s,flexShrink:1,paddingRight:10}, playerTime:{fontSize:16,fontFamily:'Courier New',color:C.text,fontWeight:'600'},
+  hDivider:{height:1,backgroundColor:C.border}, correctRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingTop:10,paddingBottom:6}, correctLabel:{fontSize:13,color:C.text2,fontFamily:F.m}, correctValue:{fontSize:16,fontFamily:F.s,color:C.win,flexShrink:1,paddingLeft:10},
+  statsRow:{flexDirection:'row',justifyContent:'center',marginTop:18,gap:32}, miniStat:{alignItems:'center'}, miniStatNum:{fontSize:24,fontFamily:F.k}, miniStatLabel:{fontSize:10,color:C.text2,letterSpacing:1,fontFamily:F.s,marginTop:2},
   ghost:{paddingVertical:14,alignItems:'center',marginTop:4}, ghostText:{color:C.text2,fontSize:15,fontFamily:F.b},
   screenTitle:{fontSize:28,fontFamily:F.k,color:C.text,marginBottom:18},
   statGrid:{flexDirection:'row',justifyContent:'space-between',marginBottom:12}, stat:{backgroundColor:C.card,borderRadius:16,paddingVertical:20,flex:1,marginHorizontal:4,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:8,shadowOffset:{width:0,height:2}}, statVal:{fontSize:24,fontFamily:F.k,color:C.accent}, statLabel:{fontSize:12,color:C.text2,marginTop:4,fontFamily:F.m},
