@@ -31,26 +31,26 @@ function pickBanner(result, myCorrect, oppCorrect, myTime, oppTime) {
   const m = BANNERS[k] || BANNERS.draw_both_wrong; return m[Math.floor(Math.random()*m.length)];
 }
 
-// Stage 1 — upward burst from center (web .cr-confetti-up)
+// Stage 1 — upward burst from center (web .cr-confetti-up). Tuned to match web's RENDERED size/spread on device.
 function PUp({ color, delay }) {
   const t = useRef(new Animated.Value(0)).current;
-  const dx = useRef((Math.random()-0.5)*300).current, dy = useRef(-(100+Math.random()*240)).current;
-  const rot = useRef(Math.random()*900-450).current, sz = useRef(5+Math.random()*9).current, round = useRef(Math.random()>0.4).current;
+  const dx = useRef((Math.random()-0.5)*240).current, dy = useRef(-(90+Math.random()*200)).current;
+  const rot = useRef(Math.random()*900-450).current, sz = useRef(4+Math.random()*6).current, round = useRef(Math.random()>0.4).current;
   useEffect(() => { Animated.timing(t,{toValue:1,duration:600+Math.random()*500,delay,useNativeDriver:true}).start(); }, []);
   const translateX = t.interpolate({inputRange:[0,1],outputRange:[0,dx]});
   const translateY = t.interpolate({inputRange:[0,1],outputRange:[0,dy]});
   const opacity = t.interpolate({inputRange:[0,0.6,1],outputRange:[1,1,0]});
   const scale = t.interpolate({inputRange:[0,1],outputRange:[1,0.3]});
   const rotate = t.interpolate({inputRange:[0,1],outputRange:['0deg',rot+'deg']});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:'50%', top:'55%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:round?sz:1, opacity, transform:[{translateX},{translateY},{scale},{rotate}] }} />;
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', left:'50%', top:'50%', width:sz, height:sz*0.6, backgroundColor:color, borderRadius:round?sz:1, opacity, transform:[{translateX},{translateY},{scale},{rotate}] }} />;
 }
 // Stage 2 — gravity rain from upper area, spawned after the burst (web .cr-confetti-gravity)
 function PFall({ color, delay }) {
   const t = useRef(new Animated.Value(0)).current;
-  const x0 = useRef(30+Math.random()*40).current, y0 = useRef(10+Math.random()*20).current;
-  const dx = useRef((Math.random()-0.5)*220).current, dy = useRef(120+Math.random()*200).current;
-  const rot = useRef(Math.random()*360).current, sz = useRef(5+Math.random()*9).current, round = useRef(Math.random()>0.4).current;
-  useEffect(() => { Animated.timing(t,{toValue:1,duration:800+Math.random()*600,delay,useNativeDriver:true}).start(); }, []);
+  const x0 = useRef(36+Math.random()*28).current, y0 = useRef(14+Math.random()*16).current;
+  const dx = useRef((Math.random()-0.5)*170).current, dy = useRef(100+Math.random()*160).current;
+  const rot = useRef(Math.random()*360).current, sz = useRef(4+Math.random()*6).current, round = useRef(Math.random()>0.4).current;
+  useEffect(() => { Animated.timing(t,{toValue:1,duration:800+Math.random()*500,delay,useNativeDriver:true}).start(); }, []);
   const translateX = t.interpolate({inputRange:[0,1],outputRange:[0,dx]});
   const translateY = t.interpolate({inputRange:[0,1],outputRange:[0,dy]});
   const opacity = t.interpolate({inputRange:[0,1],outputRange:[1,0]});
@@ -62,14 +62,14 @@ function Confetti({ type }) {
   const colors = pal[type] || pal.draw, n = type==='win'?100:type==='draw'?35:20;
   // two stages like web: an up-burst AND a delayed gravity rain (~2x particles = more juice)
   const ups = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:Math.random()*100}))).current;
-  const falls = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:300+Math.random()*450}))).current;
+  const falls = useRef([...Array(n)].map((_,i)=>({color:colors[i%colors.length],delay:380+Math.random()*340}))).current;
   return <>{ups.map((p,i)=><PUp key={'u'+i} {...p} />)}{falls.map((p,i)=><PFall key={'f'+i} {...p} />)}</>;
 }
 function Shockwave({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => { Animated.timing(t,{toValue:1,duration:700,delay,useNativeDriver:true}).start(); }, []);
   const scale = t.interpolate({inputRange:[0,1],outputRange:[0.1,5]}), opacity = t.interpolate({inputRange:[0,1],outputRange:[0.8,0]});
-  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'42%', left:'50%', width:60, height:60, marginLeft:-30, marginTop:-30, borderRadius:30, borderWidth:3, borderColor:color, opacity, transform:[{scale}] }} />;
+  return <Animated.View pointerEvents="none" style={{ position:'absolute', top:'50%', left:'50%', width:60, height:60, marginLeft:-30, marginTop:-30, borderRadius:30, borderWidth:3, borderColor:color, opacity, transform:[{scale}] }} />;
 }
 function Flash({ color, delay=0 }) {
   const t = useRef(new Animated.Value(0)).current;
