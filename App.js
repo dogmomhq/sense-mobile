@@ -444,6 +444,8 @@ export default function App() {
       case 'match-cancelled':  // a pending async game was cancelled — just drop it, don't navigate
         if (msg.matchId) setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
         break;
+      case 'cancel-denied':  // server 2-min anti-abuse lockout (can't queue, peek the question, then bail)
+        showToast(msg.message || 'Cannot cancel yet'); break;
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule)
         if (msg.matchId) setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
@@ -567,7 +569,7 @@ export default function App() {
     } else if (tab === 'leaderboard') {
       screen = <LeaderboardScreen httpsBase={HTTPS_BASE} />;
     } else if (tab === 'history') {
-      screen = <HistoryScreen matchLog={matchLog} pending={pending} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} setPending(p=>{ const n={...p}; delete n[mid]; return n; }); }} />;
+      screen = <HistoryScreen matchLog={matchLog} pending={pending} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
     } else {
       const authUI = !supabase ? null : (authEmail ? (
         <View style={st.authBox}>
@@ -815,10 +817,12 @@ function LeaderboardScreen({ httpsBase }) {
 function timeAgo(ts){ if(!ts)return''; const d=Date.now()-new Date(ts).getTime(), m=Math.floor(d/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
 function HistoryScreen({ matchLog, pending, onCancel }) {
   const pend = Object.entries(pending||{});
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, []);
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Match History</Text>
     {pend.length>0 && (<View style={{marginBottom:8}}><Text style={st.sectionSub}>Pending</Text>
-      {pend.map(([mid,d])=>(<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching…'}</Text></View><Pressable onPress={()=>onCancel(mid)} style={st.histCancel}><Text style={st.histCancelText}>Cancel</Text></Pressable></View>))}
+      {pend.map(([mid,d])=>{ const locked = d.ts && (now - d.ts) < 120000; const remain = Math.ceil((120000 - (now - (d.ts||0))) / 1000); return (<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching…'}</Text></View><Pressable onPress={()=>{ if(!locked) onCancel(mid); }} disabled={locked} style={[st.histCancel, locked&&{opacity:0.45}]}><Text style={st.histCancelText}>{locked ? `${remain}s` : 'Cancel'}</Text></Pressable></View>); })}
     </View>)}
     {matchLog.length===0 && pend.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
     {matchLog.map((m,idx)=>{ const rc = m.result==='win'?C.win:m.result==='loss'?C.lose:C.draw; const rl = m.result==='win'?'WIN':m.result==='loss'?'LOSS':'DRAW';
