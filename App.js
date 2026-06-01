@@ -225,6 +225,10 @@ export default function App() {
   const [signinCode, setSigninCode] = useState('');
   const [signinStep, setSigninStep] = useState('email'); // 'email' | 'code'
   const [signinBusy, setSigninBusy] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
@@ -239,7 +243,7 @@ export default function App() {
   })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); } catch (e) {} } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
@@ -352,14 +356,32 @@ export default function App() {
     setBanners(prev => [...prev, { id, result:res, text:`${word} vs ${oppNm}`, mid }]);
     setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 4000);
   }
+  function doRename(name) {
+    const nm = String(name || '').trim();
+    if (!/^[a-zA-Z0-9_]{3,16}$/.test(nm)) { showToast('3-16 chars: letters, numbers, underscore'); return; }
+    setNameBusy(true);
+    const send = () => wsSend({ type: 'rename', handle: nm, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined });
+    const go = () => { if (accountRef.current || supabaseTokenRef.current) send(); else { pendingAfterReg.current = send; wsSend({ type: 'register', preferredHandle: myName() }); } };
+    if (isConnected()) go(); else ensureConn(go);
+  }
   function handleOnlineMessage(msg) {
     switch (msg.type) {
       // ---- device-bound account ----
       case 'registered': {
         accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token };
-        myNameRef.current = msg.handle;
+        myNameRef.current = msg.handle; setDisplayName(msg.handle);
         try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {}
         const fn = pendingAfterReg.current; pendingAfterReg.current = null; if (fn) fn(); // resume the queue we were starting
+        break;
+      }
+      case 'rename-result': {
+        setNameBusy(false);
+        if (msg.ok) {
+          myNameRef.current = msg.handle; setDisplayName(msg.handle); setEditingName(false);
+          if (msg.token) { accountRef.current = { ...(accountRef.current || {}), handle: msg.handle, token: msg.token }; try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {} }
+          try { AsyncStorage.setItem('sense_handle', msg.handle); } catch (e) {}
+          showToast('Username saved');
+        } else { showToast(msg.error || 'Could not save username'); }
         break;
       }
       // ---- async matchmaking ----
@@ -558,7 +580,7 @@ export default function App() {
           )}
         </View>
       ));
-      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={myName()} authUI={authUI} />;
+      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={displayName || myName()} authUI={authUI} onRename={doRename} editingName={editingName} setEditingName={setEditingName} nameInput={nameInput} setNameInput={setNameInput} nameBusy={nameBusy} />;
     }
     body = (<>
       <ScrollView contentContainerStyle={{flexGrow:1,paddingBottom:96}}>{screen}</ScrollView>
@@ -793,12 +815,23 @@ function HistoryScreen({ matchLog, pending, onCancel }) {
       </View>); })}
   </View>);
 }
-function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI }) {
+function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy }) {
   const oplayed = onlineRec.wins+onlineRec.losses+onlineRec.draws, oacc = oplayed?Math.round(onlineRec.wins/oplayed*100):0;
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Profile</Text>
     {authUI || null}
-    <View style={st.profSection}><Text style={st.profLabel}>Handle</Text><Text style={st.profValue}>{handle}</Text></View>
+    <View style={st.profSection}>
+      <Text style={st.profLabel}>Username</Text>
+      {editingName ? (
+        <View style={{flexDirection:'row',alignItems:'center',marginTop:4}}>
+          <TextInput value={nameInput} onChangeText={setNameInput} placeholder={handle} placeholderTextColor={C.text2} autoCapitalize="none" autoCorrect={false} maxLength={16} style={[st.authInput,{flex:1,marginBottom:0,marginRight:8}]} />
+          <Pressable onPress={()=>onRename(nameInput)} disabled={nameBusy} style={[st.authBtn,{marginRight:8},nameBusy&&{opacity:0.5}]}><Text style={st.authBtnText}>{nameBusy?'…':'Save'}</Text></Pressable>
+          <Pressable onPress={()=>setEditingName(false)}><Text style={st.authLinkText}>Cancel</Text></Pressable>
+        </View>
+      ) : (
+        <Pressable onPress={()=>{ setNameInput(String(handle||'').replace(/#.*/,'')); setEditingName(true); }}><Text style={[st.profValue,{textDecorationLine:'underline'}]}>{handle}  ✎</Text></Pressable>
+      )}
+    </View>
     <Text style={st.profLabel}>Online Stats</Text>
     <View style={st.statGrid}><Stat label="Played" value={oplayed} /><Stat label="Wins" value={onlineRec.wins} /><Stat label="Accuracy" value={oacc+'%'} /></View>
     <View style={st.statGrid}><Stat label="Losses" value={onlineRec.losses} /><Stat label="Draws" value={onlineRec.draws} /><Stat label="Streak" value={streakVal} /></View>
