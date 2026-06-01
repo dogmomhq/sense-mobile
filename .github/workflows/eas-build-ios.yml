@@ -1,0 +1,24 @@
+name: EAS Build iOS (TestFlight)
+
+# Builds the signed iOS .ipa on EAS (cloud, no Mac) and auto-submits to TestFlight.
+# Credentials: EAS manages signing via the App Store Connect API key (ASC_API_KEY_BASE64 secret).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  ios:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Restore ASC API key
+        run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
+      - name: Build iOS + submit to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_TEAM_ID: "79NQHBFDS8"
+          EXPO_ASC_API_KEY_PATH: "./asc_key.p8"
+          EXPO_ASC_KEY_ID: "47N638GLZG"
+          EXPO_ASC_ISSUER_ID: "b26d5075-81df-418d-93b6-a3dd7be13e0c"
+        run: npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive --auto-submit-with-profile testflight
