@@ -1,7 +1,8 @@
 name: EAS Build iOS (TestFlight)
 
 # Builds the signed iOS .ipa on EAS (cloud, no Mac) and auto-submits to TestFlight.
-# Credentials: EAS manages signing via the App Store Connect API key (ASC_API_KEY_BASE64 secret).
+# Signing uses LOCAL credentials (self-generated dist cert + App Store provisioning profile)
+# restored from encrypted repo secrets. Submit uses the App Store Connect API key.
 on:
   workflow_dispatch: {}
 
@@ -14,13 +15,25 @@ jobs:
         with: { node-version: '20' }
       - name: Install deps (needed for iOS config/entitlement resolution)
         run: npm ci || npm install
-      - name: Restore ASC API key
+      - name: Restore ASC API key (for submit)
         run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
+      - name: Restore iOS signing credentials (local)
+        run: |
+          mkdir -p ios_certs
+          printf '%s' "${{ secrets.IOS_DIST_P12_BASE64 }}" | base64 -d > ios_certs/dist.p12
+          printf '%s' "${{ secrets.IOS_PROVISION_BASE64 }}" | base64 -d > ios_certs/sense.mobileprovision
+          cat > credentials.json <<JSON
+          {
+            "ios": {
+              "provisioningProfilePath": "ios_certs/sense.mobileprovision",
+              "distributionCertificate": {
+                "path": "ios_certs/dist.p12",
+                "password": "${{ secrets.IOS_DIST_P12_PASSWORD }}"
+              }
+            }
+          }
+          JSON
       - name: Build iOS + submit to TestFlight
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_APPLE_TEAM_ID: "79NQHBFDS8"
-          EXPO_ASC_API_KEY_PATH: "./asc_key.p8"
-          EXPO_ASC_KEY_ID: "47N638GLZG"
-          EXPO_ASC_ISSUER_ID: "b26d5075-81df-418d-93b6-a3dd7be13e0c"
         run: npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive --auto-submit-with-profile testflight
