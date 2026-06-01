@@ -1,0 +1,14 @@
+appId: com.dogmomhq.sensemobile
+---
+- launchApp
+- assertVisible: "SENSE"
+- takeScreenshot: maestro-shots/01_home
+- tapOn: "Profile"
+- assertVisible: "Online Stats"
+- takeScreenshot: maestro-shots/07_profile
+- tapOn: "Play"
+- tapOn: "Practice vs computer"
+- extendedWaitUntil:
+    visible: "What animal is this?"
+    timeout: 12000
+- takeScreenshot: maestro-shots/02_play
