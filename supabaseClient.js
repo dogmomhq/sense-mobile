@@ -1,7 +1,18 @@
-// supabaseClient.js — TEMPORARILY GATED OFF.
-// supabase-js + react-native-url-polyfill don't resolve cleanly in Expo Go / Snack
-// (bundle-time module-resolution failure -> white screen). Until I can verify the real fix on an
-// Android emulator (so I'm not testing on CJ's phone), this exports a null stub: the app imports it
-// safely, sign-in is hidden, and everything else works. The SERVER side of Supabase Auth is already
-// live + verified (it accepts a supabaseToken when one is sent). Re-enable after emulator verification.
-export const supabase = null;
+// supabaseClient.js — Supabase Auth client for the mobile app (email one-time-code login).
+// The anon/publishable key is safe to ship in the client (that's its purpose). Sessions persist
+// in AsyncStorage and auto-refresh. This is the real, library-backed auth (replaces the hand-rolled token).
+import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://nexpzwfemjcqdrljrfjy.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_9zFwYO_7mtG9wt9pgsWi-A_hnsIQYvv';
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
