@@ -6,12 +6,20 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "runtimeVersion": { "policy": "appVersion" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "url": "https://u.expo.dev/ee740f0c-1158-49cb-86a6-b5ed2d72f8b6",
       "fallbackToCacheTimeout": 4000
     },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.dogmomhq.sensemobile" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dogmomhq.sensemobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {
       "package": "com.dogmomhq.sensemobile",
       "adaptiveIcon": {
@@ -21,8 +29,17 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
-    "web": { "favicon": "./assets/favicon.png", "output": "single" },
-    "experiments": { "baseUrl": "/sense-mobile" },
-    "extra": { "eas": { "projectId": "ee740f0c-1158-49cb-86a6-b5ed2d72f8b6" } }
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "experiments": {
+      "baseUrl": "/sense-mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ee740f0c-1158-49cb-86a6-b5ed2d72f8b6"
+      }
+    }
   }
 }
