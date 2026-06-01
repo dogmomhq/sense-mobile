@@ -11,7 +11,8 @@
         "ascApiKeyPath": "./asc_key.p8",
         "ascApiKeyId": "47N638GLZG",
         "ascApiKeyIssuerId": "b26d5075-81df-418d-93b6-a3dd7be13e0c",
-        "appleTeamId": "79NQHBFDS8"
+        "appleTeamId": "79NQHBFDS8",
+        "ascAppId": "6775628110"
       }
     }
   }
