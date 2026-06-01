@@ -534,7 +534,7 @@ export default function App() {
     } else if (tab === 'history') {
       screen = <HistoryScreen matchLog={matchLog} pending={pending} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} setPending(p=>{ const n={...p}; delete n[mid]; return n; }); }} />;
     } else {
-      const authUI = authEmail ? (
+      const authUI = !supabase ? null : (authEmail ? (
         <View style={st.authBox}>
           <Text style={st.profLabel}>Account</Text>
           <Text style={st.profValue}>{authEmail}</Text>
@@ -557,7 +557,7 @@ export default function App() {
             </>
           )}
         </View>
-      );
+      ));
       screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={myName()} authUI={authUI} />;
     }
     body = (<>
