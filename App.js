@@ -24,6 +24,17 @@ const F = { r:'Inter_400Regular', m:'Inter_500Medium', s:'Inter_600SemiBold', b:
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const CIRC54 = 2 * Math.PI * 54;
 function hap(style) { try { Haptics.impactAsync(style); } catch (e) {} }
+// ===== sound effects (native only; hosted tones; gated by the in-app Sound toggle) =====
+let SFX = null; let soundOn = false;
+function initSfx() {
+  if (SFX || Platform.OS === 'web') return;
+  try {
+    const { createAudioPlayer } = require('expo-audio');
+    const base = 'https://dogmomhq.github.io/sense-react-staging/app/assets/sounds/';
+    SFX = { correct: createAudioPlayer({ uri: base + 'correct.wav' }), wrong: createAudioPlayer({ uri: base + 'wrong.wav' }), win: createAudioPlayer({ uri: base + 'win.wav' }), tap: createAudioPlayer({ uri: base + 'tap.wav' }) };
+  } catch (e) { SFX = null; }
+}
+function playSfx(name) { if (!soundOn || !SFX || !SFX[name]) return; try { SFX[name].seekTo(0); SFX[name].play(); } catch (e) {} }
 
 const BANNERS = {
   win_blowout:["DESTROYED","WRECKED","NOT EVEN CLOSE"], win_comfortable:["LET'S GO","EASY MONEY","TOO FAST"],
@@ -257,6 +268,8 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
+  useEffect(() => { initSfx(); (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { soundOn = sound; AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]);
   useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
     let sub;
@@ -296,7 +309,7 @@ export default function App() {
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
     const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now()-startRef.current, TIME_LIMIT);
-    setPicked(idx); setMyTime(playerTime);
+    setPicked(idx); setMyTime(playerTime); playSfx('tap');
     if (onlineRef.current) {
       // Online: the server decides the result. Send our LOCAL time; wait for the result message.
       pickedRef.current = idx; myTimeRef.current = playerTime;
@@ -715,7 +728,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
   const nearMissTxt = nearMiss ? `💔 SO CLOSE · lost by ${(lossMarginMs/1000).toFixed(2)}s` : null;
 
   function explode() {
-    setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium);
+    setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium); if (win) playSfx('win');
     if (nearMiss) timers.current.push(setTimeout(()=>hap(Haptics.ImpactFeedbackStyle.Light), 140)); // §3: double-tap "heartbeat" on a heartbreaker loss
     bannerA.setValue(0); cardA.setValue(0); btnsA.setValue(0);
     // web doExplosion: burst fires first; banner springs in at +180ms, card fades +0.4s after it, buttons at +980ms
@@ -727,7 +740,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
 
   useEffect(() => {
     const t=(fn,ms)=>{ const id=setTimeout(fn,ms); timers.current.push(id); return id; };
-    t(()=>{ Animated.timing(youA,{toValue:1,duration:400,easing:Easing.bezier(0,0,0.2,1),useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium); if(!myCorrect) t(()=>setYouStamp(true),400); }, 200);
+    t(()=>{ Animated.timing(youA,{toValue:1,duration:400,easing:Easing.bezier(0,0,0.2,1),useNativeDriver:true}).start(); hap(myCorrect?Haptics.ImpactFeedbackStyle.Light:Haptics.ImpactFeedbackStyle.Medium); playSfx(myCorrect?'correct':'wrong'); if(!myCorrect) t(()=>setYouStamp(true),400); }, 200);
     t(()=>Animated.timing(oppA,{toValue:1,duration:500,easing:Easing.bezier(0,0,0.2,1),useNativeDriver:true}).start(), 800);
     t(()=>{ setOppRevealed(true); hap(Haptics.ImpactFeedbackStyle.Light); if(!oppCorrect) t(()=>setOppStamp(true),200); }, 1500);
     if (both) t(()=>setStep('race'), 2400); else t(()=>explode(), 2800);
