@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
-let SK = null; if (Platform.OS !== 'web') { try { SK = require('@shopify/react-native-skia'); } catch (e) { SK = null; } }
+let SK = null; // Skia removed: explosion renders via react-native-svg (Confetti)
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function ah(a){const v=Math.max(0,Math.min(255,Math.round(a*255)));return v.toString(16).padStart(2,'0');}
 import Svg, { Circle, Polygon, Path } from 'react-native-svg';
@@ -1058,3 +1058,4 @@ const st = StyleSheet.create({
   authBtn:{backgroundColor:C.accent,borderRadius:10,paddingVertical:13,alignItems:'center',marginTop:10}, authBtnText:{color:'#fff',fontFamily:F.x,fontSize:15},
   authLink:{paddingVertical:10,alignItems:'center'}, authLinkText:{color:C.text2,fontFamily:F.b,fontSize:13},
 });
+
