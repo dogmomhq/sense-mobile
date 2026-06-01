@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
+      - name: Install deps (needed for iOS config/entitlement resolution)
+        run: npm ci || npm install
       - name: Restore ASC API key
         run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
       - name: Build iOS + submit to TestFlight
