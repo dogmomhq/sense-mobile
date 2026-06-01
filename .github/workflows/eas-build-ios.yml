@@ -1,8 +1,8 @@
 name: EAS Build iOS (TestFlight)
 
-# Builds the signed iOS .ipa on EAS (cloud, no Mac) and auto-submits to TestFlight.
-# Signing uses LOCAL credentials (self-generated dist cert + App Store provisioning profile)
-# restored from encrypted repo secrets. Submit uses the App Store Connect API key.
+# Builds the signed iOS .ipa on EAS (cloud, no Mac). Signing uses LOCAL credentials
+# (self-generated dist cert + App Store provisioning profile) restored from repo secrets.
+# Submission is a separate workflow (eas-submit-ios.yml) run after the app record exists.
 on:
   workflow_dispatch: {}
 
@@ -15,8 +15,6 @@ jobs:
         with: { node-version: '20' }
       - name: Install deps (needed for iOS config/entitlement resolution)
         run: npm ci || npm install
-      - name: Restore ASC API key (for submit)
-        run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
       - name: Restore iOS signing credentials (local)
         run: |
           mkdir -p ios_certs
@@ -33,7 +31,7 @@ jobs:
             }
           }
           JSON
-      - name: Build iOS + submit to TestFlight
+      - name: Build iOS (.ipa)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive --auto-submit-with-profile testflight
+        run: npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive
