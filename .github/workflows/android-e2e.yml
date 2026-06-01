@@ -61,7 +61,8 @@ jobs:
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             mkdir -p maestro-shots
             "$HOME/.maestro/bin/maestro" test .maestro/flow.yaml || echo "maestro flow had failures"
-            ls -la maestro-shots || true
+            cp -r "$HOME"/.maestro/tests/*/ maestro-shots/debug 2>/dev/null || true
+            ls -la maestro-shots maestro-shots/debug 2>/dev/null || true
 
       - name: Commit screenshots
         if: always()
