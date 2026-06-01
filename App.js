@@ -36,14 +36,16 @@ function initSfx() {
 }
 function playSfx(name) { if (!soundOn || !SFX || !SFX[name]) return; try { SFX[name].seekTo(0); SFX[name].play(); } catch (e) {} }
 // ===== analytics (PostHog; native only, guarded — never breaks web/CI) =====
-let PH = null;
+let PH = null; let PHProvider = null;
 function initAnalytics() {
   if (PH || Platform.OS === 'web') return;
   try {
-    const { PostHog } = require('posthog-react-native');
-    PH = new PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: true });
+    const lib = require('posthog-react-native');
+    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: true });
+    PHProvider = lib.PostHogProvider || null;
   } catch (e) { PH = null; }
 }
+function identify(id, props) { try { if (PH && id) PH.identify(String(id), props || {}); } catch (e) {} }
 function track(event, props) { try { if (PH) PH.capture(event, props || {}); } catch (e) {} }
 
 const BANNERS = {
@@ -278,7 +280,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]);
   useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
@@ -431,7 +433,7 @@ export default function App() {
     switch (msg.type) {
       // ---- device-bound account ----
       case 'registered': {
-        accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token };
+        accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token }; identify(msg.accountId, { handle: msg.handle });
         myNameRef.current = msg.handle; setDisplayName(msg.handle); hydrateHistory(msg.handle);
         try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {}
         const fn = pendingAfterReg.current; pendingAfterReg.current = null; if (fn) fn(); // resume the queue we were starting
@@ -517,7 +519,7 @@ export default function App() {
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
-  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); identify(data.session.user.id, { email: data.session.user.email }); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
   async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
@@ -708,7 +710,9 @@ export default function App() {
     </>);
   }
 
-  return (<ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
+  const AWrap = PHProvider || React.Fragment;
+  const aProps = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
+  return (<AWrap {...aProps}><ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
     <StatusBar barStyle="dark-content" />
     <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{body}</SafeAreaView></Animated.View>
     {banners.length > 0 && (
@@ -718,7 +722,7 @@ export default function App() {
     )}
     {toast ? <View style={st.toastWrap} pointerEvents="none"><View style={st.toast}><Text style={st.toastText}>{toast}</Text></View></View> : null}
     {countdown && mode==='play' && <Countdown onDone={()=>setCountdown(false)} />}
-  </ImageBackground>);
+  </ImageBackground></AWrap>);
 }
 
 function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, online, isChallenge, rematchReq, oppWantsRematch, onRematch, playAgain, goHome }) {
