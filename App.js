@@ -46,6 +46,13 @@ function initAnalytics() {
   } catch (e) { PH = null; }
 }
 function identify(id, props) { try { if (PH && id) PH.identify(String(id), props || {}); } catch (e) {} }
+function captureError(err, ctx) { try { if (!PH) return; if (PH.captureException) PH.captureException(err, ctx || {}); else PH.capture('$exception', { $exception_message: String((err && err.message) || err), $exception_type: (err && err.name) || 'Error', ...(ctx || {}) }); } catch (e) {} }
+class ErrorBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(e, info) { try { captureError(e, { componentStack: info && info.componentStack, fatal: true }); } catch (_) {} }
+  render() { if (this.state.hasError) return (<View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:'#fff',padding:24}}><Text style={{fontSize:16,color:'#1A1A2E',textAlign:'center',fontWeight:'600'}}>Something went wrong.</Text><Text style={{fontSize:13,color:'#6B7B94',textAlign:'center',marginTop:8}}>Please reopen the app.</Text></View>); return this.props.children; }
+}
 function track(event, props) { try { if (PH) PH.capture(event, props || {}); } catch (e) {} }
 
 const BANNERS = {
@@ -280,7 +287,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]);
   useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
@@ -712,7 +719,7 @@ export default function App() {
 
   const AWrap = PHProvider || React.Fragment;
   const aProps = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
-  return (<AWrap {...aProps}><ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
+  return (<ErrorBoundary><AWrap {...aProps}><ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
     <StatusBar barStyle="dark-content" />
     <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{body}</SafeAreaView></Animated.View>
     {banners.length > 0 && (
@@ -722,7 +729,7 @@ export default function App() {
     )}
     {toast ? <View style={st.toastWrap} pointerEvents="none"><View style={st.toast}><Text style={st.toastText}>{toast}</Text></View></View> : null}
     {countdown && mode==='play' && <Countdown onDone={()=>setCountdown(false)} />}
-  </ImageBackground></AWrap>);
+  </ImageBackground></AWrap></ErrorBoundary>);
 }
 
 function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, reason, q, comp, picked, rec, oppName, online, isChallenge, rematchReq, oppWantsRematch, onRematch, playAgain, goHome }) {
