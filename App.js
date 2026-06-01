@@ -227,6 +227,10 @@ export default function App() {
   const [rematchReq, setRematchReq] = useState(false);
   // Supabase email/OTP login (optional upgrade over the anonymous device account)
   const [authEmail, setAuthEmail] = useState(null);
+  const [authSince, setAuthSince] = useState(null);
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
   const [signinEmail, setSigninEmail] = useState('');
   const [signinCode, setSigninCode] = useState('');
   const [signinStep, setSigninStep] = useState('email'); // 'email' | 'code'
@@ -257,8 +261,8 @@ export default function App() {
   useEffect(() => {
     let sub;
     (async () => {
-      try { const { data } = await supabase.auth.getSession(); const s = data && data.session; if (s) { supabaseTokenRef.current = s.access_token; setAuthEmail(s.user && s.user.email); } } catch (e) {}
-      try { sub = supabase.auth.onAuthStateChange((_e, s) => { supabaseTokenRef.current = s ? s.access_token : null; setAuthEmail(s && s.user ? s.user.email : null); }); } catch (e) {}
+      try { const { data } = await supabase.auth.getSession(); const s = data && data.session; if (s) { supabaseTokenRef.current = s.access_token; setAuthEmail(s.user && s.user.email); setAuthSince(s.user && s.user.created_at); } } catch (e) {}
+      try { sub = supabase.auth.onAuthStateChange((_e, s) => { supabaseTokenRef.current = s ? s.access_token : null; setAuthEmail(s && s.user ? s.user.email : null); setAuthSince(s && s.user ? s.user.created_at : null); }); } catch (e) {}
     })();
     return () => { try { sub && sub.data && sub.data.subscription && sub.data.subscription.unsubscribe(); } catch (e) {} };
   }, []);
@@ -489,8 +493,9 @@ export default function App() {
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
-  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
-  async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
+  async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
+  async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
     ensureConn(() => {
       if (accountRef.current && accountRef.current.token) sendQueueMsg();
@@ -632,7 +637,19 @@ export default function App() {
         <View style={st.authBox}>
           <Text style={st.profLabel}>Account</Text>
           <Text style={st.profValue}>{authEmail}</Text>
-          <Pressable onPress={signOutAuth} style={st.authLink}><Text style={st.authLinkText}>Sign out</Text></Pressable>
+          {authSince ? <Text style={st.memberSince}>Member since {new Date(authSince).toLocaleDateString(undefined,{month:'short',year:'numeric'})}</Text> : null}
+          {changingEmail ? (
+            <View style={{marginTop:10}}>
+              <TextInput value={newEmail} onChangeText={setNewEmail} placeholder="new@email.com" placeholderTextColor={C.text2} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" style={st.authInput} />
+              <Pressable onPress={changeEmail} disabled={emailBusy||!newEmail} style={[st.authBtn,(emailBusy||!newEmail)&&{opacity:0.5}]}><Text style={st.authBtnText}>{emailBusy?'Sending\u2026':'Send confirmation'}</Text></Pressable>
+              <Pressable onPress={()=>setChangingEmail(false)} style={st.authLink}><Text style={st.authLinkText}>Cancel</Text></Pressable>
+            </View>
+          ) : (
+            <View style={{flexDirection:'row',marginTop:10}}>
+              <Pressable onPress={()=>setChangingEmail(true)} style={[st.acctBtn,{marginRight:8}]}><Text style={st.acctBtnText}>Change email</Text></Pressable>
+              <Pressable onPress={signOutAuth} style={[st.acctBtn,st.acctBtnDanger]}><Text style={[st.acctBtnText,{color:C.lose}]}>Log out</Text></Pressable>
+            </View>
+          )}
         </View>
       ) : (
         <View style={st.authBox}>
@@ -652,7 +669,7 @@ export default function App() {
           )}
         </View>
       ));
-      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={displayName || myName()} authUI={authUI} onRename={doRename} editingName={editingName} setEditingName={setEditingName} nameInput={nameInput} setNameInput={setNameInput} nameBusy={nameBusy} balance={balance} />;
+      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={displayName || myName()} authUI={authUI} onRename={doRename} editingName={editingName} setEditingName={setEditingName} nameInput={nameInput} setNameInput={setNameInput} nameBusy={nameBusy} balance={balance} ledger={ledger} />;
     }
     body = (<>
       <ScrollView contentContainerStyle={{flexGrow:1,paddingBottom:96}}>{screen}</ScrollView>
@@ -892,12 +909,13 @@ function HistoryScreen({ matchLog, pending, ledger, onCancel }) {
       </View>); })}
   </View>);
 }
-function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy, balance }) {
+function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy, balance, ledger }) {
   const oplayed = onlineRec.wins+onlineRec.losses+onlineRec.draws, oacc = oplayed?Math.round(onlineRec.wins/oplayed*100):0;
+  const netLifetime = (ledger||[]).reduce((a,t)=>a+(t.amount||0),0);
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Profile</Text>
     {authUI || null}
-    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{balance} credits (free)</Text></View>
+    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{balance} credits (free)</Text><Text style={[st.memberSince,{marginTop:2}]}>Net lifetime: {netLifetime>=0?'+':''}{netLifetime} credits</Text></View>
     <View style={st.profSection}>
       <Text style={st.profLabel}>Username</Text>
       {editingName ? (
@@ -936,6 +954,7 @@ const st = StyleSheet.create({
   playHeader:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,marginTop:14}, pnameSm:{fontSize:11,color:C.text2,fontFamily:'Courier New'}, vsTiny:{fontSize:8,color:C.text2,opacity:0.4,letterSpacing:1,textTransform:'uppercase'},
   bigBrand:{fontSize:56,fontFamily:F.k,letterSpacing:7,color:C.accent}, tagline:{fontSize:15,color:C.text2,marginTop:14,textAlign:'center',fontFamily:F.m},
   recPill:{backgroundColor:'rgba(108,99,255,0.10)',borderRadius:999,paddingHorizontal:20,paddingVertical:9,marginTop:22}, recPillText:{color:C.accent,fontFamily:F.x,fontSize:14},
+  memberSince:{color:C.text2,fontFamily:F.m,fontSize:12,marginTop:4}, acctBtn:{borderWidth:1.5,borderColor:C.border,borderRadius:10,paddingVertical:8,paddingHorizontal:14}, acctBtnText:{color:C.text,fontFamily:F.b,fontSize:13}, acctBtnDanger:{borderColor:'rgba(239,68,68,0.4)'},
   balPill:{backgroundColor:'rgba(34,197,94,0.12)',borderRadius:999,paddingHorizontal:18,paddingVertical:7,marginTop:10}, balPillText:{color:C.win,fontFamily:F.x,fontSize:13},
   stakeRow:{flexDirection:'row',marginTop:26}, stakeChip:{minWidth:64,alignItems:'center',paddingVertical:12,paddingHorizontal:18,marginHorizontal:6,borderRadius:14,borderWidth:1.5,borderColor:C.border,backgroundColor:C.card}, stakeChipOn:{borderColor:C.accent,backgroundColor:'rgba(108,99,255,0.10)'}, stakeChipText:{fontFamily:F.x,fontSize:18,color:C.text2}, stakeChipTextOn:{color:C.accent}, stakeHint:{color:C.text2,fontFamily:F.m,fontSize:11,letterSpacing:1,marginTop:8,textTransform:'uppercase'},
   confirmCard:{width:'100%',backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:18,padding:22,marginTop:26,alignItems:'center'}, confirmTitle:{fontFamily:F.b,fontSize:18,color:C.text}, confirmSub:{fontFamily:F.m,fontSize:13,color:C.text2,marginTop:8,textAlign:'center'},
