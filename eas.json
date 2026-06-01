@@ -1,11 +1,18 @@
 {
   "cli": { "version": ">= 12.0.0", "appVersionSource": "remote" },
   "build": {
-    "preview": {
-      "distribution": "internal",
-      "channel": "preview",
-      "android": { "buildType": "apk", "image": "latest" }
-    }
+    "preview": { "distribution": "internal", "channel": "preview", "android": { "buildType": "apk", "image": "latest" } },
+    "testflight": { "channel": "preview", "autoIncrement": true, "ios": { "image": "latest" } }
   },
-  "submit": { "production": {} }
+  "submit": {
+    "production": {},
+    "testflight": {
+      "ios": {
+        "ascApiKeyPath": "./asc_key.p8",
+        "ascApiKeyId": "47N638GLZG",
+        "ascApiKeyIssuerId": "b26d5075-81df-418d-93b6-a3dd7be13e0c",
+        "appleTeamId": "79NQHBFDS8"
+      }
+    }
+  }
 }
