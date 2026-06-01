@@ -81,6 +81,18 @@ const fs = require('fs');
   await fresh();
   await shot('15_home_nav'); // confirms the 5-tab bottom nav
 
+  // near-miss loss (both correct, lost by ~0.15s -> the SO CLOSE pill in the result card)
+  await fresh();
+  await page.evaluate(() => window.__sense({ result: 'loss', myCorrect: true, oppCorrect: true, myTime: 1900, oppTime: 1750 }));
+  await page.waitForTimeout(6500);
+  await shot('16_nearmiss');
+
+  // matchmaking "Joining..." state
+  await fresh();
+  try { await page.getByText('PLAY ONLINE').last().click({ timeout: 3000 }); } catch (e) {}
+  await page.waitForTimeout(1200);
+  await shot('17_joining');
+
   await browser.close();
   try { srv.kill(); } catch (e) {}
   console.log('snapshots done');
