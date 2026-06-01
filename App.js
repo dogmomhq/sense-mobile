@@ -243,10 +243,11 @@ export default function App() {
   })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); } catch (e) {} } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); } catch (e) {} } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
+  useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
     let sub;
     (async () => {
@@ -356,6 +357,18 @@ export default function App() {
     setBanners(prev => [...prev, { id, result:res, text:`${word} vs ${oppNm}`, mid }]);
     setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 4000);
   }
+  async function hydrateHistory(name) {
+    if (!name) return;
+    try {
+      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=50`);
+      const d = await r.json();
+      if (d && Array.isArray(d.matches)) {
+        const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
+        setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,50); });
+        if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
+      }
+    } catch (e) {}
+  }
   function doRename(name) {
     const nm = String(name || '').trim();
     if (!/^[a-zA-Z0-9_]{3,16}$/.test(nm)) { showToast('3-16 chars: letters, numbers, underscore'); return; }
@@ -369,7 +382,7 @@ export default function App() {
       // ---- device-bound account ----
       case 'registered': {
         accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token };
-        myNameRef.current = msg.handle; setDisplayName(msg.handle);
+        myNameRef.current = msg.handle; setDisplayName(msg.handle); hydrateHistory(msg.handle);
         try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {}
         const fn = pendingAfterReg.current; pendingAfterReg.current = null; if (fn) fn(); // resume the queue we were starting
         break;
@@ -377,7 +390,7 @@ export default function App() {
       case 'rename-result': {
         setNameBusy(false);
         if (msg.ok) {
-          myNameRef.current = msg.handle; setDisplayName(msg.handle); setEditingName(false);
+          myNameRef.current = msg.handle; setDisplayName(msg.handle); setEditingName(false); hydrateHistory(msg.handle);
           if (msg.token) { accountRef.current = { ...(accountRef.current || {}), handle: msg.handle, token: msg.token }; try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {} }
           try { AsyncStorage.setItem('sense_handle', msg.handle); } catch (e) {}
           showToast('Username saved');
