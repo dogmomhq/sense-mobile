@@ -598,9 +598,14 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
   const payoutText = win ? '✓ Correct' : draw ? '—' : (myCorrect ? '⏱ Too Slow' : '✗ Wrong');
   const spMs = picked===-1 ? null : comp.playerTime; // §1 juice: reward fast correct answers with a speed-tier stamp
   const speed = (win && spMs!=null) ? (spMs<600 ? {t:'🔥 INSANE',c:'#EC4899'} : spMs<1000 ? {t:'⚡ LIGHTNING',c:C.accent} : spMs<1600 ? {t:'FAST',c:C.win} : null) : null;
+  // §3 juice: near-miss emphasis — both right, you lost the timing race by a hair. Makes a heartbreaker sting (motivating the rematch) instead of looking like a random loss.
+  const lossMarginMs = (both && !win && !draw) ? (comp.playerTime - comp.time) : null;
+  const nearMiss = lossMarginMs != null && lossMarginMs > 0 && lossMarginMs <= 250;
+  const nearMissTxt = nearMiss ? `💔 SO CLOSE · lost by ${(lossMarginMs/1000).toFixed(2)}s` : null;
 
   function explode() {
     setStep('explode'); hap(win?Haptics.ImpactFeedbackStyle.Heavy:Haptics.ImpactFeedbackStyle.Medium);
+    if (nearMiss) timers.current.push(setTimeout(()=>hap(Haptics.ImpactFeedbackStyle.Light), 140)); // §3: double-tap "heartbeat" on a heartbreaker loss
     bannerA.setValue(0); cardA.setValue(0); btnsA.setValue(0);
     // web doExplosion: burst fires first; banner springs in at +180ms, card fades +0.4s after it, buttons at +980ms
     Animated.timing(bannerA,{toValue:1,duration:350,delay:180,easing:Easing.bezier(0.34,1.56,0.64,1),useNativeDriver:true}).start();
@@ -639,7 +644,7 @@ function ResultsView({ win, draw, color, banner, ctype, myCorrect, oppCorrect, r
         <Animated.View style={{ opacity:cardA, transform:[{translateY:cardA.interpolate({inputRange:[0,1],outputRange:[16,0]})}] }}>
         <Text style={[st.payAmount,{color}]} numberOfLines={1}>{payoutText}</Text>
         <Text style={st.payLabel}>{isChallenge ? 'Challenge' : online ? 'Online Match' : 'Practice Mode'}</Text>
-        {speed ? <View style={[st.speedPill,{borderColor:speed.c}]}><Text style={[st.speedTxt,{color:speed.c}]}>{speed.t}</Text></View> : null}
+        {speed ? <View style={[st.speedPill,{borderColor:speed.c}]}><Text style={[st.speedTxt,{color:speed.c}]}>{speed.t}</Text></View> : nearMiss ? <View style={[st.speedPill,{borderColor:C.lose}]}><Text style={[st.speedTxt,{color:C.lose}]}>{nearMissTxt}</Text></View> : null}
         <View style={st.resultCard}>
           <View style={st.playerRow}>
             <Text style={st.playerLabel}>YOU</Text>
