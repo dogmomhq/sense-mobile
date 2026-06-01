@@ -1,37 +1,30 @@
 name: Submit iOS Direct (altool, no EAS queue)
 
-# Uploads the latest finished EAS iOS build straight to App Store Connect / TestFlight
-# using Apple's own altool on a GitHub macOS runner. Bypasses EAS's submission queue entirely.
+# Uploads an EAS-built iOS .ipa straight to App Store Connect / TestFlight using Apple's
+# altool on a GitHub macOS runner. Bypasses EAS's submission queue entirely.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      ipa_url:
+        description: "EAS .ipa artifact URL (from the finished build)"
+        required: true
+        default: "https://expo.dev/artifacts/eas/bZ1mqPkncuH8EHSTxDDqfN.ipa"
 
 jobs:
   submit:
     runs-on: macos-latest
     steps:
-      - name: Find latest finished iOS .ipa on EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          URL=$(npx --yes eas-cli@latest build:list --platform ios --status finished --limit 1 --json --non-interactive 2>/dev/null \
-            | python3 -c "import sys,json;b=json.load(sys.stdin)[0];a=b.get('artifacts') or {};print(a.get('applicationArchiveUrl') or a.get('buildUrl') or '')")
-          echo "Resolved IPA URL: $URL"
-          echo "IPA_URL=$URL" >> "$GITHUB_ENV"
       - name: Download .ipa
         run: |
-          curl -fL "$IPA_URL" -o app.ipa
+          curl -fL "${{ inputs.ipa_url }}" -o app.ipa
           ls -la app.ipa
+          file app.ipa
       - name: Restore App Store Connect API key
         run: |
           mkdir -p ~/.appstoreconnect/private_keys ./private_keys
           printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_47N638GLZG.p8
           cp ~/.appstoreconnect/private_keys/AuthKey_47N638GLZG.p8 ./private_keys/
-      - name: Validate then upload to TestFlight (altool)
+      - name: Upload to TestFlight (altool)
         run: |
-          set -e
-          echo "== validate =="
-          xcrun altool --validate-app --type ios --file app.ipa \
-            --apiKey 47N638GLZG --apiIssuer b26d5075-81df-418d-93b6-a3dd7be13e0c || true
-          echo "== upload =="
           xcrun altool --upload-app --type ios --file app.ipa \
             --apiKey 47N638GLZG --apiIssuer b26d5075-81df-418d-93b6-a3dd7be13e0c
