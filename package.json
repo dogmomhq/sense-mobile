@@ -11,8 +11,7 @@
     "expo-linear-gradient": "~56.0.4",
     "expo-haptics": "~56.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@expo-google-fonts/inter": "^0.4.1",
-    "@shopify/react-native-skia": "2.6.2"
+    "@expo-google-fonts/inter": "^0.4.1"
   },
   "scripts": {
     "start": "expo start",
