@@ -1,0 +1,21 @@
+name: EAS Update (OTA)
+
+# Ships JS-only changes over-the-air to installed builds in seconds (no native rebuild).
+# The preview EAS build is on channel "preview"; this publishes to the matching branch.
+on:
+  workflow_dispatch:
+    inputs:
+      message: { description: "Update message", required: false, default: "OTA update" }
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci || npm install
+      - name: Publish OTA update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest update --branch preview --message "${{ github.event.inputs.message }}" --non-interactive
