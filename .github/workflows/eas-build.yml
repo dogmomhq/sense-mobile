@@ -1,0 +1,21 @@
+name: EAS Build (Android preview)
+
+# Triggers an EAS cloud build from CI (reliable — no sandbox time limits). The APK is built on
+# Expo's servers; --no-wait returns immediately so the CI job is short. Result + APK URL live at
+# expo.dev/accounts/commonsense94/projects/sense-mobile/builds.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Trigger EAS build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest build -p android --profile preview --non-interactive --no-wait
