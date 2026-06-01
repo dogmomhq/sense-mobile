@@ -35,6 +35,16 @@ function initSfx() {
   } catch (e) { SFX = null; }
 }
 function playSfx(name) { if (!soundOn || !SFX || !SFX[name]) return; try { SFX[name].seekTo(0); SFX[name].play(); } catch (e) {} }
+// ===== analytics (PostHog; native only, guarded — never breaks web/CI) =====
+let PH = null;
+function initAnalytics() {
+  if (PH || Platform.OS === 'web') return;
+  try {
+    const { PostHog } = require('posthog-react-native');
+    PH = new PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: true });
+  } catch (e) { PH = null; }
+}
+function track(event, props) { try { if (PH) PH.capture(event, props || {}); } catch (e) {} }
 
 const BANNERS = {
   win_blowout:["DESTROYED","WRECKED","NOT EVEN CLOSE"], win_comfortable:["LET'S GO","EASY MONEY","TOO FAST"],
@@ -268,7 +278,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]);
   useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
@@ -305,7 +315,7 @@ export default function App() {
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
   function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
-  function startPractice() { const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
+  function startPractice() { track('practice_start'); const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   function submit(idx) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
     const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now()-startRef.current, TIME_LIMIT);
@@ -359,6 +369,7 @@ export default function App() {
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
   function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk) {
+    track('match_result', { result: res, stake: stk || 0, reason });
     setOnlineRec(p => ({ wins:p.wins+(res==='win'), losses:p.losses+(res==='loss'), draws:p.draws+(res==='draw') }));
     setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, stake:stk||0, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
     // credit settlement (stake was escrowed at entry): win => pot*(1-5% rake); draw => refund; loss => already paid
@@ -429,7 +440,7 @@ export default function App() {
       case 'rename-result': {
         setNameBusy(false);
         if (msg.ok) {
-          myNameRef.current = msg.handle; setDisplayName(msg.handle); setEditingName(false); hydrateHistory(msg.handle);
+          myNameRef.current = msg.handle; setDisplayName(msg.handle); setEditingName(false); hydrateHistory(msg.handle); track('rename');
           if (msg.token) { accountRef.current = { ...(accountRef.current || {}), handle: msg.handle, token: msg.token }; try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {} }
           try { AsyncStorage.setItem('sense_handle', msg.handle); } catch (e) {}
           showToast('Username saved');
@@ -506,7 +517,7 @@ export default function App() {
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
-  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
   async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
@@ -521,6 +532,7 @@ export default function App() {
     setLedger(prev => { const nl = [{ ts: Date.now(), type, amount, label }, ...prev].slice(0, 100); AsyncStorage.setItem('sense_ledger', JSON.stringify(nl)).catch(()=>{}); return nl; });
   }
   function startPaidOnline() {
+    track('play_online', { stake });
     if (balance < stake) { showToast('Not enough credits'); return; }
     stakeRef.current = stake;
     applyCredit(-stake, 'entry', stake + ' entry');   // escrow the stake at entry (the seam where real payment plugs in)
