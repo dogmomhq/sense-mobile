@@ -5,10 +5,17 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
-// react-native-url-polyfill is only needed on native (RN's URL is incomplete). Web has a real URL,
-// and the '/auto' import doesn't resolve under react-native-web — so load it on native only.
+// RN's built-in URL is incomplete; Supabase needs the polyfill on NATIVE only (web has a real URL).
+// Use the package MAIN entry (setupURLPolyfill) instead of the '/auto' subpath — Expo Snack's bundler
+// can't resolve 'react-native-url-polyfill/auto', but resolves the main export fine. Real EAS builds
+// resolve either; this just keeps the Snack preview working too.
 if (Platform.OS !== 'web') {
-  require('react-native-url-polyfill/auto');
+  try {
+    const { setupURLPolyfill } = require('react-native-url-polyfill');
+    setupURLPolyfill();
+  } catch (e) {
+    try { require('react-native-url-polyfill/auto'); } catch (e2) {}
+  }
 }
 
 const SUPABASE_URL = 'https://nexpzwfemjcqdrljrfjy.supabase.co';
