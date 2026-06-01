@@ -249,7 +249,7 @@ export default function App() {
   })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); } catch (e) {} try { const bal = await AsyncStorage.getItem('sense_balance'); if (bal != null) setBalance(parseInt(bal) || 0); const lg = await AsyncStorage.getItem('sense_ledger'); if (lg) setLedger(JSON.parse(lg)); } catch (e) {} } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); hydrateOpenGames(myNameRef.current); } catch (e) {} try { const bal = await AsyncStorage.getItem('sense_balance'); if (bal != null) setBalance(parseInt(bal) || 0); const lg = await AsyncStorage.getItem('sense_ledger'); if (lg) setLedger(JSON.parse(lg)); } catch (e) {} } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
@@ -378,6 +378,16 @@ export default function App() {
         const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
         setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,50); });
         if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
+      }
+    } catch (e) {}
+  }
+  async function hydrateOpenGames(name) {
+    if (!name) return;
+    try {
+      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}`);
+      const d = await r.json();
+      if (d && Array.isArray(d.open) && d.open.length) {
+        setPending(prev => { const next = { ...prev }; d.open.forEach(g => { if (g.match_id && !next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: g.created_at ? new Date(g.created_at).getTime() : Date.now(), stake: 0, myTime: null }; }); return next; });
       }
     } catch (e) {}
   }
