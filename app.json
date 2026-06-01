@@ -25,6 +25,11 @@
     },
     "experiments": {
       "baseUrl": "/sense-mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ee740f0c-1158-49cb-86a6-b5ed2d72f8b6"
+      }
     }
   }
 }
