@@ -1,0 +1,20 @@
+name: EAS Submit iOS (TestFlight)
+
+# Submits the latest finished iOS build to TestFlight using the App Store Connect API key.
+# Requires submit.testflight.ios.ascAppId set in eas.json (the app must exist in App Store Connect).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Restore ASC API key
+        run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
+      - name: Submit latest iOS build to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest submit -p ios --profile testflight --latest --non-interactive
