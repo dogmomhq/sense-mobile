@@ -218,6 +218,12 @@ export default function App() {
   const [showActions, setShowActions] = useState(false); // play-screen Play Again/History/Home
   const [challenge, setChallenge] = useState(null);   // challengeService snapshot
   const [joinCode, setJoinCode] = useState('');
+  // ===== credits / stakes (stubbed local balance adapter — swap for server+processor to go real-money) =====
+  const [balance, setBalance] = useState(500);   // free starting credits
+  const [stake, setStake] = useState(10);         // selected entry credits
+  const [ledger, setLedger] = useState([]);       // [{ts,type,amount,label}]
+  const [confirming, setConfirming] = useState(false);
+  const stakeRef = useRef(10);
   const [rematchReq, setRematchReq] = useState(false);
   // Supabase email/OTP login (optional upgrade over the anonymous device account)
   const [authEmail, setAuthEmail] = useState(null);
@@ -243,7 +249,7 @@ export default function App() {
   })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); } catch (e) {} } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); } catch (e) {} try { const bal = await AsyncStorage.getItem('sense_balance'); if (bal != null) setBalance(parseInt(bal) || 0); const lg = await AsyncStorage.getItem('sense_ledger'); if (lg) setLedger(JSON.parse(lg)); } catch (e) {} } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
@@ -295,7 +301,7 @@ export default function App() {
       } else {
         wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));  // async matchmaking
         const mid = matchIdRef.current;
-        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now() } }));
+        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), stake: stakeRef.current } }));
         if (pendTimer.current) clearTimeout(pendTimer.current);
         pendTimer.current = setTimeout(() => { if (onlineRef.current) setShowActions(true); }, 4000); // web: actions appear at +4s
       }
@@ -335,9 +341,15 @@ export default function App() {
     setCountdown(true); fadeTo(() => setMode('play'));
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
-  function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm) {
+  function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk) {
     setOnlineRec(p => ({ wins:p.wins+(res==='win'), losses:p.losses+(res==='loss'), draws:p.draws+(res==='draw') }));
-    setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
+    setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, stake:stk||0, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
+    // credit settlement (stake was escrowed at entry): win => pot*(1-5% rake); draw => refund; loss => already paid
+    const sV = stk || 0;
+    if (sV > 0) {
+      if (res === 'win') { const w = Math.round(sV * 2 * 0.95); applyCredit(w, 'win', 'Won ' + w); }
+      else if (res === 'draw') { applyCredit(sV, 'refund', 'Draw refund ' + sV); }
+    }
     setPending(p => { const n = { ...p }; delete n[mid]; return n; });
   }
   // shared: map a server result into the practice-shaped state and show the Results screen
@@ -406,7 +418,7 @@ export default function App() {
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
         const oppNm = (msg.opponent && msg.opponent.name) || (pending[msg.matchId] && pending[msg.matchId].opponent) || oppName || 'Opponent';
         const myT = (pending[msg.matchId] && pending[msg.matchId].myTime != null) ? pending[msg.matchId].myTime : myTimeRef.current;
-        logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm);
+        logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm, (pending[msg.matchId] && pending[msg.matchId].stake) || stakeRef.current);
         // foreground only if this is the match currently on the Play screen — else a background banner
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
         else pushBanner(res, oppNm, msg.matchId);
@@ -432,7 +444,7 @@ export default function App() {
         const res = msg.you.result, oppT = msg.opponent.time;
         const cs = getChallenge();
         const oppNm = (cs && (cs.role==='host' ? cs.joinerName : cs.hostName)) || oppName || 'Opponent';
-        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm);
+        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm, 0);
         setRematchReq(false);
         showResultsFor(msg, oppT);
         break;
@@ -441,13 +453,13 @@ export default function App() {
       case 'rtt-ping': wsSend(rttPong(msg.nonce)); break;
       case 'ping': wsSend(pong(msg.nonce)); break;   // room latency probe (web replies pong)
       case 'rtt-result': break;
-      case 'match-cancelled':  // a pending async game was cancelled — just drop it, don't navigate
-        if (msg.matchId) setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
+      case 'match-cancelled':  // a pending async game was cancelled — refund the escrowed stake, drop the card
+        if (msg.matchId) { const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
         break;
       case 'cancel-denied':  // server 2-min anti-abuse lockout (can't queue, peek the question, then bail)
         showToast(msg.message || 'Cannot cancel yet'); break;
-      case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule)
-        if (msg.matchId) setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
+      case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
+        if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
         else showToast('A pending game expired');
         break;
@@ -474,6 +486,18 @@ export default function App() {
       if (accountRef.current && accountRef.current.token) sendQueueMsg();
       else { pendingAfterReg.current = sendQueueMsg; wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
     });
+  }
+  // BALANCE ADAPTER (stub): the ONLY place credits move. Replace these two with server/processor calls for real money.
+  function applyCredit(amount, type, label) {
+    setBalance(prev => { const nb = Math.max(0, prev + amount); AsyncStorage.setItem('sense_balance', String(nb)).catch(()=>{}); return nb; });
+    setLedger(prev => { const nl = [{ ts: Date.now(), type, amount, label }, ...prev].slice(0, 100); AsyncStorage.setItem('sense_ledger', JSON.stringify(nl)).catch(()=>{}); return nl; });
+  }
+  function startPaidOnline() {
+    if (balance < stake) { showToast('Not enough credits'); return; }
+    stakeRef.current = stake;
+    applyCredit(-stake, 'entry', stake + ' entry');   // escrow the stake at entry (the seam where real payment plugs in)
+    setConfirming(false);
+    playOnline();
   }
   function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue(); }
   function requeueOnline() { setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(); }
@@ -552,15 +576,38 @@ export default function App() {
   } else {
     let screen;
     if (tab === 'home') {
+      const winUpTo = Math.round(stake * 1.9);
       screen = (
-        <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingTop:70}}>
+        <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingTop:60}}>
           <Text style={st.bigBrand}>SENSE</Text>
           <Text style={st.tagline}>How fast can you name the animal?</Text>
           <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
-          <View style={{height:30}} />
-          <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="PLAY ONLINE" onPress={playOnline} /></View>
-          <Text style={st.note}>Real opponents · free · fastest correct answer wins.</Text>
-          <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
+          <View style={st.balPill}><Text style={st.balPillText}>{balance} credits</Text></View>
+          {confirming ? (
+            <View style={st.confirmCard}>
+              <Text style={st.confirmTitle}>Entering {stake}-credit match</Text>
+              <Text style={st.confirmSub}>Win up to {winUpTo} · balance {balance} → {Math.max(0,balance-stake)}</Text>
+              {balance < stake
+                ? <Text style={st.noticeText}>Not enough credits</Text>
+                : <View style={{width:'100%',alignItems:'center',marginTop:14}}><GlossyButton label="CONFIRM & PLAY" onPress={startPaidOnline} /></View>}
+              <Pressable onPress={()=>setConfirming(false)} style={st.practiceLink}><Text style={st.practiceLinkText}>Back</Text></Pressable>
+            </View>
+          ) : (
+            <>
+              <View style={st.stakeRow}>
+                {[10,50,100].map(sv => (
+                  <Pressable key={sv} onPress={()=>setStake(sv)} style={[st.stakeChip, stake===sv && st.stakeChipOn]}>
+                    <Text style={[st.stakeChipText, stake===sv && st.stakeChipTextOn]}>{sv}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={st.stakeHint}>entry · credits</Text>
+              <View style={{height:14}} />
+              <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="PLAY ONLINE" onPress={()=>setConfirming(true)} /></View>
+              <Text style={st.note}>Real opponents · free credits · fastest correct answer wins.</Text>
+              <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
+            </>
+          )}
           {notice ? <Text style={st.noticeText}>{notice}</Text> : null}
         </View>
       );
@@ -569,7 +616,7 @@ export default function App() {
     } else if (tab === 'leaderboard') {
       screen = <LeaderboardScreen httpsBase={HTTPS_BASE} />;
     } else if (tab === 'history') {
-      screen = <HistoryScreen matchLog={matchLog} pending={pending} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
+      screen = <HistoryScreen matchLog={matchLog} pending={pending} ledger={ledger} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
     } else {
       const authUI = !supabase ? null : (authEmail ? (
         <View style={st.authBox}>
@@ -595,7 +642,7 @@ export default function App() {
           )}
         </View>
       ));
-      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={displayName || myName()} authUI={authUI} onRename={doRename} editingName={editingName} setEditingName={setEditingName} nameInput={nameInput} setNameInput={setNameInput} nameBusy={nameBusy} />;
+      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={displayName || myName()} authUI={authUI} onRename={doRename} editingName={editingName} setEditingName={setEditingName} nameInput={nameInput} setNameInput={setNameInput} nameBusy={nameBusy} balance={balance} />;
     }
     body = (<>
       <ScrollView contentContainerStyle={{flexGrow:1,paddingBottom:96}}>{screen}</ScrollView>
@@ -815,7 +862,7 @@ function LeaderboardScreen({ httpsBase }) {
   </View>);
 }
 function timeAgo(ts){ if(!ts)return''; const d=Date.now()-new Date(ts).getTime(), m=Math.floor(d/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
-function HistoryScreen({ matchLog, pending, onCancel }) {
+function HistoryScreen({ matchLog, pending, ledger, onCancel }) {
   const pend = Object.entries(pending||{});
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, []);
@@ -824,6 +871,9 @@ function HistoryScreen({ matchLog, pending, onCancel }) {
     {pend.length>0 && (<View style={{marginBottom:8}}><Text style={st.sectionSub}>Pending</Text>
       {pend.map(([mid,d])=>{ const locked = d.ts && (now - d.ts) < 120000; const remain = Math.ceil((120000 - (now - (d.ts||0))) / 1000); return (<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching…'}</Text></View><Pressable onPress={()=>{ if(!locked) onCancel(mid); }} disabled={locked} style={[st.histCancel, locked&&{opacity:0.45}]}><Text style={st.histCancelText}>{locked ? `${remain}s` : 'Cancel'}</Text></Pressable></View>); })}
     </View>)}
+    {(ledger && ledger.length>0) ? (<View style={{marginBottom:14}}><Text style={st.sectionSub}>Transactions</Text>
+      {ledger.slice(0,8).map((t,i)=>(<View key={i} style={st.ledgerRow}><Text style={st.ledgerLabel}>{t.label}</Text><Text style={[st.ledgerAmt,{color:t.amount>=0?C.win:C.lose}]}>{t.amount>=0?'+':''}{t.amount}</Text></View>))}
+    </View>) : null}
     {matchLog.length===0 && pend.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
     {matchLog.map((m,idx)=>{ const rc = m.result==='win'?C.win:m.result==='loss'?C.lose:C.draw; const rl = m.result==='win'?'WIN':m.result==='loss'?'LOSS':'DRAW';
       return (<View key={m.matchId||idx} style={st.histRow}>
@@ -832,11 +882,12 @@ function HistoryScreen({ matchLog, pending, onCancel }) {
       </View>); })}
   </View>);
 }
-function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy }) {
+function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy, balance }) {
   const oplayed = onlineRec.wins+onlineRec.losses+onlineRec.draws, oacc = oplayed?Math.round(onlineRec.wins/oplayed*100):0;
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Profile</Text>
     {authUI || null}
+    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{balance} credits (free)</Text></View>
     <View style={st.profSection}>
       <Text style={st.profLabel}>Username</Text>
       {editingName ? (
@@ -875,6 +926,10 @@ const st = StyleSheet.create({
   playHeader:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,marginTop:14}, pnameSm:{fontSize:11,color:C.text2,fontFamily:'Courier New'}, vsTiny:{fontSize:8,color:C.text2,opacity:0.4,letterSpacing:1,textTransform:'uppercase'},
   bigBrand:{fontSize:56,fontFamily:F.k,letterSpacing:7,color:C.accent}, tagline:{fontSize:15,color:C.text2,marginTop:14,textAlign:'center',fontFamily:F.m},
   recPill:{backgroundColor:'rgba(108,99,255,0.10)',borderRadius:999,paddingHorizontal:20,paddingVertical:9,marginTop:22}, recPillText:{color:C.accent,fontFamily:F.x,fontSize:14},
+  balPill:{backgroundColor:'rgba(34,197,94,0.12)',borderRadius:999,paddingHorizontal:18,paddingVertical:7,marginTop:10}, balPillText:{color:C.win,fontFamily:F.x,fontSize:13},
+  stakeRow:{flexDirection:'row',marginTop:26}, stakeChip:{minWidth:64,alignItems:'center',paddingVertical:12,paddingHorizontal:18,marginHorizontal:6,borderRadius:14,borderWidth:1.5,borderColor:C.border,backgroundColor:C.card}, stakeChipOn:{borderColor:C.accent,backgroundColor:'rgba(108,99,255,0.10)'}, stakeChipText:{fontFamily:F.x,fontSize:18,color:C.text2}, stakeChipTextOn:{color:C.accent}, stakeHint:{color:C.text2,fontFamily:F.m,fontSize:11,letterSpacing:1,marginTop:8,textTransform:'uppercase'},
+  confirmCard:{width:'100%',backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:18,padding:22,marginTop:26,alignItems:'center'}, confirmTitle:{fontFamily:F.b,fontSize:18,color:C.text}, confirmSub:{fontFamily:F.m,fontSize:13,color:C.text2,marginTop:8,textAlign:'center'},
+  ledgerRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:8,borderBottomWidth:1,borderBottomColor:C.border}, ledgerLabel:{fontFamily:F.m,fontSize:13,color:C.text}, ledgerAmt:{fontFamily:F.x,fontSize:14},
   glossy:{borderRadius:36,paddingVertical:22,alignItems:'center',overflow:'hidden',shadowColor:'#000',shadowOpacity:0.4,shadowRadius:15,shadowOffset:{width:0,height:4},elevation:7},
   glossyHi:{position:'absolute',top:0,left:0,right:0,height:'50%',backgroundColor:'rgba(255,255,255,0.13)'}, glossyText:{color:'#fff',fontSize:22,fontFamily:F.k,letterSpacing:3},
   note:{color:C.text2,fontSize:12,marginTop:22,textAlign:'center',fontFamily:F.m},
