@@ -13,6 +13,7 @@ import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, format
 import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
+import { supabase } from './supabaseClient';
 
 const TIME_LIMIT = 10000;
 const SERVER_WS = PREVIEW_SERVER_WS;
@@ -218,11 +219,18 @@ export default function App() {
   const [challenge, setChallenge] = useState(null);   // challengeService snapshot
   const [joinCode, setJoinCode] = useState('');
   const [rematchReq, setRematchReq] = useState(false);
+  // Supabase email/OTP login (optional upgrade over the anonymous device account)
+  const [authEmail, setAuthEmail] = useState(null);
+  const [signinEmail, setSigninEmail] = useState('');
+  const [signinCode, setSigninCode] = useState('');
+  const [signinStep, setSigninStep] = useState('email'); // 'email' | 'code'
+  const [signinBusy, setSigninBusy] = useState(false);
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
+  const supabaseTokenRef = useRef(null); // Supabase access token when signed in (preferred over device token)
   const fade = useRef(new Animated.Value(1)).current;
   // swipe-up on the Play screen (when pending actions are showing) → re-queue, matching web
   const swipe = useRef(PanResponder.create({
@@ -235,6 +243,14 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
+  useEffect(() => {
+    let sub;
+    (async () => {
+      try { const { data } = await supabase.auth.getSession(); const s = data && data.session; if (s) { supabaseTokenRef.current = s.access_token; setAuthEmail(s.user && s.user.email); } } catch (e) {}
+      try { sub = supabase.auth.onAuthStateChange((_e, s) => { supabaseTokenRef.current = s ? s.access_token : null; setAuthEmail(s && s.user ? s.user.email : null); }); } catch (e) {}
+    })();
+    return () => { try { sub && sub.data && sub.data.subscription && sub.data.subscription.unsubscribe(); } catch (e) {} };
+  }, []);
 
   function fadeTo(next) { Animated.timing(fade,{toValue:0,duration:120,useNativeDriver:true}).start(); setTimeout(()=>{ next(); fade.setValue(0); Animated.timing(fade,{toValue:1,duration:150,useNativeDriver:true}).start(); },130); }
 
@@ -407,7 +423,15 @@ export default function App() {
     }
   }
   function ensureConn(after) { if (isConnected()) { after && after(); } else connectWS((m) => wsHandlerRef.current(m), () => {}, () => after && after(), () => bailHome('Connection lost')); }
-  function sendQueueMsg() { wsSend({ ...queue(myName(), 1, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined }); }
+  async function sendQueueMsg() {
+    let supaTok = supabaseTokenRef.current || undefined;
+    if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
+    wsSend({ ...queue(myName(), 1, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
+  }
+  // Supabase email one-time-code sign-in
+  async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
+  async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); }
   function startQueue() {
     ensureConn(() => {
       if (accountRef.current && accountRef.current.token) sendQueueMsg();
@@ -510,7 +534,31 @@ export default function App() {
     } else if (tab === 'history') {
       screen = <HistoryScreen matchLog={matchLog} pending={pending} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} setPending(p=>{ const n={...p}; delete n[mid]; return n; }); }} />;
     } else {
-      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={myName()} />;
+      const authUI = authEmail ? (
+        <View style={st.authBox}>
+          <Text style={st.profLabel}>Account</Text>
+          <Text style={st.profValue}>{authEmail}</Text>
+          <Pressable onPress={signOutAuth} style={st.authLink}><Text style={st.authLinkText}>Sign out</Text></Pressable>
+        </View>
+      ) : (
+        <View style={st.authBox}>
+          <Text style={st.profLabel}>Sign in to save your account</Text>
+          {signinStep !== 'code' ? (
+            <>
+              <TextInput value={signinEmail} onChangeText={setSigninEmail} placeholder="your@email.com" placeholderTextColor={C.text2} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" style={st.authInput} />
+              <Pressable onPress={sendCode} disabled={signinBusy || !signinEmail} style={[st.authBtn, (signinBusy || !signinEmail) && { opacity: 0.5 }]}><Text style={st.authBtnText}>{signinBusy ? 'Sending…' : 'Send code'}</Text></Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={st.waitSub}>Enter the code emailed to {signinEmail}</Text>
+              <TextInput value={signinCode} onChangeText={setSigninCode} placeholder="Code" placeholderTextColor={C.text2} keyboardType="number-pad" style={st.authInput} />
+              <Pressable onPress={verifyCode} disabled={signinBusy || !signinCode} style={[st.authBtn, (signinBusy || !signinCode) && { opacity: 0.5 }]}><Text style={st.authBtnText}>{signinBusy ? 'Verifying…' : 'Verify & sign in'}</Text></Pressable>
+              <Pressable onPress={() => { setSigninStep('email'); setSigninCode(''); }} style={st.authLink}><Text style={st.authLinkText}>Use a different email</Text></Pressable>
+            </>
+          )}
+        </View>
+      );
+      screen = <ProfileScreen rec={rec} onlineRec={onlineRec} streakVal={streak(history.current)} sound={sound} setSound={setSound} handle={myName()} authUI={authUI} />;
     }
     body = (<>
       <ScrollView contentContainerStyle={{flexGrow:1,paddingBottom:96}}>{screen}</ScrollView>
@@ -740,10 +788,11 @@ function HistoryScreen({ matchLog, pending, onCancel }) {
       </View>); })}
   </View>);
 }
-function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle }) {
+function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI }) {
   const oplayed = onlineRec.wins+onlineRec.losses+onlineRec.draws, oacc = oplayed?Math.round(onlineRec.wins/oplayed*100):0;
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Profile</Text>
+    {authUI || null}
     <View style={st.profSection}><Text style={st.profLabel}>Handle</Text><Text style={st.profValue}>{handle}</Text></View>
     <Text style={st.profLabel}>Online Stats</Text>
     <View style={st.statGrid}><Stat label="Played" value={oplayed} /><Stat label="Wins" value={onlineRec.wins} /><Stat label="Accuracy" value={oacc+'%'} /></View>
@@ -829,4 +878,8 @@ const st = StyleSheet.create({
   gameIdLine:{textAlign:'center',color:C.text2,fontFamily:'Courier New',fontSize:11,marginTop:3,opacity:0.7},
   swipeHint:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:11,marginTop:10,opacity:0.7},
   toastWrap:{position:'absolute',bottom:36,left:0,right:0,alignItems:'center'}, toast:{backgroundColor:'rgba(26,26,46,0.95)',borderRadius:12,paddingVertical:12,paddingHorizontal:20,maxWidth:'86%'}, toastText:{color:'#fff',fontFamily:F.s,fontSize:14,textAlign:'center'},
+  authBox:{backgroundColor:C.card,borderWidth:1,borderColor:C.border,borderRadius:16,padding:16,marginBottom:16},
+  authInput:{backgroundColor:'#fff',borderWidth:1,borderColor:C.border,borderRadius:10,paddingVertical:12,paddingHorizontal:14,fontFamily:F.s,fontSize:15,color:C.text,marginTop:10},
+  authBtn:{backgroundColor:C.accent,borderRadius:10,paddingVertical:13,alignItems:'center',marginTop:10}, authBtnText:{color:'#fff',fontFamily:F.x,fontSize:15},
+  authLink:{paddingVertical:10,alignItems:'center'}, authLinkText:{color:C.text2,fontFamily:F.b,fontSize:13},
 });
