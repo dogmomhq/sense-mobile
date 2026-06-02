@@ -567,7 +567,12 @@ export default function App() {
     playOnline();
   }
   function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue(); }
-  function requeueOnline() { setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(); }
+  function requeueOnline() {
+    const s = stakeRef.current || 0;
+    if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
+    if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
+    setNotice(null); setOppName('Rival'); setMode('joining'); startQueue();
+  }
   function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
   // ---- challenge (friend room) ----
   function doCreateChallenge() { setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => createChallenge({ tier:1, playerName: myName(), paymentMode:'none' })); }
