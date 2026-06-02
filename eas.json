@@ -2,7 +2,8 @@
   "cli": { "version": ">= 12.0.0", "appVersionSource": "remote" },
   "build": {
     "preview": { "distribution": "internal", "channel": "preview", "android": { "buildType": "apk", "image": "latest" } },
-    "testflight": { "channel": "preview", "autoIncrement": true, "credentialsSource": "local", "ios": { "image": "latest" } }
+    "testflight": { "channel": "preview", "autoIncrement": true, "credentialsSource": "local", "ios": { "image": "latest" } },
+    "simulator": { "ios": { "simulator": true, "image": "latest" } }
   },
   "submit": {
     "production": {},
