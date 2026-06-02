@@ -1,27 +1,29 @@
 import { registerRootComponent } from 'expo';
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
-import App from './App';
+import { Text, ScrollView } from 'react-native';
 
-// Top-level boundary: if App throws during render, SHOW the error on screen instead of a
-// silent white screen (release builds swallow JS errors). Diagnostic + permanent safety net.
+// Catch module-load failure (App or its imports throwing at evaluation time)
+let App = null, loadErr = null;
+try { App = require('./App').default; } catch (e) { loadErr = e; }
+
+function ErrText({ title, e }) {
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 28, paddingTop: 80 }}>
+      <Text style={{ fontSize: 20, fontWeight: '800', color: '#B00020' }}>{title}</Text>
+      <Text style={{ fontSize: 15, color: '#111', marginTop: 14 }}>{String((e && e.message) || e)}</Text>
+      <Text style={{ fontSize: 11, color: '#555', marginTop: 16 }}>{String((e && e.stack) || '').slice(0, 2000)}</Text>
+    </ScrollView>
+  );
+}
+
 class RootBoundary extends React.Component {
   constructor(p) { super(p); this.state = { err: null }; }
   static getDerivedStateFromError(e) { return { err: e }; }
-  componentDidCatch(e, info) { try { console.error('ROOTBOUNDARY', e && e.message, info && info.componentStack); } catch (_) {} }
-  render() {
-    if (this.state.err) {
-      const e = this.state.err;
-      return (
-        <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 28, paddingTop: 80 }}>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: '#B00020' }}>BOOT ERROR</Text>
-          <Text style={{ fontSize: 15, color: '#111', marginTop: 14 }}>{String((e && e.message) || e)}</Text>
-          <Text style={{ fontSize: 11, color: '#555', marginTop: 16 }}>{String((e && e.stack) || '').slice(0, 2000)}</Text>
-        </ScrollView>
-      );
-    }
-    return <App />;
-  }
+  render() { if (this.state.err) return <ErrText title="RENDER ERROR" e={this.state.err} />; return this.props.children; }
 }
-function Root() { return <RootBoundary />; }
+
+function Root() {
+  if (loadErr) return <ErrText title="LOAD ERROR" e={loadErr} />;
+  return (<RootBoundary><App /></RootBoundary>);
+}
 registerRootComponent(Root);
