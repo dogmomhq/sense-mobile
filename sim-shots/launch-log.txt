@@ -1,3 +1,61 @@
 getpwuid_r did not find a match for uid 501
 Filtering the log data using "process == "sensemobile""
+Timestamp               Ty Process[PID:TID]
+2026-06-02 01:09:12.041 Db sensemobile[5470:569f] [com.apple.CFBundle:resources] Language lookup at CFBundle 0x600003b08c40 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/AA2052C1-BAE7-43B9-B1E1-CF612E82A286/sensemobile.app/EXConstants.bundle> (not loaded)
+	Localizations : [en]
+	Dev language  : en
+	User prefs    : [en-US]
+	Main bundle   : [en]
+	Allow mixed   : 0 
+	Result        : [en]
+2026-06-02 01:09:12.041 Db sensemobile[5470:569f] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b08c40 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/AA2052C1-BAE7-43B9-B1E1-CF612E82A286/sensemobile.app/EXConstants.bundle> (not loaded)
+	Request       : app type: config
+	Result        : file:///Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/AA2052C1-BAE7-43B9-B1E1-CF612E82A286/sensemobile.app/EXConstants.bundle/app.config
+2026-06-02 01:09:12.045 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key EnhancedTextLegibilityEnabled in CFPrefsSearchListSource<0x600002c08680> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:09:12.045 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.dogmomhq.sensemobile, preference = EnhancedTextLegibilityEnabled, appID = com.dogmomhq.sensemobile result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:12.045 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key DarkenSystemColors in CFPrefsSearchListSource<0x600002c08680> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:09:12.045 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.dogmomhq.sensemobile, preference = DarkenSystemColors, appID = com.dogmomhq.sensemobile result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:12.045 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key InvertColorsEnabled in CFPrefsSearchListSource<0x600002c08680> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:09:12.045 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.dogmomhq.sensemobile, preference = InvertColorsEnabled, appID = com.dogmomhq.sensemobile result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:12.046 Df sensemobile[5470:56aa] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 2
+2026-06-02 01:09:12.046 Df sensemobile[5470:56aa] [com.apple.UIKit:BackgroundTask] Ending task with identifier 2 and description: <_UIBackgroundTaskInfo: 0x6000017102c0>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 428 (elapsed = 1), _expireHandler: <__NSGlobalBlock__: 0x1e6965d48>
+2026-06-02 01:09:12.047 Db sensemobile[5470:56af] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 2 of 2
+2026-06-02 01:09:12.047 Db sensemobile[5470:56af] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] dealloc
+2026-06-02 01:09:12.048 I  sensemobile[5470:56b4] [dev.expo.modules:expo] 🟢 Creating JS object for module 'ExpoUpdates'
+2026-06-02 01:09:12.047 Df sensemobile[5470:56aa] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x6000021060d0> (used by background task with identifier 2: <_UIBackgroundTaskInfo: 0x6000017102c0>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 428 (elapsed = 1))
+2026-06-02 01:09:12.048 I  sensemobile[5470:56b4] [dev.expo.modules:expo] 🟢 Creating JS object for module 'ExponentConstants'
+2026-06-02 01:09:12.048 Df sensemobile[5470:56aa] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x6000021060d0> for task identifier: 2
+2026-06-02 01:09:12.053 E  sensemobile[5470:56b4] [com.facebook.react.log:javascript] [runtime not ready]: Error: Cannot find native module 'ExpoAsset'
+2026-06-02 01:09:12.054 E  sensemobile[5470:56b4] [com.facebook.react.log:native] Unhandled JS Exception: [runtime not ready]: Error: Cannot find native module 'ExpoAsset'
+2026-06-02 01:09:12.058 I  sensemobile[5470:56b4] [com.facebook.react.log:javascript] 'Failed to print error: ', 'Exception in HostFunction: <unknown>'
+2026-06-02 01:09:12.059 E  sensemobile[5470:56b4] [com.facebook.react.log:javascript] [runtime not ready]: Error: Cannot find native module 'ExpoAsset'
+2026-06-02 01:09:12.090 Df sensemobile[5470:569f] [com.apple.network:activity] <nw_activity 50:1 [DC5A7C2D-4415-4E39-8F02-90A4B8B8BAA1] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 1560ms
+2026-06-02 01:09:12.090 Db sensemobile[5470:569f] [com.apple.network:activity] No threshold for app_launch:app_launch, returning NW_ACTIVITY_DURATION_INVALID
+2026-06-02 01:09:12.090 Db sensemobile[5470:569f] [com.apple.network:activity] No threshold for activity <nw_activity 50:1 [DC5A7C2D-4415-4E39-8F02-90A4B8B8BAA1] (global parent) (reporting strategy default) complete (reason success)>
+2026-06-02 01:09:12.090 Df sensemobile[5470:569f] [com.apple.network:activity] <nw_activity 50:2 [C1A666EE-E7F9-4F9C-8B46-DFE4440430D9] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 1560ms
+2026-06-02 01:09:12.090 Db sensemobile[5470:569f] [com.apple.network:activity] No threshold for app_launch:extended_app_launch, returning NW_ACTIVITY_DURATION_INVALID
+2026-06-02 01:09:12.090 Db sensemobile[5470:569f] [com.apple.network:activity] No threshold for activity <nw_activity 50:2 [C1A666EE-E7F9-4F9C-8B46-DFE4440430D9] (reporting strategy default) complete (reason success)>
+2026-06-02 01:09:12.090 Df sensemobile[5470:569f] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [DC5A7C2D-4415-4E39-8F02-90A4B8B8BAA1] (global parent) (reporting strategy default) complete (reason success)>
+2026-06-02 01:09:12.090 Df sensemobile[5470:569f] [com.apple.network:activity] Unset the global parent activity
+2026-06-02 01:09:12.090 E  sensemobile[5470:56aa] [com.apple.app_launch_measurement:General] Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+2026-06-02 01:09:12.150 Db sensemobile[5470:56ad] [com.apple.runningboard:message] PERF: [app<com.dogmomhq.sensemobile((null))>:5470] Received message from runningboardd: async_didChangeInheritances:completion:
+2026-06-02 01:09:12.150 A  sensemobile[5470:56ad] (RunningBoardServices) didChangeInheritances
+2026-06-02 01:09:12.150 Db sensemobile[5470:56ad] [com.apple.runningboard:connection] didChangeInheritances: <RBSInheritanceChangeSet| gained:(null) lost:{(
+    <RBSInheritance| environment:UIScene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default name:com.apple.frontboard.visibility origID:3649-3646-716 payload 14346615290047598671>
+)}>
+2026-06-02 01:09:12.214 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key ReduceMotionEnabled in CFPrefsSearchListSource<0x600002c08680> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:09:12.214 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.dogmomhq.sensemobile, preference = ReduceMotionEnabled, appID = com.dogmomhq.sensemobile result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:12.266 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key EnhancedBackgroundContrastEnabled in CFPrefsSearchListSource<0x600002c08680> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:09:12.266 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.dogmomhq.sensemobile, preference = EnhancedBackgroundContrastEnabled, appID = com.dogmomhq.sensemobile result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:12.566 Db sensemobile[5470:56af] [com.apple.runningboard:message] PERF: [app<com.dogmomhq.sensemobile((null))>:5470] Received message from runningboardd: async_didChangeInheritances:completion:
+2026-06-02 01:09:12.566 A  sensemobile[5470:56af] (RunningBoardServices) didChangeInheritances
+2026-06-02 01:09:12.566 Db sensemobile[5470:56af] [com.apple.runningboard:connection] didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+    <RBSInheritance| environment:(none) name:com.apple.frontboard.visibility origID:3649-3646-718 0>
+)} lost:(null)>
+2026-06-02 01:09:13.030 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key SpeechSettingsDisabledByManagedConfiguration in CFPrefsSearchListSource<0x600002c05e00> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:09:13.030 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = SpeechSettingsDisabledByManagedConfiguration, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:13.030 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key SpeechSettingsDisabledByManagedConfiguration in CFPrefsPlistSource<0x600002c06e80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:09:13.030 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key QuickSpeak in CFPrefsSearchListSource<0x600002c05e00> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:09:13.030 Db sensemobile[5470:569f] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = QuickSpeak, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:09:13.030 Db sensemobile[5470:569f] [com.apple.defaults:User Defaults] found no value for key QuickSpeak in CFPrefsPlistSource<0x600002c06e80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
 Child process terminated with signal 15: Terminated
