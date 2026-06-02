@@ -1,0 +1,19 @@
+name: EAS Build iOS Simulator
+
+# Builds an unsigned iOS .app for the simulator (no Apple credentials needed).
+# Used by ios-sim-e2e.yml so Claude can self-test the real native app on a simulated iPhone.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci || npm install
+      - name: Build simulator app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest build -p ios --profile simulator --non-interactive
