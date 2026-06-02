@@ -1,10 +1,877 @@
 getpwuid_r did not find a match for uid 501
 Filtering the log data using "process == "sensemobile""
 Timestamp               Ty Process[PID:TID]
-2026-06-02 01:19:34.337 Db sensemobile[4995:4f9c] [com.apple.defaults:User Defaults] found no value for key SpeechSettingsDisabledByManagedConfiguration in CFPrefsSearchListSource<0x600002c0de00> (Domain: com.apple.Accessibility, Container: (null))
-2026-06-02 01:19:34.337 Db sensemobile[4995:4f9c] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = SpeechSettingsDisabledByManagedConfiguration, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
-2026-06-02 01:19:34.337 Db sensemobile[4995:4f9c] [com.apple.defaults:User Defaults] found no value for key SpeechSettingsDisabledByManagedConfiguration in CFPrefsPlistSource<0x600002c0e100> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
-2026-06-02 01:19:34.337 Db sensemobile[4995:4f9c] [com.apple.defaults:User Defaults] found no value for key QuickSpeak in CFPrefsSearchListSource<0x600002c0de00> (Domain: com.apple.Accessibility, Container: (null))
-2026-06-02 01:19:34.337 Db sensemobile[4995:4f9c] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = QuickSpeak, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
-2026-06-02 01:19:34.337 Db sensemobile[4995:4f9c] [com.apple.defaults:User Defaults] found no value for key QuickSpeak in CFPrefsPlistSource<0x600002c0e100> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.135 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Using ~iphone resources
+2026-06-02 01:34:26.135 Db sensemobile[7291:6154] [com.apple.CFBundle:loading] main bundle CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded) getting handle 0xfffffffffffffffb
+2026-06-02 01:34:26.182 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] setting new value (
+    "en-001"
+) for key AppleLanguages in CFPrefsSource<0x600001708d00> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+2026-06-02 01:34:26.182 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] setting new value en_001 for key AppleLocale in CFPrefsSource<0x600001708d00> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+2026-06-02 01:34:26.182 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] setting new value (
+    "en-001"
+) for key NSLanguages in CFPrefsSource<0x600001708d00> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+2026-06-02 01:34:26.182 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] setting new value macintosh for key NSInterfaceStyle in CFPrefsSource<0x600001708d00> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+2026-06-02 01:34:26.183 Df sensemobile[7291:6181] [com.apple.xpc:connection] [0x600003d00000] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-06-02 01:34:26.184 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c00280> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.184 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c00300> (Domain: com.apple.UIKit, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c08380> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c08500> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c08400> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c08600> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c08780> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c08800> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.185 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c08980> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.186 Db sensemobile[7291:6181] [com.apple.defaults:User Defaults] found no value for key LogBackgroundTask in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x600002105b30>
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.runningboard:connection] Initializing connection
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.runningboard:process] Removing all cached process handles
+2026-06-02 01:34:26.186 I  sensemobile[7291:6181] [com.apple.runningboard:assertion] Acquiring assertion: <RBSAssertionDescriptor| "Shared Background Assertion 0 for com.dogmomhq.sensemobile" ID:(null) target:7291>
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-06-02 01:34:26.186 Df sensemobile[7291:6181] [com.apple.xpc:connection] [0x600003d040f0] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-06-02 01:34:26.187 Df sensemobile[7291:6183] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-06-02 01:34:26.189 Df sensemobile[7291:6183] [com.apple.runningboard:connection] Handshake succeeded
+2026-06-02 01:34:26.189 Df sensemobile[7291:6183] [com.apple.runningboard:connection] Identity resolved as app<com.dogmomhq.sensemobile((null))>
+2026-06-02 01:34:26.189 Db sensemobile[7291:6186] [com.apple.defaults:User Defaults] found no value for key LogHIDEventFiltered in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.189 Db sensemobile[7291:6186] [com.apple.defaults:User Defaults] found no value for key LogHIDEventIncoming in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.189 Df sensemobile[7291:6186] (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-06-02 01:34:26.189 Db sensemobile[7291:6181] [com.apple.runningboard:assertion] Adding assertion 1469-7291-186 to dictionary
+2026-06-02 01:34:26.189 Df sensemobile[7291:6181] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x600002105b30>
+2026-06-02 01:34:26.189 Df sensemobile[7291:6181] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x600001701900>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 263 (elapsed = 0).
+2026-06-02 01:34:26.190 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UIApplicationSceneKeyboardSettings on FBSSceneSettings
+2026-06-02 01:34:26.194 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "hardwareKeyboardExclusivityIdentifier" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.194 Df sensemobile[7291:6154] [com.apple.xpc:connection] [0x104606900] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-06-02 01:34:26.194 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setHardwareKeyboardExclusivityIdentifier:" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.194 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "keyboardDockDisabled" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.194 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setKeyboardDockDisabled:" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "minimumKeyboardPadding" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setMinimumKeyboardPadding:" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "suppressKeyboardFocusRequests" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setSuppressKeyboardFocusRequests:" from extension _UIApplicationSceneKeyboardSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneOcclusionSettings> on FBSSceneSettings
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "systemOcclusionRects" from extension <_UISceneOcclusionSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setSystemOcclusionRects:" from extension <_UISceneOcclusionSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "applicationOcclusionRects" from extension <_UISceneOcclusionSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setApplicationOcclusionRects:" from extension <_UISceneOcclusionSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneInterfaceProtectionSceneSettings> on FBSSceneSettings
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "underAppProtection" from extension <_UISceneInterfaceProtectionSceneSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setUnderAppProtection:" from extension <_UISceneInterfaceProtectionSceneSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIHomeAffordanceHostSceneSettings> on FBSSceneSettings
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "homeAffordanceSceneReferenceFrame" from extension <_UIHomeAffordanceHostSceneSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setHomeAffordanceSceneReferenceFrame:" from extension <_UIHomeAffordanceHostSceneSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.195 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISystemShellSceneHostingEnvironmentSettings on FBSSceneSettings
+2026-06-02 01:34:26.195 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "systemShellHostingSpaceIdentifier" from extension _UISystemShellSceneHostingEnvironmentSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setSystemShellHostingSpaceIdentifier:" from extension _UISystemShellSceneHostingEnvironmentSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneRenderingEnvironmentSettings on FBSSceneSettings
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "modern_isCapturingContentForAdditionalRenderingDestination" from extension _UISceneRenderingEnvironmentSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setModernIsCapturingContentForAdditionalRenderingDestinations:" from extension _UISceneRenderingEnvironmentSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "systemDisplayIdentifier" from extension _UISceneRenderingEnvironmentSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setSystemDisplayIdentifier:" from extension _UISceneRenderingEnvironmentSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneTransitioningHostSettings> on FBSSceneSettings
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "allowedAsMorphTransitionSource" from extension <_UISceneTransitioningHostSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setAllowedAsMorphTransitionSource:" from extension <_UISceneTransitioningHostSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingContentSizePreferenceClientSettings> on FBSSceneClientSettings
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "preferredContentSize" from extension <_UISceneHostingContentSizePreferenceClientSettings> on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setPreferredContentSize:" from extension <_UISceneHostingContentSizePreferenceClientSettings> on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.196 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneHostingTraitCollectionPropagationSettings on FBSSceneSettings
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "traitCollection" from extension _UISceneHostingTraitCollectionPropagationSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setTraitCollection:" from extension _UISceneHostingTraitCollectionPropagationSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "tintColor" from extension _UISceneHostingTraitCollectionPropagationSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.196 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setTintColor:" from extension _UISceneHostingTraitCollectionPropagationSettings on class "FBSSceneSettings"
+2026-06-02 01:34:26.197 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationSettings> on FBSSceneSettings
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "sheetConfiguration" from extension <_UISceneHostingSheetPresentationSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setSheetConfiguration:" from extension <_UISceneHostingSheetPresentationSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.197 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationClientSettings> on FBSSceneClientSettings
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "sheetClientConfiguration" from extension <_UISceneHostingSheetPresentationClientSettings> on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setSheetClientConfiguration:" from extension <_UISceneHostingSheetPresentationClientSettings> on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.197 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingEventDeferringSettings> on FBSSceneSettings
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "maintainHostFirstResponderWhenClientWantsKeyboard": required --> optional
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "requestEventDeferralForAllFirstResponderChanges" from extension <_UISceneHostingEventDeferringSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setRequestEventDeferralForAllFirstResponderChanges:" from extension <_UISceneHostingEventDeferringSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "maintainHostFirstResponderWhenClientWantsKeyboard" from extension <_UISceneHostingEventDeferringSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.197 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "setMaintainHostFirstResponderWhenClientWantsKeyboard:" from extension <_UISceneHostingEventDeferringSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.198 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneSettings
+2026-06-02 01:34:26.198 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "_uiTypedKeyStorage" from extension <UIKit__UITypedKeyValueSceneSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.198 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "set_uiTypedKeyStorage:" from extension <UIKit__UITypedKeyValueSceneSettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.198 Df sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneClientSettings
+2026-06-02 01:34:26.198 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "_uiTypedKeyStorage" from extension <UIKit__UITypedKeyValueSceneSettings> on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.198 Db sensemobile[7291:6181] [com.apple.FrontBoard:SceneExtension] registering method "set_uiTypedKeyStorage:" from extension <UIKit__UITypedKeyValueSceneSettings> on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.199 Db sensemobile[7291:6185] [com.apple.BaseBoard:MachPort]  *|machport|* <BSMachPortTaskNameRight: 0x600001703e40; usable: YES; (7291:4303:send task_name_for_pid:SpringBoard.1466)> -> (<NSThread: 0x600001703e80>{number = 3, name = (null)}) (
+	0   BaseBoard                           0x0000000183c6dacc -[BSMachPortRight _initWithPort:type:owner:trace:] + 192
+	1   BaseBoard                           0x0000000183c6fa40 -[BSMachPortTaskNameRight initWithPID:] + 260
+	2   BaseBoard                           0x0000000183c6f8e0 +[BSMachPortTaskNameRight taskNameForPID:] + 56
+	3   BaseBoard                           0x0000000183c7f274 +[BSProcessHandle processHandleForXPCConnection:] + 176
+	4   BoardServices                       0x000000018775ab3c +[BSXPCServiceConnectionPeer peerOfConnection:] + 312
+	5   BoardServices                       0x0000000187786084 __55-[BSXPCServiceConnection _lock_activateNowOrWhenReady:]_block_invoke_2 + 136
+	6   BoardServices                       0x000000018777df68 __55-[BSXPCServiceConnectionMessage _actuallySendWithMode:]_block_invoke + 14
+2026-06-02 01:34:26.200 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogApplication in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.200 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+2026-06-02 01:34:26.200 Df sensemobile[7291:6154] [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.open
+2026-06-02 01:34:26.200 Df sensemobile[7291:6154] [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.workspace-service
+2026-06-02 01:34:26.200 Df sensemobile[7291:6154] [com.apple.FrontBoard:Common] FBSWorkspace registering source: com.apple.frontboard.systemappservices
+2026-06-02 01:34:26.201 Df sensemobile[7291:6154] [com.apple.FrontBoard:Common] FBSWorkspace connected to endpoint : <BSServiceConnectionEndpoint: 0x600001706600; target: com.apple.frontboard.systemappservices; service: com.apple.frontboard.workspace-service>
+2026-06-02 01:34:26.201 Df sensemobile[7291:6154] [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x600002c07100 com.apple.frontboard.systemappservices> attempting immediate handshake from activate
+2026-06-02 01:34:26.201 Df sensemobile[7291:6154] [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x600002c07100 com.apple.frontboard.systemappservices> sent handshake
+2026-06-02 01:34:26.201 Df sensemobile[7291:6154] [com.apple.runningboard:general] Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x60000020f000>
+2026-06-02 01:34:26.202 Df sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneSettingsCore on FBSSceneSettings
+2026-06-02 01:34:26.203 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "activityMode": required --> optional
+2026-06-02 01:34:26.203 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "jetsamMode": required --> optional
+2026-06-02 01:34:26.203 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "prefersProcessTaskSuspensionWhileSceneForeground": required --> optional
+2026-06-02 01:34:26.203 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "propagatedSettings": required --> optional
+2026-06-02 01:34:26.203 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "clientProcess": required --> optional
+2026-06-02 01:34:26.203 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "interruptionPolicy" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setInterruptionPolicy:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "prefersProcessTaskSuspensionWhileSceneForeground" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setPrefersProcessTaskSuspensionWhileSceneForeground:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "frame" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setFrame:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "propagatedSettings" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setPropagatedSettings:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "clientProcess" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setClientProcess:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "isForeground" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setForeground:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.204 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "displayConfiguration" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setDisplayConfiguration:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "level" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setLevel:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "isClientFuture" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setClientFuture:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "jetsamMode" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setJetsamMode:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "interfaceOrientation" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setInterfaceOrientation:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "activityMode" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setActivityMode:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "isOccluded" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setOccluded:" from extension FBSSceneSettingsCore on class "FBSSceneSettings"
+2026-06-02 01:34:26.205 Df sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneClientSettingsCore on FBSSceneClientSettings
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "layers" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setLayers:" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.205 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "preferredLevel" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setPreferredLevel:" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "preferredSceneHostIdentity" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setPreferredSceneHostIdentity:" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "preferredSceneHostIdentifier" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setPreferredSceneHostIdentifier:" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "preferredInterfaceOrientation" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setPreferredInterfaceOrientation:" from extension FBSSceneClientSettingsCore on class "FBSSceneClientSettings"
+2026-06-02 01:34:26.206 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIScreenIsCapturedValue in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.206 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogUIScreen in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.206 Df sensemobile[7291:6154] [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x104506620> for initial
+2026-06-02 01:34:26.206 Df sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneSettings setting counterpart class: UIApplicationSceneSettings
+2026-06-02 01:34:26.206 Df sensemobile[7291:6154] [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x104506620> for CADisplay KVO
+2026-06-02 01:34:26.206 Df sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneClientSettings setting counterpart class: UIApplicationSceneClientSettings
+2026-06-02 01:34:26.206 Df sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneTransitionContextCore on FBSSceneTransitionContext
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "parentUpdate": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "executionContext": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "clientProcessHandle": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "updateContext": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "watchdogTransitionContext": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "allowCPUThrottling": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "runningBoardAssertionDisabled": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.BaseBoard:Common] [rdar://100354962] Fixing incorrect property returned by protocol_copyPropertyList2() for "error": required --> optional
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "actions" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.207 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setActions:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "executionContext" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setExecutionContext:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "clientProcessHandle" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setClientProcessHandle:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "isRunningBoardAssertionDisabled" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setRunningBoardAssertionDisabled:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "animationSettings" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setAnimationSettings:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c0d180> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "parentUpdate" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c0d200> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setParentUpdate:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "watchdogTransitionContext" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c0d100> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setWatchdogTransitionContext:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "updateContext" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c07b80> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setUpdateContext:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "animationFence" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setAnimationFence:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c07c80> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "error" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setError:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "originatingProcess" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] looked up value (
+    "en-US"
+) for key AppleLanguages in CFPrefsPlistSource<0x600002c08780> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No) via CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setOriginatingProcess:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "allowCPUThrottling" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 Db sensemobile[7291:6183] [com.apple.FrontBoard:SceneExtension] registering method "setAllowCPUThrottling:" from extension FBSSceneTransitionContextCore on class "FBSSceneTransitionContext"
+2026-06-02 01:34:26.208 I  sensemobile[7291:6183] [com.apple.FrontBoard:Common] [FBSScene] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Created client agent: <UIApplicationSceneClientAgent: 0x600000008770>
+2026-06-02 01:34:26.208 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Language lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Localizations : [en]
+	Dev language  : en
+	User prefs    : [en-US]
+	Main bundle   : [<null>]
+	Allow mixed   : 0 
+	Result        : [en]
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: loctable
+	Result        : None
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key _UIEnableLegacyRTL in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSTighteningFactorForTruncation in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSTighteningFactorForTruncation in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSAllowsDefaultTighteningForTruncation in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSUsesDefaultHyphenation in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSDefaultHyphenationFactor in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSUsesOptimalLineBreaking in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSUsesOptimalLineBreakingForNonJustifiedAlignments in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSForceRightToLeftWritingDirection in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read Category Name: domain = com.dogmomhq.sensemobile, appID = com.dogmomhq.sensemobile value = (null)
+2026-06-02 01:34:26.209 Df sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 1, category name = (null)
+2026-06-02 01:34:26.209 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x600002c0a780> (Domain: com.apple.UIKit, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data)
+2026-06-02 01:34:26.210 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read Category Name: domain = /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Library/Preferences/com.apple.UIKit, appID = (null) value = (null)
+2026-06-02 01:34:26.210 Df sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 0, category name = (null)
+2026-06-02 01:34:26.210 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UICarPlayPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.210 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c0a980> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c0aa00> (Domain: com.apple.Accessibility, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c0a900> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c0ac80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key EnhancedTextLegibilityEnabled in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = EnhancedTextLegibilityEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key EnhancedTextLegibilityEnabled in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key DarkenSystemColors in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = DarkenSystemColors, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.211 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key DarkenSystemColors in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.212 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UITraitCollectionChangeLoggingEnabled in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIStateRestorationDebugLogging in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key AccessibilityEnabled in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = AccessibilityEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key AccessibilityEnabled in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] looked up value 0 for key InvertColorsEnabled in CFPrefsPlistSource<0x600002c0a900> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = InvertColorsEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] Read Global: preference = InvertColorsEnabled, result = 0 (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] Updated cache: preference = InvertColorsEnabled, result = 0 (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key ApplicationAccessibilityEnabled in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.213 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = ApplicationAccessibilityEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.214 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key ApplicationAccessibilityEnabled in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.214 Df sensemobile[7291:6154] [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-06-02 01:34:26.214 Df sensemobile[7291:6154] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-06-02 01:34:26.214 Df sensemobile[7291:6154] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-06-02 01:34:26.214 Df sensemobile[7291:6154] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-06-02 01:34:26.214 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIRequireCrimsonLifecycle in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.214 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogUpdateScheduler in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.214 Df sensemobile[7291:6154] [com.apple.UIKit:UpdateScheduler] Selected display: name=LCD (PurpleMain), id=1
+2026-06-02 01:34:26.215 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISceneRelationshipManagementExtension"
+2026-06-02 01:34:26.215 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UIApplicationSceneKeyboardExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Instantiated component: "<_UIApplicationSceneKeyboardClientComponent: 0x60000021c680>"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISceneOcclusionExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UIApplicationInterfaceProtectionSceneExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISceneMaskingExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Instantiated component: "<_UISceneMaskingClientComponent: 0x60000021c840>"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISystemChromeSceneExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Instantiated component: "<_UIHomeAffordanceClientSceneComponent: 0x60000021c900>"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISystemShellSceneHostingEnvironmentExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Instantiated component: "<_UISystemShellSceneHostingEnvironmentClientComponent: 0x60000021c9c0>"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISceneRenderingEnvironmentExtension"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Instantiated component: "<_UISceneRenderingEnvironmentClientComponent: 0x60000021ca80>"
+2026-06-02 01:34:26.216 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Adding extension: "_UISceneTransitioningExtension"
+2026-06-02 01:34:26.217 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneClient] [(FBSceneManager):sceneID:com.dogmomhq.sensemobile-default] Instantiated component: "<_UISceneTransitioningClientComponent: 0x60000021cb40>"
+2026-06-02 01:34:26.218 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: Persistent SceneSession Map Update, expirationHandler: <__NSGlobalBlock__: 0x1e6965d48>
+2026-06-02 01:34:26.218 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x600002105b30>
+2026-06-02 01:34:26.218 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x600002105b30>
+2026-06-02 01:34:26.218 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x600001715880>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 263 (elapsed = 0).
+2026-06-02 01:34:26.218 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason added: 5; deactivation reasons: 1024 -> 1056; animating application lifecycle event: 1
+2026-06-02 01:34:26.219 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogWindow in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.219 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogInterfaceStyle in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.219 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.220 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 1 -> 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.221 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key FullKeyboardAccessEnabled in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.221 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = FullKeyboardAccessEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.222 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key FullKeyboardAccessEnabled in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.223 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.224 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightFBSSceneEnvironment (BacklightUIServices) for scene:<UIWindowScene: 0x10470b060; role: UIWindowSceneSessionRoleApplication; activationState: UISceneActivationStateUnattached> {
+    session = <UISceneSession: 0x600001714b80; persistentIdentifier: 8407444D-28C9-436B-BD4F-0312579DA69C> {
+        configuration = <UISceneConfiguration: 0x600001715600; name: 0x0>;
+    };
+    delegate = (nil);
+    screen = <UIScreen: 0x104506620; bounds: {{0, 0}, {402, 874}}; mode: <UIScreenMode: 0x60000021e3e0; size = 1206.000000 x 2622.000000>>;
+}
+2026-06-02 01:34:26.225 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 create environment:<BLSBacklightFBSSceneEnvironment: 0x600000c0d560; identifier: 0x0; active: NO; liveUpdating: NO; unrestrictedFramerate: NO; aoSupport: NO; visualState: 0x0; presentationDate: 0x0> for scene:<FBSScene: 0x600003300820; (FBSceneManager):sceneID:com.dogmomhq.sensemobile-default; valid: YES> {
+    settings = <UIApplicationSceneSettings: 0x600002109a90> {
+        settings = <BSKeyedSettings: 0x600000c0dec0> {
+            displayConfiguration = <FBSDisplayConfiguration: 0x600003d044b0; Main; mode: "402x874@3x 60Hz p3 SDR">;
+            foreground = Yes;
+            frame = NSRect: {{0, 0}, {402, 874}};
+            interfaceOrientation = portrait (1);
+            interruptionPolicy = reconnect (2);
+            level = 1;
+            <SBSUIHomeScreenIconStyleSceneSettings> = <BSKeyedSettings: 0x600000c0e070> {
+                iconStyleConfiguration = <SBSHomeScreenIconStyleConfiguration: 0x600000217800>;
+            };
+            <_UISceneTransitioningHostSettings> = <BSKeyedSettings: 0x600000c0dfe0> {<…>
+2026-06-02 01:34:26.225 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.226 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x6000000044b0>
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000008810>
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogHomeAffordanceObservation in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.227 Df sensemobile[7291:6154] [com.apple.UIKit:HomeAffordanceObservation] Initializing: <_UIHomeAffordanceSceneNotifier: 0x60000290c620>; with scene: <UIWindowScene: 0x10470b060>
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x600000008930>
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.227 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000008970>
+2026-06-02 01:34:26.228 Df sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 setDelegate:<0x600000c10c00 _UIBacklightEnvironment> hasDelegate:YES for environment:sceneID:com.dogmomhq.sensemobile-default
+2026-06-02 01:34:26.228 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 setSupportsAlwaysOn:NO for environment:sceneID:com.dogmomhq.sensemobile-default
+2026-06-02 01:34:26.228 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.228 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x6000000088b0>
+2026-06-02 01:34:26.228 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.228 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000008930>
+2026-06-02 01:34:26.229 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.229 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogEventDeferring in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.229 Df sensemobile[7291:6154] [com.apple.UIKit:EventDeferring] [0x60000290c850] Initialized with scene: <UIWindowScene: 0x10470b060>; behavior: <_UIEventDeferringBehavior_iOS: 0x600000211440>; availableForProcess: 1, systemShellManagesKeyboardFocus: 1
+2026-06-02 01:34:26.229 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.229 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x60000000c3d0>
+2026-06-02 01:34:26.229 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.229 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x60000000c3f0>
+2026-06-02 01:34:26.230 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogKeyWindow in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.230 Df sensemobile[7291:6154] [com.apple.xpc:connection] [0x104607570] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-06-02 01:34:26.231 Db sensemobile[7291:6181] [com.apple.BaseBoard:MachPort]  *|machport|* <BSMachPortTaskNameRight: 0x600001700cc0; usable: YES; (7291:4707:send task_name_for_pid:backboardd.1492)> -> (<NSThread: 0x600001701100>{number = 5, name = (null)}) (
+	0   BaseBoard                           0x0000000183c6dacc -[BSMachPortRight _initWithPort:type:owner:trace:] + 192
+	1   BaseBoard                           0x0000000183c6fa40 -[BSMachPortTaskNameRight initWithPID:] + 260
+	2   BaseBoard                           0x0000000183c6f8e0 +[BSMachPortTaskNameRight taskNameForPID:] + 56
+	3   BaseBoard                           0x0000000183c7f274 +[BSProcessHandle processHandleForXPCConnection:] + 176
+	4   BoardServices                       0x000000018775ab3c +[BSXPCServiceConnectionPeer peerOfConnection:] + 312
+	5   BoardServices                       0x0000000187786084 __55-[BSXPCServiceConnection _lock_activateNowOrWhenReady:]_block_invoke_2 + 136
+	6   BoardServices                       0x000000018777df68 __55-[BSXPCServiceConnectionMessage _actuallySendWithMode:]_block_invoke + 144
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x600002102b70; process scope; status: target> was:none
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to LastOneWins
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Scene target of keyboard event deferring environment did change: 1; scene: UIWindowScene: 0x10470b060; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.UIKit:EventDeferring] [0x60000290c850] Scene target of event deferring environments did update: scene: 0x10470b060; current systemShellManagesKeyboardFocus: 1; systemShellManagesKeyboardFocusForScene: 1; eligibleForRecordRemoval: 1;
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Scene became target of keyboard event deferring environment: UIWindowScene: 0x10470b060; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to SystemShellManaged
+2026-06-02 01:34:26.232 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Key window needs update: 0; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x10470b060; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x0; reason: UIWindowScene: 0x10470b060: Window scene became target of keyboard environment
+2026-06-02 01:34:26.232 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.232 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x600000008980>
+2026-06-02 01:34:26.233 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.233 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x6000000087b0>
+2026-06-02 01:34:26.233 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.233 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x600000008940>
+2026-06-02 01:34:26.233 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.233 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000008980>
+2026-06-02 01:34:26.234 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x60000000c390>
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000004470>
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x6000000044c0>
+2026-06-02 01:34:26.234 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.235 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000008990>
+2026-06-02 01:34:26.235 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.235 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x600000008950>
+2026-06-02 01:34:26.235 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.235 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x60000000c340>
+2026-06-02 01:34:26.237 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.237 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.237 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x60000000c500>
+2026-06-02 01:34:26.237 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.237 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x60000000c4c0>
+2026-06-02 01:34:26.237 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.237 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x60000000c3b0>
+2026-06-02 01:34:26.238 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.238 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x60000000c3c0>
+2026-06-02 01:34:26.238 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.238 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x60000000c3f0>
+2026-06-02 01:34:26.238 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.238 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x6000000089d0>
+2026-06-02 01:34:26.238 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x60000000c440>
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x600000008790>
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _settingsDiffActionsForScene
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentDiffAction:<_UIBacklightUISceneEnvironmentDiffAction: 0x6000000089b0>
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] BLSBacklightFBSSceneEnvironment (BacklightUIServices) _actionRespondersForScene
+2026-06-02 01:34:26.239 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] create BLSBacklightUISceneEnvironmentActionHandler:<_UIBacklightUISceneEnvironmentActionHandler: 0x60000000c4b0>
+2026-06-02 01:34:26.240 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.241 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogAppLifecycle in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.241 Df sensemobile[7291:6154] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.dogmomhq.sensemobile-default  persistentID: 8407444D-28C9-436B-BD4F-0312579DA69C
+2026-06-02 01:34:26.242 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Ignoring already applied deactivation reason: 5; deactivation reasons: 1056
+2026-06-02 01:34:26.242 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason added: 11; deactivation reasons: 1056 -> 3104; animating application lifecycle event: 1
+2026-06-02 01:34:26.243 Df sensemobile[7291:6154] [com.apple.KeyboardArbiter:Client] startConnection
+2026-06-02 01:34:26.244 Df sensemobile[7291:6154] [com.apple.xpc:connection] [0x104507290] activating connection: mach=true listener=false peer=false name=com.apple.UIKit.KeyboardManagement.hosted
+2026-06-02 01:34:26.245 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogViewServices in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.246 Df sensemobile[7291:6154] [com.apple.UIKit:ViewServices] Launching as view service: NO
+2026-06-02 01:34:26.246 Df sensemobile[7291:6154] (UIKitCore) You've implemented -[<UIApplicationDelegate> application:performFetchWithCompletionHandler:], but you still need to add "fetch" to the list of your supported UIBackgroundModes in your Info.plist.
+2026-06-02 01:34:26.246 Df sensemobile[7291:6154] (UIKitCore) You've implemented -[<UIApplicationDelegate> application:didReceiveRemoteNotification:fetchCompletionHandler:], but you still need to add "remote-notification" to the list of your supported UIBackgroundModes in your Info.plist.
+2026-06-02 01:34:26.247 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogStatusBar in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.248 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.248 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.249 Df sensemobile[7291:6154] _setUpFeatureFlags called with release level 2
+2026-06-02 01:34:26.250 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.250 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.250 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.251 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.251 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.251 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.251 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.251 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.252 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.252 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.254 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIViewLayoutFeedbackLoopDebuggingThreshold in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.254 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIEngineHostingViewsShouldGuardWantsAutolayoutFlagPropagation in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.254 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIViewUseStaleDelegateContentInsets in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.255 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key _UIConstraintBasedLayoutEngageNonLazily in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.257 Db sensemobile[7291:6154] [com.apple.Foundation:general] NSURL parameterString is deprecated and now always returns nil. The path component now includes the part of the URL string which parameterString used to return.
+URL = file:///Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Data/Application/09C57C6E-1032-404D-83FD-F77DEDBF794E/Library/Application%20Support/dev.expo.modules.core.logging.expo-updates.txt
+2026-06-02 01:34:26.257 Db sensemobile[7291:6154] [com.apple.foundation:general] CFURLCopyParameterString is deprecated and now always returns NULL. The path component now includes the part of the URL string which CFURLCopyParameterString used to return.
+URL = file:///Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Data/Application/09C57C6E-1032-404D-83FD-F77DEDBF794E/Library/Application%20Support/dev.expo.modules.core.logging.expo-updates.txt
+2026-06-02 01:34:26.258 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key dev.expo.updates.updatesConfigOverride in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.258 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : Expo type: plist
+	Result        : file:///Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app/Expo.plist
+2026-06-02 01:34:26.264 Df sensemobile[7291:6154] [dev.expo.modules:expo-updates] 🟡 {"message":"The expo-updates system is explicitly disabled. To enable it, set the enabled setting to true.","code":"InitializationError","timestamp":1780364066000,"level":"warn"}
+2026-06-02 01:34:26.268 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.268 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.268 Df sensemobile[7291:6154] [com.apple.network:] networkd_settings_read_from_file initialized networkd settings by reading plist directly
+2026-06-02 01:34:26.269 Df sensemobile[7291:6154] [com.apple.network:] networkd_settings_read_from_file initialized networkd settings by reading plist directly
+2026-06-02 01:34:26.269 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] CFPrefsManagedSource<0x600002c14300> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.269 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key CFNetworkHTTP3Override in CFPrefsSearchListSource<0x600002c14280> (Domain: kCFPreferencesAnyApplication, Container: (null))
+2026-06-02 01:34:26.269 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.269 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.270 Db sensemobile[7291:6154] [com.apple.CFNetwork:ATS] Using configuration {
+    NSAllowsLocalNetworking = 1;
+    NSExceptionDomains =     {
+        "apple-mapkit.com" =         {
+            NSATSBuiltinOverride = 1;
+            NSExceptionAllowsInsecureHTTPLoads = 1;
+            NSExceptionMinimumTLSVersion = "TLSv1.0";
+            NSExceptionRequiresForwardSecrecy = 0;
+            NSIncludesSubdomains = 1;
+        };
+        "apple.com" =         {
+            NSATSBuiltinOverride = 1;
+            NSExceptionAllowsInsecureHTTPLoads = 1;
+            NSExceptionMinimumTLSVersion = "TLSv1.2";
+            NSExceptionRequiresForwardSecrecy = 0;
+            NSIncludesSubdomains = 1;
+        };
+        "geo.apple.com" =         {
+            NSATSBuiltinOverride = 1;
+            NSExceptionAllowsInsecureHTTPLoads = 1;
+            NSExceptionMinimumTLSVersion = "TLSv1.0";
+            NSExceptionRequiresForwardSecrecy = 0;
+            NSIncludesSubdomains = 1;
+        };
+        "gs.apple.com" =         {
+            NSATSBuiltinOverride = 1;
+            NSExceptionAllowsInsecure
+2026-06-02 01:34:26.259 Db sensemobile[7291:6184] [com.apple.runningboard:message] PERF: [app<com.dogmomhq.sensemobile((null))>:7291] Received message from runningboardd: async_didChangeInheritances:completion:
+2026-06-02 01:34:26.278 A  sensemobile[7291:6184] (RunningBoardServices) didChangeInheritances
+2026-06-02 01:34:26.278 Db sensemobile[7291:6184] [com.apple.runningboard:connection] didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+    <RBSInheritance| environment:(none) name:com.apple.frontboard.visibility origID:1469-1466-171 0>
+)} lost:(null)>
+2026-06-02 01:34:26.278 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : main type: jsbundle
+	Result        : file:///Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app/main.jsbundle
+2026-06-02 01:34:26.281 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.281 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.283 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.284 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.281 Db sensemobile[7291:6185] [com.apple.defaults:User Defaults] found no value for key IIOEnableOOP in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.284 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UITraitUsageTrackingLoggingEnabled in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.284 A  sensemobile[7291:6185] (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] looked up value 0 for key GrayscaleDisplay in CFPrefsPlistSource<0x600002c0a900> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.285 Db sensemobile[7291:6185] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c16780> (Domain: com.apple.ImageIO, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = GrayscaleDisplay, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] looked up value 0 for key ReduceMotionEnabled in CFPrefsPlistSource<0x600002c0a900> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = ReduceMotionEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key EnhancedBackgroundContrastEnabled in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = EnhancedBackgroundContrastEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key EnhancedBackgroundContrastEnabled in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key VoiceOverTouchEnabled in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.285 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = VoiceOverTouchEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.286 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key VoiceOverTouchEnabled in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.286 I  sensemobile[7291:6154] [com.facebook.react.log:native] Running application main ({
+    initialProps =     {
+    };
+    rootTag = 1;
+})
+2026-06-02 01:34:26.286 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIViewShowAlignmentRects in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.287 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key _UIConstraintBasedLayout in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.285 Db sensemobile[7291:6185] [com.apple.defaults:User Defaults] found no value for key IIOEnableOOP in CFPrefsPlistSource<0x600002c16780> (Domain: com.apple.ImageIO, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+2026-06-02 01:34:26.289 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogUIPresentationController in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.289 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UseSingleSystemColor in CFPrefsSearchListSource<0x600002c0a800> (Domain: com.apple.Accessibility, Container: (null))
+2026-06-02 01:34:26.289 Db sensemobile[7291:6154] [com.apple.Accessibility:AXSupportCommon] CF Read: domain = com.apple.Accessibility, preference = UseSingleSystemColor, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+2026-06-02 01:34:26.289 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UseSingleSystemColor in CFPrefsPlistSource<0x600002c0ab80> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No)
+2026-06-02 01:34:26.289 Df sensemobile[7291:6154] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIApplicationSceneDisplaySettings> on FBSSceneSettings
+2026-06-02 01:34:26.290 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneExtension] registering method "displayBasedSafeAreaInsetsValue" from extension <_UIApplicationSceneDisplaySettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.290 Db sensemobile[7291:6154] [com.apple.FrontBoard:SceneExtension] registering method "setDisplayBasedSafeAreaInsetsValue:" from extension <_UIApplicationSceneDisplaySettings> on class "FBSSceneSettings"
+2026-06-02 01:34:26.290 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIViewLocalizeOverrideLayoutEngine in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.292 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Language lookup at CFBundle 0x600003b002a0 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework/BoundingPathData.bundle> (not loaded)
+	Localizations : [en]
+	Dev language  : en
+	User prefs    : [en-US]
+	Main bundle   : [en]
+	Allow mixed   : 0 
+	Result        : [en]
+2026-06-02 01:34:26.292 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b002a0 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework/BoundingPathData.bundle> (not loaded)
+	Request       : Assets type: car
+	Result        : file:///Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS%2018.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework/BoundingPathData.bundle/Assets.car
+2026-06-02 01:34:26.292 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key CUIShowDebugLogs in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.293 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key UIViewControllerDetachedInheritsContentOverlayInsetsFromSuperview in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.293 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key ModernContentOverlayInsetsPropagation in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.294 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogOrientation in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.294 Df sensemobile[7291:6154] [com.apple.UIKit:Orientation] <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C) Scene updated orientation preferences: none -> ( Pu )
+2026-06-02 01:34:26.295 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Key window API is scene-level: YES
+2026-06-02 01:34:26.295 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] UIWindowScene: 0x10470b060: Window became key in scene: UIWindow: 0x104609c00; contextId: 0xB4EF4563: reason: UIWindowScene: 0x10470b060: Window requested to become key in scene: 0x104609c00
+2026-06-02 01:34:26.295 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Key window needs update: 1; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x10470b060; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x104609c00; reason: UIWindowScene: 0x10470b060: Window requested to become key in scene: 0x104609c00
+2026-06-02 01:34:26.295 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Window did become application key: UIWindow: 0x104609c00; contextId: 0xB4EF4563; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default
+2026-06-02 01:34:26.295 Df sensemobile[7291:6154] [com.apple.UIKit:EventDeferring] [0x60000290c850] Begin local event deferring requested for token: 0x60000260b480; environments: 1; reason: UIWindowScene: 0x10470b060: Begin event deferring in keyboardFocus for window: 0x104609c00
+2026-06-02 01:34:26.296 Db sensemobile[7291:6154] [com.apple.BackBoard:EventDelivery] flushing changes: {
+    contentsMask: 0x2; deferringRules: [[7291-1]];
+}
+2026-06-02 01:34:26.296 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogKeyboardFocus in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.297 Db sensemobile[7291:6154] [com.apple.BackgroundTasks:Framework] Application finished launching
+2026-06-02 01:34:26.298 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason removed: 10; deactivation reasons: 3104 -> 2080; animating application lifecycle event: 1
+2026-06-02 01:34:26.298 Db sensemobile[7291:6154] [com.apple.UIKit:UIDevice.orientation] Setting device orientation to 1 and sending notification.
+2026-06-02 01:34:26.298 Db sensemobile[7291:6154] [com.apple.UIKit:UIDevice.orientation] Setting device orientation to 0 and sending notification.
+2026-06-02 01:34:26.298 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason added: 12; deactivation reasons: 2080 -> 6176; animating application lifecycle event: 1
+2026-06-02 01:34:26.298 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason removed: 11; deactivation reasons: 6176 -> 4128; animating application lifecycle event: 1
+2026-06-02 01:34:26.300 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.300 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 environment updated:sceneID:com.dogmomhq.sensemobile-default
+  delta:{ visualState:0 date:0 active:0 seed:0 }
+  diff:(null)
+  new:(null) (null)
+  old:(null) (null)
+  new:(null)
+2026-06-02 01:34:26.301 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key CAEnableDeepFramebuffer in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.302 Db sensemobile[7291:6184] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSWorkspaceScenesClient] signaled! 1 of 1
+2026-06-02 01:34:26.302 Db sensemobile[7291:6184] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSWorkspaceScenesClient] dealloc
+2026-06-02 01:34:26.302 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Language lookup at CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded)
+	Localizations : [de, ur, he, en_AU, ar, el, ja, mr, en, uk, es_419, gu, zh_CN, kn, pa, es, sl, or, da, it, bg, sk, kk, pt_PT, ms, ta, ml, sv, te, cs, ko, no, hu, zh_HK, tr, pl, zh_TW, en_GB, vi, lt, ru, fr_CA, fr, fi, id, nl, th, pt, bn, ro, hr, hi, ca]
+	Dev language  : en
+	User prefs    : [en-US]
+	Main bundle   : [en]
+	Allow mixed   : 0 
+	Result        : [en]
+2026-06-02 01:34:26.302 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded)
+	Request       : Localizable type: loctable
+	Result        : None
+2026-06-02 01:34:26.302 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded)
+	Request       : Localizable type: strings
+	Result        : file:///Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS%2018.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework/en.lproj/Localizable.strings
+2026-06-02 01:34:26.302 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded)
+	Request       : Localizable type: stringsdict
+	Result        : file:///Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS%2018.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework/en.lproj/Localizable.stringsdict
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSDoubleLocalizedStrings in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSForceRightToLeftLocalizedStrings in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSAccentuateLocalizedStrings in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSSurroundLocalizedStrings in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key NSTallLocalizedStrings in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Duplicate, value: Duplicate, table: Localizable, localizationNames: (null), result: Duplicate
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Move, value: Move, table: Localizable, localizationNames: (null), result: Move
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Rename, value: Rename, table: Localizable, localizationNames: (null), result: Rename
+2026-06-02 01:34:26.303 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Export, value: Export, table: Localizable, localizationNames: (null), result: Export
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Copy[Menu], value: Copy, table: Localizable, localizationNames: (null), result: Copy
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Cut, value: Cut, table: Localizable, localizationNames: (null), result: Cut
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Smaller, value: Smaller, table: Localizable, localizationNames: (null), result: Smaller
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Delete[Menu], value: Delete, table: Localizable, localizationNames: (null), result: Delete
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Bigger, value: Bigger, table: Localizable, localizationNames: (null), result: Bigger
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Default, value: Default, table: Localizable, localizationNames: (null), result: Default
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Left to Right, value: Left to Right, table: Localizable, localizationNames: (null), result: Left to Right
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Right to Left, value: Right to Left, table: Localizable, localizationNames: (null), result: Right to Left
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Paste, value: Paste, table: Localizable, localizationNames: (null), result: Paste
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Paste and Match Style, value: Paste and Match Style, table: Localizable, localizationNames: (null), result: Paste and Match Style
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Redo, value: Redo, table: Localizable, localizationNames: (null), result: Redo
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Select, value: Select, table: Localizable, localizationNames: (null), result: Select
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Select All, value: Select All, table: Localizable, localizationNames: (null), result: Select All
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: TEXT_FORMATTING_MORE, value: More…, table: Localizable, localizationNames: (null), result: More…
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Bold, value: Bold, table: Localizable, localizationNames: (null), result: Bold
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Italic, value: Italic, table: Localizable, localizationNames: (null), result: Italic
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Underline, value: Underline, table: Localizable, localizationNames: (null), result: Underline
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Undo, value: Undo, table: Localizable, localizationNames: (null), result: Undo
+2026-06-02 01:34:26.304 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Pause, value: Pause, table: Localizable, localizationNames: (null), result: Pause
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Speak, value: Speak, table: Localizable, localizationNames: (null), result: Speak
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Speak…, value: Speak…, table: Localizable, localizationNames: (null), result: Speak…
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Learn…, value: Learn…, table: Localizable, localizationNames: (null), result: Learn…
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Look Up, value: Look Up, table: Localizable, localizationNames: (null), result: Look Up
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Insert Drawing, value: Insert Drawing, table: Localizable, localizationNames: (null), result: Insert Drawing
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Look Up, value: Look Up, table: Localizable, localizationNames: (null), result: Look Up
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Replace…, value: Replace…, table: Localizable, localizationNames: (null), result: Replace…
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Share…, value: Share…, table: Localizable, localizationNames: (null), result: Share…
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Find, value: Find, table: Localizable, localizationNames: (null), result: Find
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Find & Replace, value: Find & Replace, table: Localizable, localizationNames: (null), result: Find & Replace
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Find Next, value: Find Next, table: Localizable, localizationNames: (null), result: Find Next
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Find Previous, value: Find Previous, table: Localizable, localizationNames: (null), result: Find Previous
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Use Selection for Find, value: Use Selection for Find, table: Localizable, localizationNames: (null), result: Use Selection for Find
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Find Selection, value: Find Selection, table: Localizable, localizationNames: (null), result: Find Selection
+2026-06-02 01:34:26.305 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Open..., value: Open..., table: Localizable, localizationNames: (null), result: Open...
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Open in New Window, value: Open in New Window, table: Localizable, localizationNames: (null), result: Open in New Window
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Show Sidebar, value: Show Sidebar, table: Localizable, localizationNames: (null), result: Show Sidebar
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Print, value: Print, table: Localizable, localizationNames: (null), result: Print
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Dictation, value: Dictation, table: Localizable, localizationNames: (null), result: Dictation
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Emoji, value: Emoji, table: Localizable, localizationNames: (null), result: Emoji
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Scan Text, value: Scan Text, table: Localizable, localizationNames: (null), result: Scan Text
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Translate, value: Translate, table: Localizable, localizationNames: (null), result: Translate
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Close, value: Close, table: Localizable, localizationNames: (null), result: Close
+2026-06-02 01:34:26.306 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: Writing Tools, value: Writing Tools, table: Localizable, localizationNames: (null), result: Writing Tools
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: strings
+	Result        : None
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b040e0 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app> (executable, loaded)
+	Request       : InfoPlist type: stringsdict
+	Result        : None
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_APP_SERVICES, value: Services, table: Localizable, localizationNames: (null), result: Services
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_FILE, value: File, table: Localizable, localizationNames: (null), result: File
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_EDIT, value: Edit, table: Localizable, localizationNames: (null), result: Edit
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_EDIT_SPELLING_AND_GRAMMAR, value: Spelling and Grammar, table: Localizable, localizationNames: (null), result: Spelling and Grammar
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_EDIT_SUBSTITUTIONS, value: Substitutions, table: Localizable, localizationNames: (null), result: Substitutions
+2026-06-02 01:34:26.307 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_EDIT_TRANSFORMATIONS, value: Transformations, table: Localizable, localizationNames: (null), result: Transformations
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_EDIT_SPEECH, value: Speech, table: Localizable, localizationNames: (null), result: Speech
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_FORMAT, value: Format, table: Localizable, localizationNames: (null), result: Format
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_FORMAT_FONT, value: Font, table: Localizable, localizationNames: (null), result: Font
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_FORMAT_TEXT, value: Text, table: Localizable, localizationNames: (null), result: Text
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_FORMAT_TEXT_WRITING_DIRECTION, value: Writing Direction, table: Localizable, localizationNames: (null), result: Writing Direction
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_VIEW, value: View, table: Localizable, localizationNames: (null), result: View
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_WINDOW, value: Window, table: Localizable, localizationNames: (null), result: Window
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_HELP, value: Help, table: Localizable, localizationNames: (null), result: Help
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUDITEM_FORMAT_TEXT_STYLE, value: Text Style, table: Localizable, localizationNames: (null), result: Text Style
+2026-06-02 01:34:26.308 Db sensemobile[7291:6154] [com.apple.CFBundle:strings] Bundle: CFBundle 0x600003b08700 </Library/Developer/CoreSimulator/Volumes/iOS_22F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework> (not loaded), key: KEYSHORTCUTHUD_AUTOFILL, value: AutoFill, table: Localizable, localizationNames: (null), result: AutoFill
+2026-06-02 01:34:26.309 Db sensemobile[7291:6154] [com.apple.BackBoard:EventDelivery] flushing changes: {
+    contentsMask: 0x8; keyCommandsRegistrations: [environment: keyboardFocus; token: 0xB4EF4563; keyCommands: 29];
+}
+2026-06-02 01:34:26.310 Df sensemobile[7291:6154] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [7CCF91F3-E2A7-41BE-B03C-478E9148401A] (reporting strategy default)>
+2026-06-02 01:34:26.311 Df sensemobile[7291:6154] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [C3E3800F-7E32-4EBF-AB18-0F0D5127B666] (reporting strategy default)>
+2026-06-02 01:34:26.311 Df sensemobile[7291:6154] [com.apple.network:activity] Set activity <nw_activity 50:1 [7CCF91F3-E2A7-41BE-B03C-478E9148401A] (reporting strategy default)> as the global parent
+2026-06-02 01:34:26.311 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 1
+2026-06-02 01:34:26.311 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Ending task with identifier 1 and description: <_UIBackgroundTaskInfo: 0x600001701900>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 263 (elapsed = 0), _expireHandler: (null)
+2026-06-02 01:34:26.311 Df sensemobile[7291:6154] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x600002105b30> (used by background task with identifier 1: <_UIBackgroundTaskInfo: 0x600001701900>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 263 (elapsed = 0))
+2026-06-02 01:34:26.311 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogEventBus in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.311 Df sensemobile[7291:6154] [com.apple.UIKit:EventBus] Event Timing Profile for Touch: not found, path="/System/Library/EventTimingProfiles/Sim.Touch.plist"
+2026-06-02 01:34:26.312 Df sensemobile[7291:6154] [com.apple.UIKit:EventBus] Event Timing Profile for Pencil: not found, path="/System/Library/EventTimingProfiles/Sim.Pencil.plist"
+2026-06-02 01:34:26.312 Df sensemobile[7291:6154] [com.apple.UIKit:UpdateScheduler] Target list changed: <CADisplay:LCD PurpleMain>
+2026-06-02 01:34:26.312 Df sensemobile[7291:6154] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.dogmomhq.sensemobile-default  persistentID: 8407444D-28C9-436B-BD4F-0312579DA69C
+2026-06-02 01:34:26.313 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 environment updated:sceneID:com.dogmomhq.sensemobile-default
+  delta:{ visualState:0 date:0 active:0 seed:0 }
+  diff:<FBSSceneSettingsDiff: 0x600001710d40; UIApplicationSceneSettings> {
+    subclassSettings = <BSSettingsDiff: 0x600000c10ab0> {
+        targetOfEventDeferringEnvironments = keyboardFocus;
+    };
+}
+  new:(null) (null)
+  old:(null) (null)
+  new:(null)
+2026-06-02 01:34:26.313 Db sensemobile[7291:6154] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 1 of 2
+2026-06-02 01:34:26.314 A  sensemobile[7291:6154] (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-06-02 01:34:26.321 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoModulesCoreJSLogger'
+2026-06-02 01:34:26.313 Df sensemobile[7291:6184] [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x600002102b70; token: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default; status: ancestor> was:target
+2026-06-02 01:34:26.334 Df sensemobile[7291:6184] [com.apple.BackBoard:EventDelivery] observerPolicyDidChange: 0x600002102b70 -> <_UIKeyWindowSceneObserver: 0x600000c06fa0>
+2026-06-02 01:34:26.334 Df sensemobile[7291:6183] [com.apple.CoreAnalytics:client] No XPC connection in Simulator
+2026-06-02 01:34:26.335 Df sensemobile[7291:618d] [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-06-02 01:34:26.351 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoFetchModule'
+2026-06-02 01:34:26.380 I  sensemobile[7291:6154] [com.apple.coreaudio:as_client]     AVAudioSession_iOS.mm:310   Registering to CFNotificationCenter to notify of Observers of MicrophoneInjectionCapabilityChangeNotification
+2026-06-02 01:34:26.381 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoAudio'
+2026-06-02 01:34:26.384 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExponentConstants'
+2026-06-02 01:34:26.384 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'EASClient'
+2026-06-02 01:34:26.420 Db sensemobile[7291:6181] [com.apple.runningboard:message] PERF: [app<com.dogmomhq.sensemobile((null))>:7291] Received message from runningboardd: async_didChangeInheritances:completion:
+2026-06-02 01:34:26.420 A  sensemobile[7291:6181] (RunningBoardServices) didChangeInheritances
+2026-06-02 01:34:26.420 Db sensemobile[7291:6181] [com.apple.runningboard:connection] didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+    <RBSInheritance| environment:UIScene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default name:com.apple.frontboard.visibility origID:1469-1466-187 payload 14346615290047598671>
+)} lost:(null)>
+2026-06-02 01:34:26.337 Df sensemobile[7291:618d] [com.apple.xpc:session] [0x60000210c550] Session created.
+2026-06-02 01:34:26.422 Df sensemobile[7291:618d] [com.apple.xpc:session] [0x60000210c550] Session created from connection [0x600003d043c0]
+2026-06-02 01:34:26.338 E  sensemobile[7291:6183] [com.apple.app_launch_measurement:General] Failed to send CA Event for app launch measurements for ca_event_type: 0 event_name: com.apple.app_launch_measurement.FirstFramePresentationMetric
+2026-06-02 01:34:26.424 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'FileSystem'
+2026-06-02 01:34:26.425 Df sensemobile[7291:618d] [com.apple.xpc:connection] [0x600003d043c0] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-06-02 01:34:26.433 Df sensemobile[7291:618d] [com.apple.xpc:session] [0x60000210c550] Session activated
+2026-06-02 01:34:26.438 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExponentFileSystem'
+2026-06-02 01:34:26.440 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoFontLoader'
+2026-06-02 01:34:26.441 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoFontUtils'
+2026-06-02 01:34:26.443 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoHaptics'
+2026-06-02 01:34:26.445 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoKeepAwake'
+2026-06-02 01:34:26.452 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoLinearGradient'
+2026-06-02 01:34:26.461 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Registering module 'ExpoUpdates'
+2026-06-02 01:34:26.466 Df sensemobile[7291:6183] [com.apple.xpc:connection] [0x104515720] activating connection: mach=true listener=false peer=false name=com.apple.fontservicesd
+2026-06-02 01:34:26.488 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Language lookup at CFBundle 0x600003b01f80 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app/EXConstants.bundle> (not loaded)
+	Localizations : [en]
+	Dev language  : en
+	User prefs    : [en-US]
+	Main bundle   : [en]
+	Allow mixed   : 0 
+	Result        : [en]
+2026-06-02 01:34:26.488 Db sensemobile[7291:6154] [com.apple.CFBundle:resources] Resource lookup at CFBundle 0x600003b01f80 </Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app/EXConstants.bundle> (not loaded)
+	Request       : app type: config
+	Result        : file:///Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data/Containers/Bundle/Application/EC00A00F-8DD6-499A-A97A-AAA22D23C191/sensemobile.app/EXConstants.bundle/app.config
+2026-06-02 01:34:26.491 Db sensemobile[7291:618c] [com.apple.defaults:User Defaults] setting {
+    "RCTI18nUtil_makeRTLFlipLeftAndRightStyles" = 1;
+} in CFPrefsPlistSource<0x600002c0d100> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+2026-06-02 01:34:26.492 Df sensemobile[7291:6154] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x10470b060> (8407444D-28C9-436B-BD4F-0312579DA69C)
+2026-06-02 01:34:26.492 Df sensemobile[7291:6154] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.dogmomhq.sensemobile-default  persistentID: 8407444D-28C9-436B-BD4F-0312579DA69C
+2026-06-02 01:34:26.492 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason removed: 12; deactivation reasons: 4128 -> 32; animating application lifecycle event: 1
+2026-06-02 01:34:26.492 Df sensemobile[7291:6154] [com.apple.KeyboardArbiter:Client] Send setDeactivating: N (-DeactivationReason:SuspendedEventsOnly)
+2026-06-02 01:34:26.492 Df sensemobile[7291:6154] [com.apple.UIKit:Application] Deactivation reason removed: 5; deactivation reasons: 32 -> 0; animating application lifecycle event: 0
+2026-06-02 01:34:26.493 Db sensemobile[7291:618c] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c07b80> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: No, Container: /Users/runner/Library/Developer/CoreSimulator/Devices/57DAC7D7-5067-4346-9860-CEEBA84AE630/data, Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.493 Db sensemobile[7291:618c] [com.apple.defaults:User Defaults] CFPrefsPlistSource<0x600002c07c80> (Domain: com.dogmomhq.sensemobile, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+2026-06-02 01:34:26.493 Db sensemobile[7291:618c] [com.apple.defaults:User Defaults] found no value for key RCTI18nUtil_forceRTL in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.493 Db sensemobile[7291:618c] [com.apple.defaults:User Defaults] found no value for key RCTI18nUtil_allowRTL in CFPrefsSearchListSource<0x600002c0d080> (Domain: com.dogmomhq.sensemobile, Container: (null))
+2026-06-02 01:34:26.494 I  sensemobile[7291:6154] [dev.expo.modules:expo] 🟢 Posting 'appBecomesActive' event to registered modules
+2026-06-02 01:34:26.494 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 environment updated:sceneID:com.dogmomhq.sensemobile-default
+  delta:{ visualState:0 date:0 active:0 seed:0 }
+  diff:<FBSSceneSettingsDiff: 0x600001710180; UIApplicationSceneSettings> {
+    subclassSettings = <BSSettingsDiff: 0x600000c10b40> {
+        deactivationReasons = ;
+    };
+}
+  new:(null) (null)
+  old:(null) (null)
+  new:(null)
+2026-06-02 01:34:26.494 Db sensemobile[7291:6154] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 1 of 2
+2026-06-02 01:34:26.495 Df sensemobile[7291:6154] [com.apple.UIKit:EventDeferring] [0x60000290c850] Scene target of event deferring environments did update: scene: 0x10470b060; current systemShellManagesKeyboardFocus: 1; systemShellManagesKeyboardFocusForScene: 1; eligibleForRecordRemoval: 1;
+2026-06-02 01:34:26.495 Df sensemobile[7291:6154] [com.apple.UIKit:KeyWindow] Scene became target of keyboard event deferring environment: UIWindowScene: 0x10470b060; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.dogmomhq.sensemobile-default
+2026-06-02 01:34:26.495 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogFirstResponderRestoration in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.495 Df sensemobile[7291:6154] [com.apple.KeyboardArbiter:Client] startConnection
+2026-06-02 01:34:26.495 Db sensemobile[7291:618c] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 2 of 2
+2026-06-02 01:34:26.495 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogUpdateCycle.Stalls in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.495 Db sensemobile[7291:618c] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] dealloc
+2026-06-02 01:34:26.496 Df sensemobile[7291:6154] [com.apple.KeyboardArbiter:Client] handleKeyboardChange: set currentKeyboard:N (wasKeyboard:N)
+2026-06-02 01:34:26.496 Df sensemobile[7291:6154] [com.apple.UIKit:KeyboardSceneDelegate] forceReloadInputViews
+2026-06-02 01:34:26.496 Db sensemobile[7291:618c] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 2 of 2
+2026-06-02 01:34:26.496 Df sensemobile[7291:6154] [com.apple.UIKit:KeyboardSceneDelegate] Reloading input views for: <(null): 0x0; > force: 1
+2026-06-02 01:34:26.496 Db sensemobile[7291:618c] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] dealloc
+2026-06-02 01:34:26.498 Df sensemobile[7291:6154] [com.apple.UIKit:KeyboardArbiterClientLog] isWritingToolsHandlingKeyboardTracking:Y (WT ready:Y, Arbiter ready:Y)
+2026-06-02 01:34:26.499 Df sensemobile[7291:6154] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.dogmomhq.sensemobile-default  persistentID: 8407444D-28C9-436B-BD4F-0312579DA69C
+2026-06-02 01:34:26.500 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 environment updated:sceneID:com.dogmomhq.sensemobile-default
+  delta:{ visualState:0 date:0 active:0 seed:0 }
+  diff:<FBSSceneSettingsDiff: 0x60000171e540; UIApplicationSceneSettings> {
+    subclassSettings = <BSSettingsDiff: 0x600000c0b510> {
+        scenePresenterRenderIdentifierForSnapshotting = c490acb7ae1dc820;
+        hostContextIdentifierForSnapshotting = 316f42c5;
+    };
+}
+  new:(null) (null)
+  old:(null) (null)
+  new:(null)
+2026-06-02 01:34:26.500 Db sensemobile[7291:6154] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 1 of 2
+2026-06-02 01:34:26.500 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogUpdateCycle in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.500 Df sensemobile[7291:6154] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.dogmomhq.sensemobile-default  persistentID: 8407444D-28C9-436B-BD4F-0312579DA69C
+2026-06-02 01:34:26.500 Db sensemobile[7291:618c] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 2 of 2
+2026-06-02 01:34:26.501 Db sensemobile[7291:6154] [com.apple.BacklightServices:scenes] 0x600000c0d560 environment updated:sceneID:com.dogmomhq.sensemobile-default
+  delta:{ visualState:0 date:0 active:0 seed:0 }
+  diff:<FBSSceneSettingsDiff: 0x6000017198c0; UIApplicationSceneSettings> {
+    settings = <BSKeyedSettingsDiff: 0x600000c1d7a0> {
+        _UISceneRenderingEnvironmentSettings = <BSKeyedSettingsDiff: 0x600000c1d8c0> {
+            systemDisplayIdentifier = B41F66CD-0099-498C-8334-626F3954FBDD;
+        };
+        _UISystemShellSceneHostingEnvironmentSettings = <BSKeyedSettingsDiff: 0x600000c1d8f0> {
+            systemShellHostingSpaceIdentifier = SB-display-<embedded>;
+        };
+    };
+}
+  new:(null) (null)
+  old:(null) (null)
+  new:(null)
+2026-06-02 01:34:26.501 Db sensemobile[7291:6154] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 1 of 2
+2026-06-02 01:34:26.502 Db sensemobile[7291:6154] [com.apple.defaults:User Defaults] found no value for key LogGestureEnvironment in CFPrefsSearchListSource<0x600002c00180> (Domain: com.apple.UIKit, Container: (null))
+2026-06-02 01:34:26.501 Db sensemobile[7291:618c] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] dealloc
+2026-06-02 01:34:26.511 I  sensemobile[7291:618a] [dev.expo.modules:expo] 🟢 Creating JS object for module 'ExpoUpdates'
+2026-06-02 01:34:26.512 I  sensemobile[7291:618a] [dev.expo.modules:expo] 🟢 Creating JS object for module 'ExponentConstants'
+2026-06-02 01:34:26.514 Db sensemobile[7291:6185] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] signaled! 2 of 2
+2026-06-02 01:34:26.514 Db sensemobile[7291:6185] [com.apple.BaseBoard:Common] [BSBlockSentinel:FBSScene] dealloc
+2026-06-02 01:34:26.515 E  sensemobile[7291:618a] [com.facebook.react.log:javascript] [Error: Cannot find native module 'ExpoAsset']
+2026-06-02 01:34:26.515 I  sensemobile[7291:618a] [com.facebook.react.log:native] Unbalanced calls start/end for tag 19
+2026-06-02 01:34:26.515 I  sensemobile[7291:618a] [com.facebook.react.log:javascript] Running "main"
+2026-06-02 01:34:26.516 E  sensemobile[7291:618a] [com.facebook.react.log:javascript] { [Invariant Violation: "main" has not been registered. This can happen if:
+* Metro (the local dev server) is run from the wrong folder. Check if Metro is running, stop it and restart it in the current project.
+* A module failed to load due to an error and `AppRegistry.registerComponent` wasn't called.] name: 'Invariant Violation', framesToPop: 1 }
+2026-06-02 01:34:26.517 E  sensemobile[7291:618c] [com.facebook.react.log:native] Unhandled JS Exception: Error: Cannot find native module 'ExpoAsset'
+2026-06-02 01:34:26.538 Df sensemobile[7291:6154] [com.apple.network:activity] <nw_activity 50:1 [7CCF91F3-E2A7-41BE-B03C-478E9148401A] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 2029ms
+2026-06-02 01:34:26.538 Db sensemobile[7291:6154] [com.apple.network:activity] No threshold for app_launch:app_launch, returning NW_ACTIVITY_DURATION_INVALID
+2026-06-02 01:34:26.538 Db sensemobile[7291:6154] [com.apple.network:activity] No threshold for activity <nw_activity 50:1 [7CCF91F3-E2A7-41BE-B03C-478E9148401A] (global parent) (reporting strategy default) complete (reason success)>
+2026-06-02 01:34:26.538 Df sensemobile[7291:6154] [com.apple.network:activity] <nw_activity 50:2 [C3E3800F-7E32-4EBF-AB18-0F0D5127B666] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 2030ms
+2026-06-02 01:34:26.538 Db sensemobile[7291:6154] [com.apple.network:activity] No threshold for app_launch:extended_app_launch, returning NW_ACTIVITY_DURATION_INVALID
+2026-06-02 01:34:26.538 Db sensemobile[7291:6154] [com.apple.network:activity] No threshold for activity <nw_activity 50:2 [C3E3800F-7E32-4EBF-AB18-0F0D5127B666] (reporting strategy default) complete (reason success)>
+2026-06-02 01:34:26.538 Df sensemobile[7291:6154] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [7CCF91F3-E2A7-41BE-B03C-478E9148401A] (global parent) (reporting strategy default) complete (reason success)>
+2026-06-02 01:34:26.538 Df sensemobile[7291:6154] [com.apple.network:activity] Unset the global parent activity
+2026-06-02 01:34:26.539 E  sensemobile[7291:6185] [com.apple.app_launch_measurement:General] Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+2026-06-02 01:34:26.549 Df sensemobile[7291:618c] (CoreFoundation) *** Terminating app due to uncaught exception 'RCTFatalException: Unhandled JS Exception: Error: Cannot find native module 'ExpoAsset'', reason: 'Unhandled JS Exception: Error: Cannot find native module 'ExpoAsset', stack:
+requireNativeModule@65349:21
+anonymous@66934:61
+loadModuleImplementation@157:43
+guardedLoadModule@101:37
+metroRequire@42:91
+anonymous@64855:26
+loadModuleImplementation@157:43
+guardedLoadModule@101:37
+metroRequire@42:91
+anonymous@64778:22
+loadModuleImplementation@157:43
+guardedLoadModule@101:37
+metroRequire@42:91
+anonymous@64746:9
+loadModuleImplementation@157:43
+guardedLoadModule@101:37
+metroRequire@42:91
+anonymous@3727:9
+loadModuleImplementation@157:43
+guardedLoadModule@101:37
+metroRequire@42:91
+anonymous@3709:9
+loadModuleImplementation@157:43
+guardedLoadModule@101:37
+metroRequire@42:91
+anonymous@3394:21
+loadModuleImplementation@157:43
+guardedLoadModule@94:46
+metroRequire@42:91
+global@127429:3
+'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00000001804c97<…>
 Child process terminated with signal 15: Terminated
