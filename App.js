@@ -8,7 +8,7 @@ import Svg, { Circle, Polygon, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, getReasonText, generatePlayerName } from './gameEngine.js';
 import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
@@ -222,7 +222,14 @@ function TimeRace({ myT, oppT, oppName, onDone }) {
 }
 
 export default function App() {
-  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black });
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular: require('./assets/fonts/Inter_400Regular.ttf'),
+    Inter_500Medium: require('./assets/fonts/Inter_500Medium.ttf'),
+    Inter_600SemiBold: require('./assets/fonts/Inter_600SemiBold.ttf'),
+    Inter_700Bold: require('./assets/fonts/Inter_700Bold.ttf'),
+    Inter_800ExtraBold: require('./assets/fonts/Inter_800ExtraBold.ttf'),
+    Inter_900Black: require('./assets/fonts/Inter_900Black.ttf'),
+  });
   const [tab, setTab] = useState('home');
   const [mode, setMode] = useState(null);
   const [countdown, setCountdown] = useState(false);
@@ -1060,4 +1067,5 @@ const st = StyleSheet.create({
   authBtn:{backgroundColor:C.accent,borderRadius:10,paddingVertical:13,alignItems:'center',marginTop:10}, authBtnText:{color:'#fff',fontFamily:F.x,fontSize:15},
   authLink:{paddingVertical:10,alignItems:'center'}, authLinkText:{color:C.text2,fontFamily:F.b,fontSize:13},
 });
+
 
