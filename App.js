@@ -562,7 +562,9 @@ export default function App() {
   wsHandlerRef.current = handleOnlineMessage;
   modeRef.current = mode;
   showActionsRef.current = showActions;
-  if (!fontsLoaded && !fontError) return <View style={{ flex:1, backgroundColor:C.page }} />;
+  // Do NOT block the app on font loading — render immediately; Inter swaps in if/when it loads,
+  // otherwise the system font is used. (Blocking here caused a permanent white screen when useFonts hung.)
+  void fontsLoaded; void fontError;
 
   let body;
   if (mode === 'play' && q) {
