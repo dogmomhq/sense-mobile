@@ -222,7 +222,7 @@ function TimeRace({ myT, oppT, oppName, onDone }) {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black });
+  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black });
   const [tab, setTab] = useState('home');
   const [mode, setMode] = useState(null);
   const [countdown, setCountdown] = useState(false);
@@ -562,7 +562,7 @@ export default function App() {
   wsHandlerRef.current = handleOnlineMessage;
   modeRef.current = mode;
   showActionsRef.current = showActions;
-  if (!fontsLoaded) return <View style={{ flex:1, backgroundColor:C.page }} />;
+  if (!fontsLoaded && !fontError) return <View style={{ flex:1, backgroundColor:C.page }} />;
 
   let body;
   if (mode === 'play' && q) {
