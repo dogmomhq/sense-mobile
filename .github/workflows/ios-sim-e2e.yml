@@ -1,0 +1,55 @@
+name: iOS Simulator E2E (self-test)
+
+# Downloads an EAS iOS simulator build, boots an iPhone simulator, installs + launches the
+# app, screenshots the real screen, and captures the device console log. Artifacts committed
+# to sim-shots/ so Claude can see exactly what the app does at launch.
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "EAS iOS simulator build .tar.gz URL"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download + unpack simulator app
+        run: |
+          curl -fL "${{ inputs.app_url }}" -o app.tar.gz
+          mkdir -p appout && tar -xzf app.tar.gz -C appout
+          APP=$(find appout -maxdepth 3 -name "*.app" | head -1)
+          echo "Found app: $APP"
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+      - name: Boot iPhone simulator
+        run: |
+          DEV=$(xcrun simctl list devices available | grep -oE "iPhone 1[5-9][^(]*\([0-9A-F-]{36}\)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          echo "Device UDID: $DEV"
+          echo "DEV=$DEV" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEV" || true
+          xcrun simctl bootstatus "$DEV" -b || true
+      - name: Install, launch, screenshot, capture log
+        run: |
+          xcrun simctl install "$DEV" "$APP_PATH"
+          ( xcrun simctl spawn "$DEV" log stream --level debug --style compact \
+              --predicate 'process == "sensemobile"' > applog.txt 2>&1 & echo $! > logpid )
+          xcrun simctl launch "$DEV" com.dogmomhq.sensemobile || true
+          sleep 14
+          xcrun simctl io "$DEV" screenshot launch.png || true
+          sleep 2
+          kill "$(cat logpid)" 2>/dev/null || true
+          echo "=== screenshot ==="; ls -la launch.png || echo "no screenshot"
+          echo "=== last 60 log lines ==="; tail -60 applog.txt 2>/dev/null || echo "no log"
+      - name: Commit artifacts
+        run: |
+          mkdir -p sim-shots
+          cp launch.png sim-shots/launch.png 2>/dev/null || true
+          cp applog.txt sim-shots/launch-log.txt 2>/dev/null || true
+          git config user.name "sense-ci"; git config user.email "ci@dogmomhq"
+          git add sim-shots
+          git commit -m "iOS sim e2e: launch screenshot + log" || echo "nothing to commit"
+          git push || echo "push failed"
