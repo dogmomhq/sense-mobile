@@ -20,7 +20,7 @@ const SERVER_WS = PREVIEW_SERVER_WS;
 const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
 setServerUrl(SERVER_WS);
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
-const F = { r:'Inter_400Regular', m:'Inter_500Medium', s:'Inter_600SemiBold', b:'Inter_700Bold', x:'Inter_800ExtraBold', k:'Inter_900Black' };
+const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const CIRC54 = 2 * Math.PI * 54;
 function hap(style) { try { Haptics.impactAsync(style); } catch (e) {} }
@@ -1067,5 +1067,6 @@ const st = StyleSheet.create({
   authBtn:{backgroundColor:C.accent,borderRadius:10,paddingVertical:13,alignItems:'center',marginTop:10}, authBtnText:{color:'#fff',fontFamily:F.x,fontSize:15},
   authLink:{paddingVertical:10,alignItems:'center'}, authLinkText:{color:C.text2,fontFamily:F.b,fontSize:13},
 });
+
 
 
