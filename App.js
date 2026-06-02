@@ -300,8 +300,8 @@ export default function App() {
   useEffect(() => {
     let sub;
     (async () => {
-      try { const { data } = await supabase.auth.getSession(); const s = data && data.session; if (s) { supabaseTokenRef.current = s.access_token; setAuthEmail(s.user && s.user.email); setAuthSince(s.user && s.user.created_at); } } catch (e) {}
-      try { sub = supabase.auth.onAuthStateChange((_e, s) => { supabaseTokenRef.current = s ? s.access_token : null; setAuthEmail(s && s.user ? s.user.email : null); setAuthSince(s && s.user ? s.user.created_at : null); }); } catch (e) {}
+      try { const { data } = await supabase.auth.getSession(); const s = data && data.session; if (s) { supabaseTokenRef.current = s.access_token; setAuthEmail(s.user && s.user.email); setAuthSince(s.user && s.user.created_at); syncAccount(); } } catch (e) {}
+      try { sub = supabase.auth.onAuthStateChange((_e, s) => { supabaseTokenRef.current = s ? s.access_token : null; setAuthEmail(s && s.user ? s.user.email : null); setAuthSince(s && s.user ? s.user.created_at : null); if (s) syncAccount(); }); } catch (e) {}
     })();
     return () => { try { sub && sub.data && sub.data.subscription && sub.data.subscription.unsubscribe(); } catch (e) {} };
   }, []);
@@ -453,6 +453,15 @@ export default function App() {
         const fn = pendingAfterReg.current; pendingAfterReg.current = null; if (fn) fn(); // resume the queue we were starting
         break;
       }
+      case 'account-synced': {
+        if (msg.ok) {
+          accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token, supabase: true };
+          myNameRef.current = msg.handle; setDisplayName(msg.handle); identify(msg.accountId, { handle: msg.handle, email: msg.email });
+          try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); AsyncStorage.setItem('sense_handle', msg.handle); } catch (e) {}
+          try { hydrateHistory(msg.handle); } catch (e) {}
+        }
+        break;
+      }
       case 'rename-result': {
         setNameBusy(false);
         if (msg.ok) {
@@ -526,6 +535,8 @@ export default function App() {
     }
   }
   function ensureConn(after) { if (isConnected()) { after && after(); } else connectWS((m) => wsHandlerRef.current(m), () => {}, () => after && after(), () => bailHome('Connection lost')); }
+  // Restore the ONE handle owned by this email account from the server (1 email = 1 account = 1 username).
+  function syncAccount() { const t = supabaseTokenRef.current; if (!t) return; ensureConn(() => wsSend({ type: 'account-sync', supabaseToken: t, preferredHandle: myName() })); }
   async function sendQueueMsg() {
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
@@ -533,7 +544,7 @@ export default function App() {
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
-  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); identify(data.session.user.id, { email: data.session.user.email }); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); identify(data.session.user.id, { email: data.session.user.email }); syncAccount(); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
   async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
@@ -1067,6 +1078,7 @@ const st = StyleSheet.create({
   authBtn:{backgroundColor:C.accent,borderRadius:10,paddingVertical:13,alignItems:'center',marginTop:10}, authBtnText:{color:'#fff',fontFamily:F.x,fontSize:15},
   authLink:{paddingVertical:10,alignItems:'center'}, authLinkText:{color:C.text2,fontFamily:F.b,fontSize:13},
 });
+
 
 
 
