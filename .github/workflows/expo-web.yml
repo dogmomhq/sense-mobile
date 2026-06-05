@@ -12,7 +12,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm install --no-audit --no-fund
-      - run: npm install react-dom react-native-web @expo/metro-runtime --no-audit --no-fund
+      - run: npx expo install react-dom react-native-web @expo/metro-runtime
       - name: Set web baseUrl for project pages
         run: node -e "const f='app.json';const d=require('./'+f);d.expo.experiments={...(d.expo.experiments||{}),baseUrl:'/sense-mobile'};require('fs').writeFileSync(f,JSON.stringify(d,null,2));console.log('baseUrl set')"
       - name: Export web bundle
