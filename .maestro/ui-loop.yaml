@@ -1,0 +1,26 @@
+appId: com.dogmomhq.sensemobile
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 12000
+- takeScreenshot: paid-shots/ui_01_home
+- tapOn:
+    text: "Sign in"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: paid-shots/ui_02_signin_popup
+- tapOn:
+    text: "Dev login.*"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: paid-shots/ui_03_logged_in
+- tapOn:
+    point: "88%,6%"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: paid-shots/ui_04_deposit_modal
+- tapOn:
+    text: "Test deposit.*"
+- waitForAnimationToEnd:
+    timeout: 9000
+- takeScreenshot: paid-shots/ui_05_after_deposit
