@@ -20,8 +20,17 @@ appId: com.dogmomhq.sensemobile
     visible: "WrongA"
     timeout: 40000
 - takeScreenshot: paid-shots/04_question
+# Wait out the 3-2-1 countdown overlay (~2.4s) that covers the answer buttons.
+# Without this, the tap lands on the overlay, the app never answers, and it times out -> draw.
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     text: "WrongA"
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    text: "WrongA"
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 15000
 - takeScreenshot: paid-shots/05_result
