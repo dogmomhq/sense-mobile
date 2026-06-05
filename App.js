@@ -22,6 +22,7 @@ setServerUrl(SERVER_WS);
 const E2E_KEY = (process.env.EXPO_PUBLIC_E2E_KEY || '');  // gated test build only; absent in production/TestFlight
 const CHECKOUT_PK = 'pk_sbox_7axsqgrmlbrfhjwn2riew7sm4ey';  // Checkout.com SANDBOX publishable key (publishable = safe in client)
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
+const SBAR = (Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);  // clear the Android status bar
 const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const CIRC54 = 2 * Math.PI * 54;
@@ -669,7 +670,6 @@ export default function App() {
           <Text style={st.bigBrand}>SENSE</Text>
           <Text style={st.tagline}>How fast can you name the animal?</Text>
           <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
-          <View style={st.balPill}><Text style={st.balPillText}>{fmtUSD(balance)}</Text></View>
           {confirming ? (
             <View style={st.confirmCard}>
               <Text style={st.confirmTitle}>Entering {fmtUSD(stake)} match</Text>
@@ -1060,7 +1060,7 @@ const st = StyleSheet.create({
   statGrid:{flexDirection:'row',justifyContent:'space-between',marginBottom:12}, stat:{backgroundColor:C.card,borderRadius:16,paddingVertical:20,flex:1,marginHorizontal:4,alignItems:'center',shadowColor:'#000',shadowOpacity:0.06,shadowRadius:8,shadowOffset:{width:0,height:2}}, statVal:{fontSize:24,fontFamily:F.k,color:C.accent}, statLabel:{fontSize:12,color:C.text2,marginTop:4,fontFamily:F.m},
   toggleRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:C.card,borderRadius:16,padding:18,marginTop:8}, toggleLabel:{fontSize:16,fontFamily:F.x,color:C.text}, toggle:{width:50,height:30,borderRadius:15,backgroundColor:'#D6D8E3',padding:3,justifyContent:'center'}, knob:{width:24,height:24,borderRadius:12,backgroundColor:'#fff'},
   nav:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:'rgba(255,255,255,0.95)',borderTopWidth:1,borderTopColor:C.border,paddingVertical:14,paddingBottom:28}, navBtn:{flex:1,alignItems:'center'}, navText:{fontSize:10,color:C.text2,fontFamily:F.s,marginTop:3,letterSpacing:0.3},
-  appHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingTop:12,paddingBottom:6}, hdrSignin:{backgroundColor:'rgba(108,99,255,0.12)',borderRadius:999,paddingHorizontal:16,paddingVertical:7}, hdrSigninText:{color:C.accent,fontFamily:F.x,fontSize:13}, hdrUser:{paddingVertical:7}, hdrUserText:{color:C.text,fontFamily:F.x,fontSize:15,maxWidth:180}, hdrBal:{flexDirection:'row',alignItems:'center',backgroundColor:'rgba(34,197,94,0.14)',borderRadius:999,paddingHorizontal:16,paddingVertical:7}, hdrBalText:{color:C.win,fontFamily:F.x,fontSize:14}, hdrPlus:{color:C.win,fontFamily:F.x,fontSize:14},
+  appHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingTop:SBAR+10,paddingBottom:8}, hdrSignin:{backgroundColor:'rgba(108,99,255,0.12)',borderRadius:999,paddingHorizontal:16,paddingVertical:7}, hdrSigninText:{color:C.accent,fontFamily:F.x,fontSize:13}, hdrUser:{paddingVertical:7}, hdrUserText:{color:C.text,fontFamily:F.x,fontSize:15,maxWidth:180}, hdrBal:{flexDirection:'row',alignItems:'center',backgroundColor:'rgba(34,197,94,0.14)',borderRadius:999,paddingHorizontal:16,paddingVertical:7}, hdrBalText:{color:C.win,fontFamily:F.x,fontSize:14}, hdrPlus:{color:C.win,fontFamily:F.x,fontSize:14},
   modalBg:{flex:1,backgroundColor:'rgba(0,0,0,0.45)',alignItems:'center',justifyContent:'center',padding:24}, modalCard:{width:'100%',maxWidth:380,backgroundColor:'#fff',borderRadius:18,padding:22}, modalTitle:{fontFamily:F.k,fontSize:20,color:C.text,marginBottom:6}, modalSub:{fontFamily:F.s,fontSize:13,color:C.text2,marginBottom:6}, modalLink:{alignItems:'center',paddingVertical:10,marginTop:6}, modalLinkText:{color:C.text2,fontFamily:F.m,fontSize:13}, depAmt:{flex:1,marginHorizontal:3,backgroundColor:'rgba(108,99,255,0.10)',borderRadius:10,paddingVertical:12,alignItems:'center'}, depAmtText:{color:C.accent,fontFamily:F.x,fontSize:13},
   waitMsg:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:13,marginTop:6},
   waitTitle:{fontSize:26,fontFamily:F.k,color:C.text,textAlign:'center'}, waitSub:{fontSize:14,color:C.text2,fontFamily:F.m,marginTop:8,textAlign:'center'},
