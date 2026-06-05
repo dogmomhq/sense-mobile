@@ -19,6 +19,7 @@ const TIME_LIMIT = 10000;
 const SERVER_WS = PREVIEW_SERVER_WS;
 const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
 setServerUrl(SERVER_WS);
+const E2E_KEY = (process.env.EXPO_PUBLIC_E2E_KEY || '');  // gated test build only; absent in production/TestFlight
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
 const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
@@ -381,7 +382,7 @@ export default function App() {
     setMatchId(mid);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
-    setCountdown(true); fadeTo(() => setMode('play'));
+    setCountdown(!question.noCountdown); fadeTo(() => setMode('play'));
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
   function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk) {
@@ -538,7 +539,7 @@ export default function App() {
   async function sendQueueMsg() {
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
-    wsSend({ ...queue(myName(), queuePayRef.current.tier, { paymentMode: queuePayRef.current.paymentMode }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
+    wsSend({ ...queue(myName(), queuePayRef.current.tier, { paymentMode: queuePayRef.current.paymentMode }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), test: E2E_KEY ? true : undefined, testKey: E2E_KEY || undefined });
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
