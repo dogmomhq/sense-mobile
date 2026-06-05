@@ -1,0 +1,26 @@
+name: Expo Web Build + Deploy
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm install react-dom react-native-web @expo/metro-runtime --no-audit --no-fund
+      - name: Set web baseUrl for project pages
+        run: node -e "const f='app.json';const d=require('./'+f);d.expo.experiments={...(d.expo.experiments||{}),baseUrl:'/sense-mobile'};require('fs').writeFileSync(f,JSON.stringify(d,null,2));console.log('baseUrl set')"
+      - name: Export web bundle
+        run: npx expo export --platform web --output-dir web-dist 2>&1 | tail -40
+      - name: SPA fallback (404 -> index)
+        run: cp web-dist/index.html web-dist/404.html || true
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web-dist
+          publish_branch: gh-pages
