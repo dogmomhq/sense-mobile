@@ -16,22 +16,17 @@ appId: com.dogmomhq.sensemobile
 - tapOn:
     text: "CONFIRM & PLAY"
 - takeScreenshot: paid-shots/03_finding
+# Test build skips the 3-2-1 countdown, so the answer button is live immediately.
 - extendedWaitUntil:
     visible: "WrongA"
     timeout: 40000
 - takeScreenshot: paid-shots/04_question
-# Guarded tap-spray: each guarded tap re-queries the view (~0.5s), so taps land progressively.
-# The countdown (~2.4s) eats the early ones; a later tap lands AFTER it but well before the
-# app's own 10s client timeout. With the server answer-window now extended, the answer is accepted.
-- repeat:
-    times: 16
-    commands:
-      - runFlow:
-          when:
-            visible: "WrongA"
-          commands:
-            - tapOn:
-                text: "WrongA"
+- tapOn:
+    text: "WrongA"
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    text: "WrongA"
 - waitForAnimationToEnd:
     timeout: 15000
 - takeScreenshot: paid-shots/05_result
