@@ -257,7 +257,7 @@ export default function App() {
   const [joinCode, setJoinCode] = useState('');
   // ===== credits / stakes (stubbed local balance adapter — swap for server+processor to go real-money) =====
   const [balance, setBalance] = useState(500);   // free starting credits
-  const [stake, setStake] = useState(10);         // selected entry credits
+  const [stake, setStake] = useState(50);         // selected entry in CENTS (server-authoritative)
   const [ledger, setLedger] = useState([]);       // [{ts,type,amount,label}]
   const [confirming, setConfirming] = useState(false);
   const stakeRef = useRef(10);
@@ -294,7 +294,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(100); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]);
   useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
@@ -389,11 +389,7 @@ export default function App() {
     setOnlineRec(p => ({ wins:p.wins+(res==='win'), losses:p.losses+(res==='loss'), draws:p.draws+(res==='draw') }));
     setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, stake:stk||0, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
     // credit settlement (stake was escrowed at entry): win => pot*(1-5% rake); draw => refund; loss => already paid
-    const sV = stk || 0;
-    if (sV > 0) {
-      if (res === 'win') { const w = Math.round(sV * 2 * 0.95); applyCredit(w, 'win', 'Won ' + w); }
-      else if (res === 'draw') { applyCredit(sV, 'refund', 'Draw refund ' + sV); }
-    }
+    if ((stk || 0) > 0) { refreshBalance(); }   // server already settled atomically; pull the authoritative balance
     setPending(p => { const n = { ...p }; delete n[mid]; return n; });
   }
   // shared: map a server result into the practice-shaped state and show the Results screen
@@ -451,6 +447,7 @@ export default function App() {
         myNameRef.current = msg.handle; setDisplayName(msg.handle); hydrateHistory(msg.handle);
         try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); } catch (e) {}
         const fn = pendingAfterReg.current; pendingAfterReg.current = null; if (fn) fn(); // resume the queue we were starting
+        refreshBalance();
         break;
       }
       case 'account-synced': {
@@ -459,6 +456,7 @@ export default function App() {
           myNameRef.current = msg.handle; setDisplayName(msg.handle); identify(msg.accountId, { handle: msg.handle, email: msg.email });
           try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); AsyncStorage.setItem('sense_handle', msg.handle); } catch (e) {}
           try { hydrateHistory(msg.handle); } catch (e) {}
+          refreshBalance();
         }
         break;
       }
@@ -517,12 +515,12 @@ export default function App() {
       case 'ping': wsSend(pong(msg.nonce)); break;   // room latency probe (web replies pong)
       case 'rtt-result': break;
       case 'match-cancelled':  // a pending async game was cancelled — refund the escrowed stake, drop the card
-        if (msg.matchId) { const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
+        if (msg.matchId) { const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) refreshBalance(); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
         break;
       case 'cancel-denied':  // server 2-min anti-abuse lockout (can't queue, peek the question, then bail)
         showToast(msg.message || 'Cannot cancel yet'); break;
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
-        if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
+        if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) refreshBalance(); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
         else showToast('A pending game expired');
         break;
@@ -540,7 +538,7 @@ export default function App() {
   async function sendQueueMsg() {
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
-    wsSend({ ...queue(myName(), 1, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
+    wsSend({ ...queue(myName(), queuePayRef.current.tier, { paymentMode: queuePayRef.current.paymentMode }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
@@ -553,6 +551,13 @@ export default function App() {
       else { pendingAfterReg.current = sendQueueMsg; wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
     });
   }
+  // ===== server-authoritative credits (paid mode) =====
+  const STAKE_TIERS = [{ tier:1, cents:50 }, { tier:2, cents:100 }, { tier:3, cents:500 }, { tier:4, cents:2500 }];
+  function tierForCents(c){ const t = STAKE_TIERS.find(x=>x.cents===c); return t ? t.tier : 1; }
+  function fmtUSD(cents){ return '$' + (Number(cents||0)/100).toFixed(2); }
+  const queuePayRef = useRef({ paymentMode:'none', tier:1 });
+  async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id)); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } } catch(e){} }
+  function playFreeOnline(){ track('play_online', { free:true }); stakeRef.current = 0; queuePayRef.current = { paymentMode:'none', tier:1 }; setConfirming(false); playOnline(); }
   // BALANCE ADAPTER (stub): the ONLY place credits move. Replace these two with server/processor calls for real money.
   function applyCredit(amount, type, label) {
     setBalance(prev => { const nb = Math.max(0, prev + amount); AsyncStorage.setItem('sense_balance', String(nb)).catch(()=>{}); return nb; });
@@ -562,7 +567,7 @@ export default function App() {
     track('play_online', { stake });
     if (balance < stake) { showToast('Not enough credits'); return; }
     stakeRef.current = stake;
-    applyCredit(-stake, 'entry', stake + ' entry');   // escrow the stake at entry (the seam where real payment plugs in)
+    queuePayRef.current = { paymentMode:'credits', tier: tierForCents(stake) }; // server escrows + settles
     setConfirming(false);
     playOnline();
   }
@@ -570,7 +575,6 @@ export default function App() {
   function requeueOnline() {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
-    if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
     setNotice(null); setOppName('Rival'); setMode('joining'); startQueue();
   }
   function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
@@ -656,11 +660,11 @@ export default function App() {
           <Text style={st.bigBrand}>SENSE</Text>
           <Text style={st.tagline}>How fast can you name the animal?</Text>
           <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
-          <View style={st.balPill}><Text style={st.balPillText}>{balance} credits</Text></View>
+          <View style={st.balPill}><Text style={st.balPillText}>{fmtUSD(balance)}</Text></View>
           {confirming ? (
             <View style={st.confirmCard}>
-              <Text style={st.confirmTitle}>Entering {stake}-credit match</Text>
-              <Text style={st.confirmSub}>Win up to {winUpTo} · balance {balance} → {Math.max(0,balance-stake)}</Text>
+              <Text style={st.confirmTitle}>Entering {fmtUSD(stake)} match</Text>
+              <Text style={st.confirmSub}>Win up to {fmtUSD(winUpTo)} · balance {fmtUSD(balance)} → {fmtUSD(Math.max(0,balance-stake))}</Text>
               {balance < stake
                 ? <Text style={st.noticeText}>Not enough credits</Text>
                 : <View style={{width:'100%',alignItems:'center',marginTop:14}}><GlossyButton label="CONFIRM & PLAY" onPress={startPaidOnline} /></View>}
@@ -669,16 +673,17 @@ export default function App() {
           ) : (
             <>
               <View style={st.stakeRow}>
-                {[10,50,100].map(sv => (
-                  <Pressable key={sv} onPress={()=>setStake(sv)} style={[st.stakeChip, stake===sv && st.stakeChipOn]}>
-                    <Text style={[st.stakeChipText, stake===sv && st.stakeChipTextOn]}>{sv}</Text>
+                {STAKE_TIERS.map(t => (
+                  <Pressable key={t.cents} onPress={()=>setStake(t.cents)} style={[st.stakeChip, stake===t.cents && st.stakeChipOn]}>
+                    <Text style={[st.stakeChipText, stake===t.cents && st.stakeChipTextOn]}>{fmtUSD(t.cents)}</Text>
                   </Pressable>
                 ))}
               </View>
-              <Text style={st.stakeHint}>entry · credits</Text>
+              <Text style={st.stakeHint}>paid entry</Text>
               <View style={{height:14}} />
-              <View style={{width:'100%',alignItems:'center'}}><GlossyButton label="PLAY ONLINE" onPress={()=>setConfirming(true)} /></View>
-              <Text style={st.note}>Real opponents · free credits · fastest correct answer wins.</Text>
+              <View style={{width:'100%',alignItems:'center'}}><GlossyButton label={"PLAY FOR " + fmtUSD(stake)} onPress={()=>setConfirming(true)} /></View>
+              <Text style={st.note}>Real opponents · winner takes the pot minus a 5% fee · fastest correct wins.</Text>
+              <Pressable onPress={playFreeOnline} style={st.practiceLink}><Text style={st.practiceLinkText}>Play online free (no stake)</Text></Pressable>
               <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
             </>
           )}
@@ -976,7 +981,7 @@ function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, aut
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Profile</Text>
     {authUI || null}
-    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{balance} credits (free)</Text><Text style={[st.memberSince,{marginTop:2}]}>Net lifetime: {netLifetime>=0?'+':''}{netLifetime} credits</Text></View>
+    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{fmtUSD(balance)}</Text><Text style={[st.memberSince,{marginTop:2}]}>Net lifetime: {netLifetime>=0?'+':''}{netLifetime} credits</Text></View>
     <View style={st.profSection}>
       <Text style={st.profLabel}>Username</Text>
       {editingName ? (
