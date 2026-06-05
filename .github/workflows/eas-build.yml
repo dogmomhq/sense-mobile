@@ -1,9 +1,5 @@
 name: EAS Build (Android preview)
 
-# Triggers an EAS cloud build from CI (reliable — no sandbox time limits). The APK is built on
-# Expo's servers; --no-wait returns immediately so the CI job is short. Result + APK URL live at
-# expo.dev/accounts/commonsense94/projects/sense-mobile/builds.
-
 on:
   workflow_dispatch: {}
 
@@ -15,6 +11,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install deps (required to resolve Expo config plugins, e.g. expo-font)
+        run: npm install --no-audit --no-fund
       - name: Trigger EAS build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
