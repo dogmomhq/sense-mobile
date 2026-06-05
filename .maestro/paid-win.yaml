@@ -20,21 +20,18 @@ appId: com.dogmomhq.sensemobile
     visible: "Correct"
     timeout: 40000
 - takeScreenshot: paid-shots/04_question
-# 2.4s countdown overlay eats early taps. Spread taps from ~3s..~6s after the question:
-# whichever lands first AFTER the countdown submits; the rest are no-ops (button disables).
-# All land well inside the server's 13s answer window.
-- waitForAnimationToEnd:
-    timeout: 3000
-- tapOn:
-    text: "Correct"
-- waitForAnimationToEnd:
-    timeout: 1200
-- tapOn:
-    text: "Correct"
-- waitForAnimationToEnd:
-    timeout: 1200
-- tapOn:
-    text: "Correct"
+# Guarded tap-spray: each guarded tap re-queries the view (~0.5s), so taps land progressively.
+# The countdown (~2.4s) eats the early ones; a later tap lands AFTER it but well before the
+# app's own 10s client timeout. With the server answer-window now extended, the answer is accepted.
+- repeat:
+    times: 16
+    commands:
+      - runFlow:
+          when:
+            visible: "Correct"
+          commands:
+            - tapOn:
+                text: "Correct"
 - waitForAnimationToEnd:
     timeout: 15000
 - takeScreenshot: paid-shots/05_result
