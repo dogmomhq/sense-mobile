@@ -9,6 +9,9 @@ appId: com.dogmomhq.sensemobile
     timeout: 15000
 - takeScreenshot: paid-shots/01_home
 - tapOn:
+    text: "\\$0.50"
+- takeScreenshot: paid-shots/01b_stake_selected
+- tapOn:
     text: "PLAY FOR.*"
 - takeScreenshot: paid-shots/02_confirm
 - tapOn:
