@@ -17,14 +17,14 @@
       "autoIncrement": true,
       "credentialsSource": "local",
       "ios": {
-        "image": "latest"
+        "image": "default"
       }
     },
     "simulator": {
       "channel": "preview",
       "ios": {
         "simulator": true,
-        "image": "latest"
+        "image": "default"
       }
     },
     "e2e": {
