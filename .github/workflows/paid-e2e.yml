@@ -1,6 +1,10 @@
 name: Paid Match E2E (Maestro + WS opponent)
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      testKey: { description: "E2E_TEST_KEY (gates fixed question)", required: true }
+      oppAnswer: { description: "Opponent answer index (0=Correct,1=WrongA)", required: true, default: "1" }
+      flow: { description: "Maestro flow file", required: true, default: "paid-win.yaml" }
 permissions:
   contents: write
 jobs:
@@ -10,18 +14,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install ws (for opponent)
-        run: npm i ws --no-save
-      - name: Download latest EAS Android APK (the b4 branch build)
+        with: { node-version: '20' }
+      - run: npm i ws --no-save
+      - name: Download latest EAS Android APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           URL=$(npx --yes eas-cli@latest build:list --platform android --status finished --limit 1 --json --non-interactive \
             | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s);process.stdout.write((b[0]&&b[0].artifacts&&b[0].artifacts.applicationArchiveUrl)||'')})")
           echo "APK: $URL"; test -n "$URL" || { echo "no APK"; exit 1; }
-          curl -L "$URL" -o app.apk; ls -la app.apk
+          curl -L "$URL" -o app.apk
       - name: Install Maestro
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
@@ -38,8 +40,12 @@ jobs:
             ~/.android/avd/*
             ~/.android/adb*
           key: avd-34-pixel6
-      - name: Run app + WS opponent + Maestro paid flow
+      - name: Run app + opponent + Maestro
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_TEST_KEY: ${{ github.event.inputs.testKey }}
+          OPP_ANSWER: ${{ github.event.inputs.oppAnswer }}
+          FLOW: ${{ github.event.inputs.flow }}
         with:
           api-level: 34
           arch: x86_64
@@ -50,16 +56,19 @@ jobs:
           script: |
             adb install -r app.apk
             mkdir -p paid-shots
-            echo "starting WS opponent..."
-            node scripts/paid-opponent.js > opp.log 2>&1 &
+            adb shell screenrecord --bit-rate 4000000 --time-limit 170 /sdcard/match.mp4 &
+            E2E_TEST_KEY="$E2E_TEST_KEY" OPP_ANSWER="$OPP_ANSWER" node scripts/paid-opponent.js > opp.log 2>&1 &
             sleep 12
-            "$HOME/.maestro/bin/maestro" test .maestro/paid-flow.yaml || echo "maestro had failures"
+            "$HOME/.maestro/bin/maestro" test ".maestro/$FLOW" || echo "maestro had failures"
+            adb shell pkill -INT screenrecord 2>/dev/null || true
+            sleep 4
+            adb pull /sdcard/match.mp4 "paid-shots/match.mp4" 2>/dev/null || echo "no video"
             echo "=== opponent log ==="; cat opp.log || true
+            ls -la paid-shots || true
       - name: Commit screenshots
         if: always()
         run: |
-          git config user.name "paid-e2e-bot"
-          git config user.email "e2e@dogmom.com"
+          git config user.name "paid-e2e-bot"; git config user.email "e2e@dogmom.com"
           git add paid-shots || true
-          git commit -m "Paid match e2e screenshots [skip ci]" || echo "no changes"
+          git commit -m "Paid e2e ${{ github.event.inputs.flow }} [skip ci]" || echo "no changes"
           git push origin HEAD:b4-credit-mode || echo "push skipped"
