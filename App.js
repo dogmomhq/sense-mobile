@@ -388,6 +388,7 @@ export default function App() {
     setMatchId(mid);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
+    refreshBalance(); // reflect the stake escrow on screen immediately (was only refreshing after settle)
     setCountdown(!question.noCountdown); fadeTo(() => setMode('play'));
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
