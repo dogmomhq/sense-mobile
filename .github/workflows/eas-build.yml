@@ -1,7 +1,12 @@
-name: EAS Build (Android preview)
+name: EAS Build (Android)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: false
+        default: "preview"
 
 jobs:
   build:
@@ -16,4 +21,4 @@ jobs:
       - name: Trigger EAS build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@latest build -p android --profile preview --non-interactive --no-wait
+        run: npx --yes eas-cli@latest build -p android --profile ${{ github.event.inputs.profile || 'preview' }} --non-interactive --no-wait
