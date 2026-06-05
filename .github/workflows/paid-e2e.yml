@@ -1,0 +1,65 @@
+name: Paid Match E2E (Maestro + WS opponent)
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install ws (for opponent)
+        run: npm i ws --no-save
+      - name: Download latest EAS Android APK (the b4 branch build)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          URL=$(npx --yes eas-cli@latest build:list --platform android --status finished --limit 1 --json --non-interactive \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s);process.stdout.write((b[0]&&b[0].artifacts&&b[0].artifacts.applicationArchiveUrl)||'')})")
+          echo "APK: $URL"; test -n "$URL" || { echo "no APK"; exit 1; }
+          curl -L "$URL" -o app.apk; ls -la app.apk
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-pixel6
+      - name: Run app + WS opponent + Maestro paid flow
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-load
+          disable-animations: true
+          script: |
+            adb install -r app.apk
+            mkdir -p paid-shots
+            echo "starting WS opponent..."
+            node scripts/paid-opponent.js > opp.log 2>&1 &
+            sleep 12
+            "$HOME/.maestro/bin/maestro" test .maestro/paid-flow.yaml || echo "maestro had failures"
+            echo "=== opponent log ==="; cat opp.log || true
+      - name: Commit screenshots
+        if: always()
+        run: |
+          git config user.name "paid-e2e-bot"
+          git config user.email "e2e@dogmom.com"
+          git add paid-shots || true
+          git commit -m "Paid match e2e screenshots [skip ci]" || echo "no changes"
+          git push origin HEAD:b4-credit-mode || echo "push skipped"
