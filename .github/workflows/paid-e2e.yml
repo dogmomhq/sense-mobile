@@ -50,11 +50,16 @@ jobs:
           script: |
             adb install -r app.apk
             mkdir -p paid-shots
+            adb shell screenrecord --bit-rate 4000000 --time-limit 170 /sdcard/match.mp4 &
             echo "starting WS opponent..."
             node scripts/paid-opponent.js > opp.log 2>&1 &
             sleep 12
             "$HOME/.maestro/bin/maestro" test .maestro/paid-flow.yaml || echo "maestro had failures"
+            adb shell pkill -INT screenrecord 2>/dev/null || true
+            sleep 4
+            adb pull /sdcard/match.mp4 paid-shots/match.mp4 2>/dev/null || echo "no video"
             echo "=== opponent log ==="; cat opp.log || true
+            ls -la paid-shots || true
       - name: Commit screenshots
         if: always()
         run: |
