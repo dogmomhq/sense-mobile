@@ -1,0 +1,17 @@
+appId: com.dogmomhq.sensemobile
+---
+- launchApp
+- waitForAnimationToEnd: { timeout: 15000 }
+- takeScreenshot: paid-shots/00_launch
+- extendedWaitUntil: { visible: "SENSE", timeout: 15000 }
+- takeScreenshot: paid-shots/01_home
+- tapOn: { text: "\$0.50" }
+- tapOn: { text: "PLAY FOR.*" }
+- takeScreenshot: paid-shots/02_confirm
+- tapOn: { text: "CONFIRM & PLAY" }
+- takeScreenshot: paid-shots/03_finding
+- extendedWaitUntil: { visible: "WrongA", timeout: 40000 }
+- takeScreenshot: paid-shots/04_question
+- tapOn: { text: "WrongA" }
+- waitForAnimationToEnd: { timeout: 15000 }
+- takeScreenshot: paid-shots/05_result
