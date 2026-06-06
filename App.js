@@ -351,7 +351,7 @@ export default function App() {
       if (isChallengeRef.current) {
         wsSend(roomAnswer(idx, Math.round(playerTime)));   // challenge ROOM engine
       } else {
-        wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));  // async matchmaking
+        wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime), { name: myName(), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined }));  // async matchmaking
         const mid = matchIdRef.current;
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), stake: stakeRef.current } }));
         if (pendTimer.current) clearTimeout(pendTimer.current);
@@ -436,9 +436,20 @@ export default function App() {
     try {
       const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}`);
       const d = await r.json();
-      if (d && Array.isArray(d.open) && d.open.length) {
-        setPending(prev => { const next = { ...prev }; d.open.forEach(g => { if (g.match_id && !next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: g.created_at ? new Date(g.created_at).getTime() : Date.now(), stake: 0, myTime: null }; }); return next; });
-      }
+      const openList = (d && Array.isArray(d.open)) ? d.open : [];
+      const openIds = new Set(openList.map(g => g.match_id));
+      // Reconcile pending to reality: keep only games the server still lists OPEN, or ones
+      // we answered in the last 25s (genuinely awaiting settle). Anything older the server
+      // no longer lists is a settled-but-missed result -> drop the stale card (its outcome
+      // is in History). Then add any server-open games not already shown.
+      let prunedAny = false;
+      setPending(prev => {
+        const now = Date.now(); const next = {};
+        for (const mid in prev) { const info = prev[mid]; if (openIds.has(mid) || (info.ts && now - info.ts < 25000)) next[mid] = info; else prunedAny = true; }
+        openList.forEach(g => { if (g.match_id && !next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: g.created_at ? new Date(g.created_at).getTime() : Date.now(), stake: 0, myTime: null }; });
+        return next;
+      });
+      if (prunedAny) { try { refreshBalance(); } catch (e) {} }
     } catch (e) {}
   }
   function doRename(name) {
