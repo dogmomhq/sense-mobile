@@ -23,7 +23,7 @@ export type ResultReason = 'correct_answer' | 'both_wrong' | 'faster' | 'same_sp
 
 // ---------- CLIENT -> SERVER ----------
 export interface QueueMsg { type: 'queue'; name: string; tier: number; paymentMode: PaymentMode; wallet: string | null; onChainGameId: number | null; }
-export interface AsyncAnswerMsg { type: 'async-answer'; matchId: string; answerIndex: number; clientTime: number; }
+export interface AsyncAnswerMsg { type: 'async-answer'; matchId: string; answerIndex: number; clientTime: number; name?: string; token?: string; supabaseToken?: string; }
 export interface CancelMatchMsg { type: 'cancel-match'; matchId: string; }
 export interface RttPongMsg { type: 'rtt-pong'; nonce: number; }
 export interface KeepaliveMsg { type: 'keepalive'; }
@@ -42,8 +42,8 @@ export type ClientMessage =
 export const queue = (name: string, tier = 1, opts: { wallet?: string | null; onChainGameId?: number | null; paymentMode?: PaymentMode } = {}): QueueMsg =>
   ({ type: 'queue', name, tier, paymentMode: opts.paymentMode ?? 'none', wallet: opts.wallet ?? null, onChainGameId: opts.onChainGameId ?? null });
 /** answerIndex: 0..3, or -1 for timeout. clientTime: ms since GO (local). */
-export const asyncAnswer = (matchId: string, answerIndex: number, clientTime: number): AsyncAnswerMsg =>
-  ({ type: 'async-answer', matchId, answerIndex, clientTime });
+export const asyncAnswer = (matchId: string, answerIndex: number, clientTime: number, id?: { name?: string; token?: string; supabaseToken?: string }): AsyncAnswerMsg =>
+  ({ type: 'async-answer', matchId, answerIndex, clientTime, ...(id || {}) });
 export const cancelMatch = (matchId: string): CancelMatchMsg => ({ type: 'cancel-match', matchId });
 export const rttPong = (nonce: number): RttPongMsg => ({ type: 'rtt-pong', nonce });
 export const keepalive = (): KeepaliveMsg => ({ type: 'keepalive' });
