@@ -422,7 +422,7 @@ export default function App() {
   async function hydrateHistory(name) {
     if (!name) return;
     try {
-      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=50`);
+      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=50`, { headers: _authHdr() });
       const d = await r.json();
       if (d && Array.isArray(d.matches)) {
         const mapped = d.matches.filter(m => m.mode !== 'solana').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, mode: m.mode, timestamp: m.settled_at }; }).filter(x => x.matchId);
@@ -434,7 +434,7 @@ export default function App() {
   async function hydrateOpenGames(name) {
     if (!name) return;
     try {
-      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}`);
+      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}`, { headers: _authHdr() });
       const d = await r.json();
       const openList = (d && Array.isArray(d.open)) ? d.open : [];
       const openIds = new Set(openList.map(g => g.match_id));
@@ -576,7 +576,8 @@ export default function App() {
   const STAKE_TIERS = [{ tier:1, cents:50 }, { tier:2, cents:100 }, { tier:3, cents:500 }, { tier:4, cents:2500 }];
   function tierForCents(c){ const t = STAKE_TIERS.find(x=>x.cents===c); return t ? t.tier : 1; }
   const queuePayRef = useRef({ paymentMode:'none', tier:1 });
-  async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id)); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } if (d && Array.isArray(d.ledger)) setServerLedger(d.ledger); } catch(e){} }
+  function _authHdr(){ const t = supabaseTokenRef.current || (accountRef.current && accountRef.current.token); return t ? { Authorization: 'Bearer ' + t } : {}; }
+  async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id), { headers: _authHdr() }); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } if (d && Array.isArray(d.ledger)) setServerLedger(d.ledger); } catch(e){} }
   async function devLogin(){ if(!E2E_KEY) return; try { const r = await fetch(HTTPS_BASE+'/api/test-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:E2E_KEY})}); const d = await r.json(); if(d&&d.ok){ accountRef.current={accountId:d.accountId,handle:d.handle,token:d.token}; try{AsyncStorage.setItem('sense_account',JSON.stringify(accountRef.current));}catch(e){} myNameRef.current=d.handle; setDisplayName(d.handle); setAuthEmail(d.email||'e2e@sense.test'); setShowSignin(false); refreshBalance(); showToast('Signed in (test)'); } } catch(e){} }
   async function tokenizeCard(card){ try { const r = await fetch('https://api.sandbox.checkout.com/tokens',{method:'POST',headers:{'Authorization':CHECKOUT_PK,'Content-Type':'application/json'},body:JSON.stringify({type:'card',number:card.number,expiry_month:card.em,expiry_year:card.ey,cvv:card.cvv})}); const d = await r.json(); return d && d.token; } catch(e){ return null; } }
   async function doDeposit(amountCents, card){ if(depositBusy) return; setDepositBusy(true); try { const c = card || { number:(cardNum||'').replace(/\\s/g,''), em:parseInt((cardExp||'').split('/')[0])||12, ey:2000+(parseInt((cardExp||'').split('/')[1])||30), cvv:cardCvv||'100' }; const tok = await tokenizeCard(c); if(!tok){ showToast('Card not accepted'); setDepositBusy(false); return; } const auth = supabaseTokenRef.current ? {supabaseToken:supabaseTokenRef.current} : ((accountRef.current&&accountRef.current.token)?{deviceToken:accountRef.current.token}:{}); const r = await fetch(HTTPS_BASE+'/api/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amountCents,cardToken:tok,...auth})}); const d = await r.json(); if(d&&d.ok){ const b=Number(d.balanceCents); setBalance(b); AsyncStorage.setItem('sense_balance',String(b)).catch(()=>{}); setShowDeposit(false); showToast('Added '+fmtUSD(amountCents)); } else { showToast('Deposit failed'); } } catch(e){ showToast('Deposit error'); } setDepositBusy(false); }
