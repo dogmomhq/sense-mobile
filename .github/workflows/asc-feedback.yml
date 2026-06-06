@@ -9,26 +9,35 @@ jobs:
         with: { node-version: '20' }
       - name: Restore ASC API key
         run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
-      - name: Fetch TestFlight feedback
+      - name: Fetch
         run: |
           npm i jsonwebtoken --no-save --silent
           node -e '
           const jwt=require("jsonwebtoken"),fs=require("fs");
           const key=fs.readFileSync("asc_key.p8");
-          const KID="47N638GLZG", ISS="b26d5075-81df-418d-93b6-a3dd7be13e0c", APP="6775628110";
+          const KID="47N638GLZG", ISS="b26d5075-81df-418d-93b6-a3dd7be13e0c";
           const tok=jwt.sign({},key,{algorithm:"ES256",expiresIn:"10m",issuer:ISS,audience:"appstoreconnect-v1",header:{alg:"ES256",kid:KID,typ:"JWT"}});
           const H={Authorization:"Bearer "+tok};
+          const get=async(p)=>{const r=await fetch("https://api.appstoreconnect.apple.com"+p,{headers:H});let j;try{j=await r.json()}catch(e){j={parseErr:1}}return{status:r.status,j};};
           (async()=>{
+            // 1) which apps can this key see?
+            let r=await get("/v1/apps?limit=20");
+            console.log("APPS (HTTP "+r.status+"):");
+            (r.j.data||[]).forEach(a=>console.log("  id="+a.id, a.attributes.bundleId, "|", a.attributes.name));
+            if(r.j.errors)console.log("  ERR",JSON.stringify(r.j.errors));
+            const app=(r.j.data||[]).find(a=>a.attributes.bundleId==="com.dogmomhq.sensemobile")||(r.j.data||[])[0];
+            const APP=app?app.id:"6775628110";
+            console.log("\nusing app id:",APP);
+            // 2) top-level feedback with app filter
             for(const ep of ["betaFeedbackScreenshotSubmissions","betaFeedbackCrashSubmissions"]){
-              try{
-                const r=await fetch("https://api.appstoreconnect.apple.com/v1/apps/"+APP+"/"+ep+"?limit=50",{headers:H});
-                const j=await r.json();
-                console.log("\n===== "+ep+" (HTTP "+r.status+") =====");
-                if(j.errors){console.log(JSON.stringify(j.errors));continue;}
-                const data=j.data||[];
-                console.log("COUNT:",data.length);
-                for(const d of data){const a=d.attributes||{};console.log("-",a.createdDate,"|",(a.deviceModel||""),(a.osVersion||""),"|",(a.comment||a.feedbackText||"(no text)"));}
-              }catch(e){console.log(ep,"ERROR",e.message);}
+              let f=await get("/v1/"+ep+"?filter[app]="+APP+"&limit=200&sort=-createdDate");
+              console.log("\n"+ep+" filter[app] (HTTP "+f.status+") count="+((f.j.data||[]).length));
+              if(f.j.errors)console.log("  ERR",JSON.stringify(f.j.errors));
+              (f.j.data||[]).slice(0,20).forEach(d=>{const a=d.attributes||{};console.log("  -",a.createdDate,"|",a.deviceModel||"",a.osVersion||"","|",(a.comment||a.feedbackText||a.crashLog||"(no text)").toString().slice(0,120));});
             }
+            // 3) recent builds (to confirm which build has feedback)
+            let b=await get("/v1/builds?filter[app]="+APP+"&limit=5&sort=-uploadedDate");
+            console.log("\nBUILDS (HTTP "+b.status+"):");
+            (b.j.data||[]).forEach(x=>console.log("  build "+x.attributes.version, x.attributes.uploadedDate, x.attributes.processingState));
           })();
           '
