@@ -262,7 +262,8 @@ export default function App() {
   // ===== credits / stakes (stubbed local balance adapter — swap for server+processor to go real-money) =====
   const [balance, setBalance] = useState(500);   // free starting credits
   const [stake, setStake] = useState(50);         // selected entry in CENTS (server-authoritative)
-  const [ledger, setLedger] = useState([]);       // [{ts,type,amount,label}]
+  const [ledger, setLedger] = useState([]);       // [{ts,type,amount,label}] (legacy local)
+  const [serverLedger, setServerLedger] = useState([]); // real server credit ledger [{type,amount,balance_after,match_id,created_at}]
   const [confirming, setConfirming] = useState(false);
   const stakeRef = useRef(10);
   const [rematchReq, setRematchReq] = useState(false);
@@ -424,7 +425,7 @@ export default function App() {
       const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=50`);
       const d = await r.json();
       if (d && Array.isArray(d.matches)) {
-        const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
+        const mapped = d.matches.filter(m => m.mode !== 'solana').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, mode: m.mode, timestamp: m.settled_at }; }).filter(x => x.matchId);
         setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,50); });
         if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
       }
@@ -564,7 +565,7 @@ export default function App() {
   const STAKE_TIERS = [{ tier:1, cents:50 }, { tier:2, cents:100 }, { tier:3, cents:500 }, { tier:4, cents:2500 }];
   function tierForCents(c){ const t = STAKE_TIERS.find(x=>x.cents===c); return t ? t.tier : 1; }
   const queuePayRef = useRef({ paymentMode:'none', tier:1 });
-  async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id)); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } } catch(e){} }
+  async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id)); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } if (d && Array.isArray(d.ledger)) setServerLedger(d.ledger); } catch(e){} }
   async function devLogin(){ if(!E2E_KEY) return; try { const r = await fetch(HTTPS_BASE+'/api/test-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:E2E_KEY})}); const d = await r.json(); if(d&&d.ok){ accountRef.current={accountId:d.accountId,handle:d.handle,token:d.token}; try{AsyncStorage.setItem('sense_account',JSON.stringify(accountRef.current));}catch(e){} myNameRef.current=d.handle; setDisplayName(d.handle); setAuthEmail(d.email||'e2e@sense.test'); setShowSignin(false); refreshBalance(); showToast('Signed in (test)'); } } catch(e){} }
   async function tokenizeCard(card){ try { const r = await fetch('https://api.sandbox.checkout.com/tokens',{method:'POST',headers:{'Authorization':CHECKOUT_PK,'Content-Type':'application/json'},body:JSON.stringify({type:'card',number:card.number,expiry_month:card.em,expiry_year:card.ey,cvv:card.cvv})}); const d = await r.json(); return d && d.token; } catch(e){ return null; } }
   async function doDeposit(amountCents, card){ if(depositBusy) return; setDepositBusy(true); try { const c = card || { number:(cardNum||'').replace(/\\s/g,''), em:parseInt((cardExp||'').split('/')[0])||12, ey:2000+(parseInt((cardExp||'').split('/')[1])||30), cvv:cardCvv||'100' }; const tok = await tokenizeCard(c); if(!tok){ showToast('Card not accepted'); setDepositBusy(false); return; } const auth = supabaseTokenRef.current ? {supabaseToken:supabaseTokenRef.current} : ((accountRef.current&&accountRef.current.token)?{deviceToken:accountRef.current.token}:{}); const r = await fetch(HTTPS_BASE+'/api/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amountCents,cardToken:tok,...auth})}); const d = await r.json(); if(d&&d.ok){ const b=Number(d.balanceCents); setBalance(b); AsyncStorage.setItem('sense_balance',String(b)).catch(()=>{}); setShowDeposit(false); showToast('Added '+fmtUSD(amountCents)); } else { showToast('Deposit failed'); } } catch(e){ showToast('Deposit error'); } setDepositBusy(false); }
@@ -705,7 +706,7 @@ export default function App() {
     } else if (tab === 'leaderboard') {
       screen = <LeaderboardScreen httpsBase={HTTPS_BASE} />;
     } else if (tab === 'history') {
-      screen = <HistoryScreen matchLog={matchLog} pending={pending} ledger={ledger} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
+      screen = <HistoryScreen matchLog={matchLog} pending={pending} serverLedger={serverLedger} balance={balance} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
     } else {
       const authUI = !supabase ? null : (authEmail ? (
         <View style={st.authBox}>
@@ -752,7 +753,7 @@ export default function App() {
         <NavBtn label="Challenge" icon="challenge" active={tab==='challenge'} onPress={()=>setTab('challenge')} />
         <NavBtn label="Profile" icon="profile" active={tab==='profile'} onPress={()=>setTab('profile')} />
         <NavBtn label="Hosts" icon="hosts" active={tab==='leaderboard'} onPress={()=>setTab('leaderboard')} />
-        <NavBtn label="History" icon="history" active={tab==='history'} onPress={()=>setTab('history')} badge={Object.keys(pending).length} />
+        <NavBtn label="History" icon="history" active={tab==='history'} onPress={()=>{setTab('history');refreshBalance();}} badge={Object.keys(pending).length} />
       </View>
     </>);
   }
@@ -967,24 +968,36 @@ function LeaderboardScreen({ httpsBase }) {
   </View>);
 }
 function timeAgo(ts){ if(!ts)return''; const d=Date.now()-new Date(ts).getTime(), m=Math.floor(d/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
-function HistoryScreen({ matchLog, pending, ledger, onCancel }) {
+function HistoryScreen({ matchLog, pending, serverLedger, balance, onCancel }) {
   const pend = Object.entries(pending||{});
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, []);
+  const LAB = { signup_bonus:'Welcome credit', deposit:'Deposit', entry:'Match stake', win:'Won match', refund:'Refund', rake:'Fee', bonus:'Bonus' };
+  const lg = serverLedger || [];
+  const deltaFor = (mid) => { const ls = lg.filter(t=>t.match_id===mid); return { paid: ls.length>0, delta: ls.reduce((a,t)=>a+Number(t.amount||0),0) }; };
   return (<View style={{paddingTop:48}}>
-    <Text style={st.screenTitle}>Match History</Text>
-    {pend.length>0 && (<View style={{marginBottom:8}}><Text style={st.sectionSub}>Pending</Text>
-      {pend.map(([mid,d])=>{ const locked = d.ts && (now - d.ts) < 120000; const remain = Math.ceil((120000 - (now - (d.ts||0))) / 1000); return (<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching…'}</Text></View><Pressable onPress={()=>{ if(!locked) onCancel(mid); }} disabled={locked} style={[st.histCancel, locked&&{opacity:0.45}]}><Text style={st.histCancelText}>{locked ? `${remain}s` : 'Cancel'}</Text></Pressable></View>); })}
+    <Text style={st.screenTitle}>History</Text>
+    <View style={st.balCard}><Text style={st.balCardLabel}>Balance</Text><Text style={st.balCardVal}>{fmtUSD(balance)}</Text></View>
+    {pend.length>0 && (<View style={{marginBottom:10}}><Text style={st.sectionSub}>Pending</Text>
+      {pend.map(([mid,d])=>{ const locked = d.ts && (now - d.ts) < 120000; const remain = Math.ceil((120000 - (now - (d.ts||0))) / 1000); return (<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching\u2026'}</Text></View><Pressable onPress={()=>{ if(!locked) onCancel(mid); }} disabled={locked} style={[st.histCancel, locked&&{opacity:0.45}]}><Text style={st.histCancelText}>{locked ? `${remain}s` : 'Cancel'}</Text></Pressable></View>); })}
     </View>)}
-    {(ledger && ledger.length>0) ? (<View style={{marginBottom:14}}><Text style={st.sectionSub}>Transactions</Text>
-      {ledger.slice(0,8).map((t,i)=>(<View key={i} style={st.ledgerRow}><Text style={st.ledgerLabel}>{t.label}</Text><Text style={[st.ledgerAmt,{color:t.amount>=0?C.win:C.lose}]}>{t.amount>=0?'+':''}{t.amount}</Text></View>))}
-    </View>) : null}
-    {matchLog.length===0 && pend.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
+    <Text style={st.sectionSub}>Matches</Text>
+    {matchLog.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
     {matchLog.map((m,idx)=>{ const rc = m.result==='win'?C.win:m.result==='loss'?C.lose:C.draw; const rl = m.result==='win'?'WIN':m.result==='loss'?'LOSS':'DRAW';
+      const {paid,delta}=deltaFor(m.matchId); const dtxt = !paid ? 'free' : (delta===0 ? 'refunded' : (delta>0?'+':'-')+fmtUSD(Math.abs(delta))); const dcol = !paid ? C.text2 : (delta>0?C.win:delta<0?C.lose:C.text2);
       return (<View key={m.matchId||idx} style={st.histRow}>
-        <View style={st.histMain}><View style={[st.badge,{backgroundColor:rc+'22'}]}><Text style={[st.badgeText,{color:rc}]}>{rl}</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {m.opponent}</Text></View>
-        <View style={st.histDetails}><Text style={st.histDetail}>You: {m.myTime!=null?formatTime(m.myTime):'—'}</Text><Text style={st.histDetail}>Them: {m.oppTime!=null?formatTime(m.oppTime):'—'}</Text><Text style={st.histDetail}>{getReasonText(m.reason)}</Text>{m.timestamp?<Text style={st.histDetail}>{timeAgo(m.timestamp)}</Text>:null}</View>
+        <View style={{flex:1}}>
+          <View style={st.histMain}><View style={[st.badge,{backgroundColor:rc+'22'}]}><Text style={[st.badgeText,{color:rc}]}>{rl}</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {m.opponent}</Text></View>
+          <Text style={st.histDetail}>You {m.myTime!=null?formatTime(m.myTime):'\u2014'} · Them {m.oppTime!=null?formatTime(m.oppTime):'\u2014'}{m.timestamp?'  \u00b7  '+timeAgo(m.timestamp):''}</Text>
+        </View>
+        <Text style={[st.histDelta,{color:dcol}]}>{dtxt}</Text>
       </View>); })}
+    <Text style={[st.sectionSub,{marginTop:18}]}>Balance Activity</Text>
+    {lg.length===0 ? <Text style={st.emptyText}>No balance activity yet.</Text> : null}
+    {lg.map((t,i)=>{ const amt=Number(t.amount||0); return (<View key={i} style={st.ledgerRow2}>
+      <View style={{flex:1}}><Text style={st.ledgerLabel2}>{LAB[t.type]||t.type}</Text><Text style={st.ledgerTime}>{t.created_at?timeAgo(t.created_at):''}</Text></View>
+      <View style={{alignItems:'flex-end'}}><Text style={[st.ledgerAmt2,{color:amt>=0?C.win:C.lose}]}>{amt>=0?'+':'-'}{fmtUSD(Math.abs(amt))}</Text><Text style={st.ledgerBal}>{fmtUSD(t.balance_after)}</Text></View>
+    </View>); })}
   </View>);
 }
 function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy, balance, ledger }) {
@@ -1062,6 +1075,9 @@ const st = StyleSheet.create({
   toggleRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:C.card,borderRadius:16,padding:18,marginTop:8}, toggleLabel:{fontSize:16,fontFamily:F.x,color:C.text}, toggle:{width:50,height:30,borderRadius:15,backgroundColor:'#D6D8E3',padding:3,justifyContent:'center'}, knob:{width:24,height:24,borderRadius:12,backgroundColor:'#fff'},
   nav:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:'rgba(255,255,255,0.95)',borderTopWidth:1,borderTopColor:C.border,paddingVertical:14,paddingBottom:28}, navBtn:{flex:1,alignItems:'center'}, navText:{fontSize:10,color:C.text2,fontFamily:F.s,marginTop:3,letterSpacing:0.3},
   appHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingTop:SBAR+10,paddingBottom:8}, hdrSignin:{backgroundColor:'rgba(108,99,255,0.12)',borderRadius:999,paddingHorizontal:16,paddingVertical:7}, hdrSigninText:{color:C.accent,fontFamily:F.x,fontSize:13}, hdrUser:{paddingVertical:7}, hdrUserText:{color:C.text,fontFamily:F.x,fontSize:15,maxWidth:180}, hdrBal:{flexDirection:'row',alignItems:'center',backgroundColor:'rgba(34,197,94,0.14)',borderRadius:999,paddingHorizontal:16,paddingVertical:7}, hdrBalText:{color:C.win,fontFamily:F.x,fontSize:14}, hdrPlus:{color:C.win,fontFamily:F.x,fontSize:14},
+  balCard:{backgroundColor:'rgba(34,197,94,0.10)',borderRadius:14,padding:16,marginBottom:14,alignItems:'center'}, balCardLabel:{color:C.text2,fontFamily:F.m,fontSize:11,letterSpacing:1,textTransform:'uppercase'}, balCardVal:{color:C.win,fontFamily:F.k,fontSize:30,marginTop:2},
+  histDelta:{fontFamily:F.x,fontSize:14,marginLeft:8},
+  ledgerRow2:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:9,borderBottomWidth:1,borderBottomColor:C.border}, ledgerLabel2:{fontFamily:F.s,fontSize:14,color:C.text}, ledgerTime:{fontFamily:F.m,fontSize:11,color:C.text2,marginTop:1}, ledgerAmt2:{fontFamily:F.x,fontSize:14}, ledgerBal:{fontFamily:F.m,fontSize:11,color:C.text2,marginTop:1},
   modalBg:{flex:1,backgroundColor:'rgba(0,0,0,0.45)',alignItems:'center',justifyContent:'center',padding:24}, modalCard:{width:'100%',maxWidth:380,backgroundColor:'#fff',borderRadius:18,padding:22}, modalTitle:{fontFamily:F.k,fontSize:20,color:C.text,marginBottom:6}, modalSub:{fontFamily:F.s,fontSize:13,color:C.text2,marginBottom:6}, modalLink:{alignItems:'center',paddingVertical:10,marginTop:6}, modalLinkText:{color:C.text2,fontFamily:F.m,fontSize:13}, depAmt:{flex:1,marginHorizontal:3,backgroundColor:'rgba(108,99,255,0.10)',borderRadius:10,paddingVertical:12,alignItems:'center'}, depAmtText:{color:C.accent,fontFamily:F.x,fontSize:13},
   waitMsg:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:13,marginTop:6},
   waitTitle:{fontSize:26,fontFamily:F.k,color:C.text,textAlign:'center'}, waitSub:{fontSize:14,color:C.text2,fontFamily:F.m,marginTop:8,textAlign:'center'},
