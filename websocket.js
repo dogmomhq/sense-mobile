@@ -172,11 +172,16 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
 export function wsSend(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
-  } else if (ws && ws.readyState === WebSocket.CONNECTING) {
-    console.log('[ws] Queuing message:', msg.type);
-    pendingQueue.push(msg);
   } else {
-    console.warn('[ws] Not connected, message dropped:', msg.type);
+    // Socket is connecting OR temporarily down (mobile reconnect blip).
+    // Queue instead of dropping so a tap isn't silently lost, and kick a
+    // reconnect if fully closed so the queue actually drains. Critical for
+    // paid answers — a dropped answer reads as a timeout/loss on the server.
+    console.log('[ws] Queuing message (socket not open):', msg.type);
+    pendingQueue.push(msg);
+    if ((!ws || ws.readyState === WebSocket.CLOSED) && !reconnecting && _serverUrl) {
+      connectWS(messageHandler, disconnectHandler, onOpenHandler, connectionLostHandler);
+    }
   }
 }
 
