@@ -23,6 +23,7 @@ const E2E_KEY = (process.env.EXPO_PUBLIC_E2E_KEY || '');  // gated test build on
 const CHECKOUT_PK = 'pk_sbox_7axsqgrmlbrfhjwn2riew7sm4ey';  // Checkout.com SANDBOX publishable key (publishable = safe in client)
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
 const SBAR = (Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);  // clear the Android status bar
+function fmtUSD(cents){ return '$' + (Number(cents||0)/100).toFixed(2); }  // module-scope: used by App AND ProfileScreen
 const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const CIRC54 = 2 * Math.PI * 54;
@@ -562,7 +563,6 @@ export default function App() {
   // ===== server-authoritative credits (paid mode) =====
   const STAKE_TIERS = [{ tier:1, cents:50 }, { tier:2, cents:100 }, { tier:3, cents:500 }, { tier:4, cents:2500 }];
   function tierForCents(c){ const t = STAKE_TIERS.find(x=>x.cents===c); return t ? t.tier : 1; }
-  function fmtUSD(cents){ return '$' + (Number(cents||0)/100).toFixed(2); }
   const queuePayRef = useRef({ paymentMode:'none', tier:1 });
   async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id)); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } } catch(e){} }
   async function devLogin(){ if(!E2E_KEY) return; try { const r = await fetch(HTTPS_BASE+'/api/test-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:E2E_KEY})}); const d = await r.json(); if(d&&d.ok){ accountRef.current={accountId:d.accountId,handle:d.handle,token:d.token}; try{AsyncStorage.setItem('sense_account',JSON.stringify(accountRef.current));}catch(e){} myNameRef.current=d.handle; setDisplayName(d.handle); setAuthEmail(d.email||'e2e@sense.test'); setShowSignin(false); refreshBalance(); showToast('Signed in (test)'); } } catch(e){} }
