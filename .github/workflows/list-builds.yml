@@ -1,0 +1,15 @@
+name: List EAS Builds (read-only)
+on: { workflow_dispatch: {} }
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: List iOS builds (read-only — does NOT create a build)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest build:list --platform ios --limit 30 --json --non-interactive > builds.json 2>cli.log || (echo LOG; cat cli.log)
+      - uses: actions/upload-artifact@v4
+        with: { name: builds, path: "builds.json" }
