@@ -66,7 +66,7 @@ export default function HomeScreen({
             flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18 * s,
             shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s, shadowOpacity: 0.55,
             elevation: 10, opacity: pressed ? 0.85 : 1 })}>
-          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 72 * s, lineHeight: 72 * s, color: '#000',
+          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 72 * s, lineHeight: 86 * s, color: '#000',
             letterSpacing: -0.01 * 72 * s, transform: [{ scaleY: 1.22 }], includeFontPadding: false }}>PLAY NOW</Text>
           <Svg width={60 * s} height={66 * s} viewBox="0 0 24 24" preserveAspectRatio="none">
             <Path d="M13 2 L4 14 H11 L10 22 L19 10 H12 L13 2 Z" fill="#000" />
@@ -103,7 +103,7 @@ export default function HomeScreen({
                 borderRadius: RADII.tier * s, paddingVertical: 36 * s, paddingHorizontal: 12 * s,
                 alignItems: 'center',
                 ...(sel ? { shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16 * s, shadowOpacity: 1 } : null) }}>
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 48 * s, lineHeight: 56 * s,
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 48 * s, lineHeight: 57 * s,
                 letterSpacing: -0.01 * 48 * s, color: sel ? '#000' : COLORS.cream }}>{t}</Text>
             </Pressable>
           );

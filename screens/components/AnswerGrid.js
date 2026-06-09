@@ -28,7 +28,7 @@ export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null,
               alignItems: 'center',
               opacity: locked && !isLocked ? 0.45 : 1,
             })}>
-            <Text numberOfLines={1} style={{ fontFamily: FONTS.anton, fontSize: 52 * s, lineHeight: 60 * s,
+            <Text numberOfLines={1} style={{ fontFamily: FONTS.anton, fontSize: 52 * s, lineHeight: 76 * s,
               letterSpacing: 0.04 * 52 * s, color: isLocked ? COLORS.black : COLORS.cream,
               textTransform: 'uppercase', textAlign: 'center' }}>{label}</Text>
           </Pressable>

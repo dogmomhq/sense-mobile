@@ -100,7 +100,7 @@ export default function TimerRing({ secondsLeft = 10 }) {
 
         {/* centered seconds — small, quiet, always readable */}
         <Circle cx={CX} cy={CY} r={86} fill="rgba(11,15,10,0.55)" />
-        <SvgText x={CX} y={CY + 6} textAnchor="middle" alignmentBaseline="central"
+        <SvgText x={CX} y={CY + 1} textAnchor="middle" alignmentBaseline="central"
           fontFamily={FONTS.mono} fontSize={64} fill={COLORS.lime} opacity={0.95}>
           {tLeft.toFixed(1)}
         </SvgText>
