@@ -967,32 +967,38 @@ function HistoryScreen({ matchLog, pending, serverLedger, balance, onCancel }) {
   const pend = Object.entries(pending||{});
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, []);
-  const LAB = { signup_bonus:'Welcome credit', deposit:'Deposit', entry:'Match stake', win:'Won match', refund:'Refund', rake:'Fee', bonus:'Bonus' };
+  const LAB = { signup_bonus:'Welcome credit', deposit:'Deposit', daily_checkin:'Daily check-in', entry:'Match stake', win:'Won match', refund:'Refund', rake:'Fee', bonus:'Bonus' };
   const lg = serverLedger || [];
-  const deltaFor = (mid) => { const ls = lg.filter(t=>t.match_id===mid); return { paid: ls.length>0, delta: ls.reduce((a,t)=>a+Number(t.amount||0),0) }; };
+  // Merge the money trail + match detail into ONE de-duplicated feed (each game = 1 row).
+  const byMatch = {}; const standalone = [];
+  for (const t of lg) { if (t.match_id) { (byMatch[t.match_id] = byMatch[t.match_id] || []).push(t); } else standalone.push(t); }
+  const matchEvents = Object.keys(byMatch).map(mid => { const rows = byMatch[mid]; const delta = rows.reduce((a,r)=>a+Number(r.amount||0),0); const last = rows[0]; const m = (matchLog||[]).find(x=>x.matchId===mid) || {}; const result = delta>0?'win':delta<0?'loss':'draw'; return { kind:'match', delta, balance_after:last.balance_after, ts:last.created_at, result, opponent:m.opponent, myTime:m.myTime, oppTime:m.oppTime }; });
+  const grantEvents = standalone.map(t => ({ kind:'grant', type:t.type, amount:Number(t.amount||0), balance_after:t.balance_after, ts:t.created_at }));
+  const events = [...matchEvents, ...grantEvents].sort((a,b)=> new Date(b.ts||0) - new Date(a.ts||0));
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>History</Text>
     <View style={st.balCard}><Text style={st.balCardLabel}>Balance</Text><Text style={st.balCardVal}>{fmtCredits(balance)}</Text></View>
     {pend.length>0 && (<View style={{marginBottom:10}}><Text style={st.sectionSub}>Pending</Text>
       {pend.map(([mid,d])=>{ const locked = d.ts && (now - d.ts) < 120000; const remain = Math.ceil((120000 - (now - (d.ts||0))) / 1000); const isOpen = d.myTime == null; const left = Math.max(0, 300000 - (now - (d.ts||0))); const mm = Math.floor(left/60000), ss = Math.floor((left%60000)/1000); const sub = isOpen ? (left>0 ? `auto-cancels in ${mm}:${ss<10?'0':''}${ss}` : 'cancelling\u2026') : 'waiting for opponent\u2026'; return (<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><View style={{flex:1,marginLeft:8}}><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching\u2026'}</Text><Text style={st.pendCountdown}>{sub}</Text></View></View><Pressable onPress={()=>{ if(!locked) onCancel(mid); }} disabled={locked} style={[st.histCancel, locked&&{opacity:0.45}]}><Text style={st.histCancelText}>{locked ? `${remain}s` : 'Cancel'}</Text></Pressable></View>); })}
     </View>)}
-    <Text style={st.sectionSub}>Matches</Text>
-    {matchLog.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
-    {matchLog.map((m,idx)=>{ const rc = m.result==='win'?C.win:m.result==='loss'?C.lose:C.draw; const rl = m.result==='win'?'WIN':m.result==='loss'?'LOSS':'DRAW';
-      const {paid,delta}=deltaFor(m.matchId); const dtxt = !paid ? 'free' : (delta===0 ? 'refunded' : (delta>0?'+':'-')+Math.abs(delta)+' 🪙'); const dcol = !paid ? C.text2 : (delta>0?C.win:delta<0?C.lose:C.text2);
-      return (<View key={m.matchId||idx} style={st.histRow}>
-        <View style={{flex:1}}>
-          <View style={st.histMain}><View style={[st.badge,{backgroundColor:rc+'22'}]}><Text style={[st.badgeText,{color:rc}]}>{rl}</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {m.opponent}</Text></View>
-          <Text style={st.histDetail}>You {m.myTime!=null?formatTime(m.myTime):'\u2014'} · Them {m.oppTime!=null?formatTime(m.oppTime):'\u2014'}{m.timestamp?'  \u00b7  '+timeAgo(m.timestamp):''}</Text>
-        </View>
-        <Text style={[st.histDelta,{color:dcol}]}>{dtxt}</Text>
-      </View>); })}
-    <Text style={[st.sectionSub,{marginTop:18}]}>Balance Activity</Text>
-    {lg.length===0 ? <Text style={st.emptyText}>No balance activity yet.</Text> : null}
-    {lg.map((t,i)=>{ const amt=Number(t.amount||0); return (<View key={i} style={st.ledgerRow2}>
-      <View style={{flex:1}}><Text style={st.ledgerLabel2}>{LAB[t.type]||t.type}</Text><Text style={st.ledgerTime}>{t.created_at?timeAgo(t.created_at):''}</Text></View>
-      <View style={{alignItems:'flex-end'}}><Text style={[st.ledgerAmt2,{color:amt>=0?C.win:C.lose}]}>{amt>=0?'+':'-'}{Math.abs(amt)}</Text><Text style={st.ledgerBal}>{fmtCredits(t.balance_after)}</Text></View>
-    </View>); })}
+    <Text style={st.sectionSub}>Activity</Text>
+    {events.length===0 ? <Text style={st.emptyText}>No activity yet. Play a game!</Text> : null}
+    {events.map((e,i)=>{
+      if(e.kind==='match'){ const rc=e.result==='win'?C.win:e.result==='loss'?C.lose:C.draw; const rl=e.result==='win'?'WIN':e.result==='loss'?'LOSS':'DRAW'; const dz=!e.delta; const dtxt=dz?'even':(e.delta>0?'+':'')+e.delta+' \uD83E\uDE99'; const dcol=dz?C.text2:(e.delta>0?C.win:C.lose);
+        return (<View key={'m'+i} style={st.actRow}>
+          <View style={{flex:1}}>
+            <View style={st.histMain}><View style={[st.badge,{backgroundColor:rc+'22'}]}><Text style={[st.badgeText,{color:rc}]}>{rl}</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {e.opponent||'Rival'}</Text></View>
+            <Text style={st.histDetail}>You {e.myTime!=null?formatTime(e.myTime):'\u2014'} \u00b7 Them {e.oppTime!=null?formatTime(e.oppTime):'\u2014'}{e.ts?'  \u00b7  '+timeAgo(e.ts):''}</Text>
+          </View>
+          <View style={{alignItems:'flex-end',marginLeft:8}}><Text style={[st.histDelta,{color:dcol,marginLeft:0}]}>{dtxt}</Text><Text style={st.ledgerBal}>{fmtCredits(e.balance_after)}</Text></View>
+        </View>);
+      }
+      const amt=e.amount; const lab=LAB[e.type]||e.type;
+      return (<View key={'g'+i} style={st.actRow}>
+        <View style={{flex:1}}><Text style={st.histOpp} numberOfLines={1}>{lab}</Text><Text style={st.histDetail}>{e.ts?timeAgo(e.ts):''}</Text></View>
+        <View style={{alignItems:'flex-end',marginLeft:8}}><Text style={[st.histDelta,{color:amt>=0?C.win:C.lose,marginLeft:0}]}>{amt>=0?'+':''}{amt} \uD83E\uDE99</Text><Text style={st.ledgerBal}>{fmtCredits(e.balance_after)}</Text></View>
+      </View>);
+    })}
   </View>);
 }
 function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, authUI, onRename, editingName, setEditingName, nameInput, setNameInput, nameBusy, balance, ledger }) {
@@ -1100,7 +1106,8 @@ const st = StyleSheet.create({
   emptyText:{textAlign:'center',color:C.text2,fontFamily:F.m,fontSize:14,marginTop:40},
   // history
   sectionSub:{color:C.text2,fontFamily:F.b,fontSize:12,letterSpacing:1,marginBottom:8,textTransform:'uppercase'},
-  histRow:{backgroundColor:C.card,borderRadius:12,borderWidth:1,borderColor:C.border,paddingVertical:11,paddingHorizontal:14,marginBottom:8}, histMain:{flexDirection:'row',alignItems:'center'}, badge:{borderRadius:6,paddingVertical:3,paddingHorizontal:8,marginRight:10}, badgeText:{fontFamily:F.x,fontSize:10,letterSpacing:0.5}, histOpp:{flex:1,fontFamily:F.s,fontSize:15,color:C.text},
+  histRow:{backgroundColor:C.card,borderRadius:12,borderWidth:1,borderColor:C.border,paddingVertical:11,paddingHorizontal:14,marginBottom:8},
+  actRow:{backgroundColor:C.card,borderRadius:12,borderWidth:1,borderColor:C.border,paddingVertical:11,paddingHorizontal:14,marginBottom:8,flexDirection:'row',alignItems:'center'}, histMain:{flexDirection:'row',alignItems:'center'}, badge:{borderRadius:6,paddingVertical:3,paddingHorizontal:8,marginRight:10}, badgeText:{fontFamily:F.x,fontSize:10,letterSpacing:0.5}, histOpp:{flex:1,fontFamily:F.s,fontSize:15,color:C.text},
   histCancel:{paddingVertical:6,paddingHorizontal:12,borderRadius:8,backgroundColor:'rgba(239,68,68,0.1)'}, histCancelText:{color:C.lose,fontFamily:F.b,fontSize:12},
   histDetails:{flexDirection:'row',flexWrap:'wrap',gap:12,marginTop:8}, histDetail:{color:C.text2,fontFamily:F.m,fontSize:12},
   // profile
