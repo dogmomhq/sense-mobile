@@ -683,14 +683,13 @@ export default function App() {
   } else {
     let screen;
     if (tab === 'home') {
-      const winUpTo = Math.round(stake * 1.9);
       screen = (
         <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingTop:60}}>
           <Text style={st.bigBrand}>SENSE</Text>
           <Text style={st.tagline}>How fast can you name the animal?</Text>
           <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
           <>
-            <View style={{width:'100%',alignItems:'center'}}><GlossyButton label={"PLAY  \u00b7  1 \uD83E\uDE99"} onPress={playFreeOnline} /></View>
+            <View style={{width:'100%',alignItems:'center',marginTop:34}}><GlossyButton label={"PLAY  \u00b7  1 \uD83E\uDE99"} onPress={playFreeOnline} /></View>
             <Text style={st.note}>Real opponents · stake 1 credit · fastest correct answer takes the pot.</Text>
             <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
           </>
