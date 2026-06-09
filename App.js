@@ -586,7 +586,7 @@ export default function App() {
   async function requestDepositNotify(){ if(notifyBusy||notifyOptIn) return; setNotifyBusy(true); try { track('deposit_notify_optin'); await AsyncStorage.setItem('sense_notify_cash','1'); setNotifyOptIn(true); showToast("Great \u2014 we'll let you know"); } catch(e){} setNotifyBusy(false); }
   async function doDeposit(amountCents, card){ if(depositBusy) return; setDepositBusy(true); try { const c = card || { number:(cardNum||'').replace(/\\s/g,''), em:parseInt((cardExp||'').split('/')[0])||12, ey:2000+(parseInt((cardExp||'').split('/')[1])||30), cvv:cardCvv||'100' }; const tok = await tokenizeCard(c); if(!tok){ showToast('Card not accepted'); setDepositBusy(false); return; } const auth = supabaseTokenRef.current ? {supabaseToken:supabaseTokenRef.current} : ((accountRef.current&&accountRef.current.token)?{deviceToken:accountRef.current.token}:{}); const r = await fetch(HTTPS_BASE+'/api/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amountCents,cardToken:tok,...auth})}); const d = await r.json(); if(d&&d.ok){ const b=Number(d.balanceCents); setBalance(b); AsyncStorage.setItem('sense_balance',String(b)).catch(()=>{}); setShowDeposit(false); showToast('Added '+fmtUSD(amountCents)); } else { showToast('Deposit failed'); } } catch(e){ showToast('Deposit error'); } setDepositBusy(false); }
   function ensureRegistered(cb){ if(accountRef.current||supabaseTokenRef.current){ cb(); return; } pendingAfterReg.current=cb; const go=()=>wsSend({ type:'register', preferredHandle: myName() }); if(isConnected()) go(); else ensureConn(go); }
-  function playFreeOnline(){ track('play_online', { credits:true }); stakeRef.current = 1; queuePayRef.current = { paymentMode:'credits', tier:1 }; setConfirming(false); ensureRegistered(()=>playOnline()); }
+  function playFreeOnline(){ track('play_online', { credits:true }); stakeRef.current = 50; queuePayRef.current = { paymentMode:'credits', tier:1 }; setConfirming(false); ensureRegistered(()=>playOnline()); }
   // BALANCE ADAPTER (stub): the ONLY place credits move. Replace these two with server/processor calls for real money.
   function applyCredit(amount, type, label) {
     setBalance(prev => { const nb = Math.max(0, prev + amount); AsyncStorage.setItem('sense_balance', String(nb)).catch(()=>{}); return nb; });
@@ -689,7 +689,7 @@ export default function App() {
           <Text style={st.tagline}>How fast can you name the animal?</Text>
           <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
           <>
-            <View style={{width:'100%',alignItems:'center',marginTop:34}}><GlossyButton label={"PLAY  \u00b7  1 \uD83E\uDE99"} onPress={playFreeOnline} /></View>
+            <View style={{width:'100%',alignItems:'center',marginTop:34}}><GlossyButton label={"PLAY  \u00b7  50 \uD83E\uDE99"} onPress={playFreeOnline} /></View>
             <Text style={st.note}>Real opponents · stake 1 credit · fastest correct answer takes the pot.</Text>
             <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
           </>
