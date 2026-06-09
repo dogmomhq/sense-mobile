@@ -1,0 +1,31 @@
+name: Reskin Pages Export
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: reskin-pages-export
+  cancel-in-progress: true
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reskin-ui
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - name: Web deps
+        run: npx expo install react-dom react-native-web @expo/metro-runtime react-native-svg expo-linear-gradient @expo-google-fonts/inter expo-font expo-haptics @react-native-async-storage/async-storage
+      - name: Export web (Pages base url)
+        run: |
+          node -e "const a=require('./app.json'); a.expo.experiments={...(a.expo.experiments||{}),baseUrl:'/sense-reskin-preview'}; require('fs').writeFileSync('app.json',JSON.stringify(a,null,2));"
+          npx expo export --platform web --output-dir dist
+          touch dist/.nojekyll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reskin-pages-dist
+          path: dist/
+          include-hidden-files: true
