@@ -25,13 +25,12 @@ jobs:
         run: npx --yes playwright@1.48.0 install --with-deps chromium
       - name: Install playwright lib
         run: npm install --no-save playwright@1.48.0 serve
-      - name: Capture screenshots
-        run: node snapshot.js
-      - name: Commit snapshots
-        run: |
-          git config user.name "snap-bot"
-          git config user.email "snap@dogmom.com"
-          git checkout -- app.json || true
-          git add snapshots/
-          git commit -m "CI visual snapshots [skip ci]" || echo "no changes"
-          git push || echo "push skipped"
+      # ── reskin-ui branch only: capture the new pixel-locked screens at the
+      # prototype canvas and upload as an artifact (no commit). Restore the
+      # original snapshot.js steps before merging to main.
+      - name: Capture reskin screenshots
+        run: node snapshot-reskin.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reskin-shots
+          path: reskin-shots/
