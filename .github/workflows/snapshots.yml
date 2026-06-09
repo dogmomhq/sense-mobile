@@ -19,7 +19,7 @@ jobs:
         run: npx expo install react-dom react-native-web @expo/metro-runtime react-native-svg expo-linear-gradient @expo-google-fonts/inter expo-font expo-haptics @react-native-async-storage/async-storage @shopify/react-native-skia
       - name: Export web (root base-url for local serving)
         run: |
-          node -e "const a=require('./app.json'); a.expo.experiments.baseUrl='/'; require('fs').writeFileSync('app.json',JSON.stringify(a,null,2));"
+          node -e "const a=require('./app.json'); a.expo.experiments={...(a.expo.experiments||{}),baseUrl:'/'}; require('fs').writeFileSync('app.json',JSON.stringify(a,null,2));"
           npx expo export --platform web --output-dir dist
       - name: Install Playwright chromium
         run: npx --yes playwright@1.48.0 install --with-deps chromium
