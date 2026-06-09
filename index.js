@@ -6,6 +6,15 @@ import { Text, ScrollView } from 'react-native';
 let App = null, loadErr = null;
 try { App = require('./App').default; } catch (e) { loadErr = e; }
 
+// reskin-ui: web preview hook — ?reskin=home | ?reskin=question&t=6 renders the
+// new pixel-locked screens standalone (used by CI snapshots; harmless otherwise)
+let Preview = null;
+try {
+  if (typeof window !== 'undefined' && window.location && /[?&]reskin=/.test(window.location.search)) {
+    Preview = require('./screens/PreviewApp').default;
+  }
+} catch (e) { loadErr = loadErr || e; }
+
 function ErrText({ title, e }) {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 28, paddingTop: 80 }}>
@@ -24,6 +33,7 @@ class RootBoundary extends React.Component {
 
 function Root() {
   if (loadErr) return <ErrText title="LOAD ERROR" e={loadErr} />;
+  if (Preview) return (<RootBoundary><Preview /></RootBoundary>);
   return (<RootBoundary><App /></RootBoundary>);
 }
 registerRootComponent(Root);
