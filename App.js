@@ -24,6 +24,7 @@ const CHECKOUT_PK = 'pk_sbox_7axsqgrmlbrfhjwn2riew7sm4ey';  // Checkout.com SAND
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
 const SBAR = (Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);  // clear the Android status bar
 function fmtUSD(cents){ return '$' + (Number(cents||0)/100).toFixed(2); }  // module-scope: used by App AND ProfileScreen
+function fmtCredits(n){ return '🪙 ' + Number(n||0).toLocaleString(); } // free credits — never redeemable for cash
 const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
 const BG = 'https://dogmomhq.github.io/sense-react-staging/app/assets/background.jpg';
 const CIRC54 = 2 * Math.PI * 54;
@@ -280,6 +281,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState('');
   const [showSignin, setShowSignin] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [notifyOptIn, setNotifyOptIn] = useState(false); const [notifyBusy, setNotifyBusy] = useState(false);
   const [depositBusy, setDepositBusy] = useState(false);
   const [cardNum, setCardNum] = useState(''); const [cardExp, setCardExp] = useState(''); const [cardCvv, setCardCvv] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -547,6 +549,7 @@ export default function App() {
         break;
       }
       case 'queue-failed': bailHome(msg.error || 'Could not find a match'); break;
+      case 'daily-bonus': { const b = Number(msg.balanceCents); if (!isNaN(b)) { setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } showToast('🪙 +' + (msg.amountCents||25) + ' daily credits!'); break; }
       case 'error':
         if (modeRef.current === 'joining' || modeRef.current === 'play') bailHome(msg.message || 'Server error');
         else showToast(msg.message || 'Server error');
@@ -580,8 +583,10 @@ export default function App() {
   async function refreshBalance(){ const id = accountRef.current && accountRef.current.accountId; if(!id) return; try { const r = await fetch(HTTPS_BASE + '/api/credits/' + encodeURIComponent(id), { headers: _authHdr() }); const d = await r.json(); if (d && d.account && d.account.balance != null){ const b = Number(d.account.balance); setBalance(b); AsyncStorage.setItem('sense_balance', String(b)).catch(()=>{}); } if (d && Array.isArray(d.ledger)) setServerLedger(d.ledger); } catch(e){} }
   async function devLogin(){ if(!E2E_KEY) return; try { const r = await fetch(HTTPS_BASE+'/api/test-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:E2E_KEY})}); const d = await r.json(); if(d&&d.ok){ accountRef.current={accountId:d.accountId,handle:d.handle,token:d.token}; try{AsyncStorage.setItem('sense_account',JSON.stringify(accountRef.current));}catch(e){} myNameRef.current=d.handle; setDisplayName(d.handle); setAuthEmail(d.email||'e2e@sense.test'); setShowSignin(false); refreshBalance(); showToast('Signed in (test)'); } } catch(e){} }
   async function tokenizeCard(card){ try { const r = await fetch('https://api.sandbox.checkout.com/tokens',{method:'POST',headers:{'Authorization':CHECKOUT_PK,'Content-Type':'application/json'},body:JSON.stringify({type:'card',number:card.number,expiry_month:card.em,expiry_year:card.ey,cvv:card.cvv})}); const d = await r.json(); return d && d.token; } catch(e){ return null; } }
+  async function requestDepositNotify(){ if(notifyBusy||notifyOptIn) return; setNotifyBusy(true); try { track('deposit_notify_optin'); await AsyncStorage.setItem('sense_notify_cash','1'); setNotifyOptIn(true); showToast("Great \u2014 we'll let you know"); } catch(e){} setNotifyBusy(false); }
   async function doDeposit(amountCents, card){ if(depositBusy) return; setDepositBusy(true); try { const c = card || { number:(cardNum||'').replace(/\\s/g,''), em:parseInt((cardExp||'').split('/')[0])||12, ey:2000+(parseInt((cardExp||'').split('/')[1])||30), cvv:cardCvv||'100' }; const tok = await tokenizeCard(c); if(!tok){ showToast('Card not accepted'); setDepositBusy(false); return; } const auth = supabaseTokenRef.current ? {supabaseToken:supabaseTokenRef.current} : ((accountRef.current&&accountRef.current.token)?{deviceToken:accountRef.current.token}:{}); const r = await fetch(HTTPS_BASE+'/api/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amountCents,cardToken:tok,...auth})}); const d = await r.json(); if(d&&d.ok){ const b=Number(d.balanceCents); setBalance(b); AsyncStorage.setItem('sense_balance',String(b)).catch(()=>{}); setShowDeposit(false); showToast('Added '+fmtUSD(amountCents)); } else { showToast('Deposit failed'); } } catch(e){ showToast('Deposit error'); } setDepositBusy(false); }
-  function playFreeOnline(){ track('play_online', { free:true }); stakeRef.current = 0; queuePayRef.current = { paymentMode:'none', tier:1 }; setConfirming(false); playOnline(); }
+  function ensureRegistered(cb){ if(accountRef.current||supabaseTokenRef.current){ cb(); return; } pendingAfterReg.current=cb; const go=()=>wsSend({ type:'register', preferredHandle: myName() }); if(isConnected()) go(); else ensureConn(go); }
+  function playFreeOnline(){ track('play_online', { credits:true }); stakeRef.current = 1; queuePayRef.current = { paymentMode:'credits', tier:1 }; setConfirming(false); ensureRegistered(()=>playOnline()); }
   // BALANCE ADAPTER (stub): the ONLY place credits move. Replace these two with server/processor calls for real money.
   function applyCredit(amount, type, label) {
     setBalance(prev => { const nb = Math.max(0, prev + amount); AsyncStorage.setItem('sense_balance', String(nb)).catch(()=>{}); return nb; });
@@ -603,10 +608,10 @@ export default function App() {
   }
   function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
   // ---- challenge (friend room) ----
-  function doCreateChallenge() { setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => createChallenge({ tier:1, playerName: myName(), paymentMode:'none' })); }
+  function doCreateChallenge() { setNotice(null); track('challenge_created'); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => createChallenge({ tier:1, playerName: myName(), paymentMode:'none' })); }
   function doJoinChallenge() { const code = (joinCode||'').trim(); if (!code) return; setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => acceptChallenge({ gameId: code, playerName: myName() })); }
   function doRematch() { requestRematch(); setRematchReq(true); }
-  function shareCode(code) { try { Share.share({ message: `Play me on Sense — join with code ${code}` }); } catch (e) {} }
+  function shareCode(code) { try { track('shared',{code}); Share.share({ message: `Play me on Sense — join with code ${code}` }); } catch (e) {} }
   function leaveChallenge() { try { disconnectWS(); } catch(e){} onlineRef.current=false; isChallengeRef.current=false; setOnline(false); closeChallenge(); setJoinCode(''); }
   function navTo(t) { setShowActions(false); fadeTo(() => { setMode(null); setTab(t); }); }
 
@@ -684,32 +689,11 @@ export default function App() {
           <Text style={st.bigBrand}>SENSE</Text>
           <Text style={st.tagline}>How fast can you name the animal?</Text>
           <View style={st.recPill}><Text style={st.recPillText}>{onlineRec.wins}W · {onlineRec.losses}L · {onlineRec.draws}D</Text></View>
-          {confirming ? (
-            <View style={st.confirmCard}>
-              <Text style={st.confirmTitle}>Entering {fmtUSD(stake)} match</Text>
-              <Text style={st.confirmSub}>Win up to {fmtUSD(winUpTo)} · balance {fmtUSD(balance)} → {fmtUSD(Math.max(0,balance-stake))}</Text>
-              {balance < stake
-                ? <Text style={st.noticeText}>Not enough credits</Text>
-                : <View style={{width:'100%',alignItems:'center',marginTop:14}}><GlossyButton label="CONFIRM & PLAY" onPress={startPaidOnline} /></View>}
-              <Pressable onPress={()=>setConfirming(false)} style={st.practiceLink}><Text style={st.practiceLinkText}>Back</Text></Pressable>
-            </View>
-          ) : (
-            <>
-              <View style={st.stakeRow}>
-                {STAKE_TIERS.map(t => (
-                  <Pressable key={t.cents} onPress={()=>setStake(t.cents)} style={[st.stakeChip, stake===t.cents && st.stakeChipOn]}>
-                    <Text style={[st.stakeChipText, stake===t.cents && st.stakeChipTextOn]}>{fmtUSD(t.cents)}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={st.stakeHint}>paid entry</Text>
-              <View style={{height:14}} />
-              <View style={{width:'100%',alignItems:'center'}}><GlossyButton label={"PLAY FOR " + fmtUSD(stake)} onPress={()=>setConfirming(true)} /></View>
-              <Text style={st.note}>Real opponents · winner takes the pot minus a 5% fee · fastest correct wins.</Text>
-              <Pressable onPress={playFreeOnline} style={st.practiceLink}><Text style={st.practiceLinkText}>Play online free (no stake)</Text></Pressable>
-              <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
-            </>
-          )}
+          <>
+            <View style={{width:'100%',alignItems:'center'}}><GlossyButton label={"PLAY  \u00b7  1 \uD83E\uDE99"} onPress={playFreeOnline} /></View>
+            <Text style={st.note}>Real opponents · stake 1 credit · fastest correct answer takes the pot.</Text>
+            <Pressable onPress={startPractice} style={st.practiceLink}><Text style={st.practiceLinkText}>Practice vs computer</Text></Pressable>
+          </>
           {notice ? <Text style={st.noticeText}>{notice}</Text> : null}
         </View>
       );
@@ -774,9 +758,9 @@ export default function App() {
   const aProps = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
   return (<ErrorBoundary><AWrap {...aProps}><ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
     <StatusBar barStyle="dark-content" />
-    <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{mode!=='play' ? (<View style={st.appHeader}>{authEmail ? (<Pressable onPress={()=>setTab('profile')} style={st.hdrUser}><Text style={st.hdrUserText} numberOfLines={1}>{displayName||myName()}</Text></Pressable>) : (<Pressable onPress={()=>setShowSignin(true)} style={st.hdrSignin}><Text style={st.hdrSigninText}>Sign in</Text></Pressable>)}<Pressable onPress={()=>setShowDeposit(true)} style={st.hdrBal}><Text style={st.hdrBalText}>{fmtUSD(balance)}</Text><Text style={st.hdrPlus}>  +</Text></Pressable></View>) : null}{body}</SafeAreaView></Animated.View>
+    <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{mode!=='play' ? (<View style={st.appHeader}>{authEmail ? (<Pressable onPress={()=>setTab('profile')} style={st.hdrUser}><Text style={st.hdrUserText} numberOfLines={1}>{displayName||myName()}</Text></Pressable>) : (<Pressable onPress={()=>setShowSignin(true)} style={st.hdrSignin}><Text style={st.hdrSigninText}>Sign in</Text></Pressable>)}<Pressable onPress={()=>{track('deposit_interest');setShowDeposit(true);}} style={st.hdrBal}><Text style={st.hdrBalText}>{fmtCredits(balance)}</Text><Text style={st.hdrPlus}>  +</Text></Pressable></View>) : null}{body}</SafeAreaView></Animated.View>
     <Modal visible={showSignin} transparent animationType="fade" onRequestClose={()=>setShowSignin(false)}><Pressable style={st.modalBg} onPress={()=>setShowSignin(false)}><Pressable style={st.modalCard} onPress={()=>{}}><Text style={st.modalTitle}>Sign in</Text>{signinStep!=='code' ? (<><TextInput value={signinEmail} onChangeText={setSigninEmail} placeholder="your@email.com" placeholderTextColor={C.text2} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" style={st.authInput}/><Pressable onPress={sendCode} disabled={signinBusy||!signinEmail} style={[st.authBtn,(signinBusy||!signinEmail)&&{opacity:0.5}]}><Text style={st.authBtnText}>{signinBusy?'Sending...':'Send code'}</Text></Pressable></>) : (<><Text style={st.modalSub}>Enter the code emailed to {signinEmail}</Text><TextInput value={signinCode} onChangeText={setSigninCode} placeholder="Code" placeholderTextColor={C.text2} keyboardType="number-pad" style={st.authInput}/><Pressable onPress={verifyCode} disabled={signinBusy||!signinCode} style={[st.authBtn,(signinBusy||!signinCode)&&{opacity:0.5}]}><Text style={st.authBtnText}>{signinBusy?'Verifying...':'Verify & sign in'}</Text></Pressable><Pressable onPress={()=>{setSigninStep('email');setSigninCode('');}} style={st.modalLink}><Text style={st.modalLinkText}>Use a different email</Text></Pressable></>)}{E2E_KEY ? (<Pressable onPress={devLogin} style={[st.authBtn,{backgroundColor:'#7B8794',marginTop:8}]}><Text style={st.authBtnText}>Dev login (test)</Text></Pressable>) : null}<Pressable onPress={()=>setShowSignin(false)} style={st.modalLink}><Text style={st.modalLinkText}>Close</Text></Pressable></Pressable></Pressable></Modal>
-    <Modal visible={showDeposit} transparent animationType="fade" onRequestClose={()=>setShowDeposit(false)}><Pressable style={st.modalBg} onPress={()=>setShowDeposit(false)}><Pressable style={st.modalCard} onPress={()=>{}}><Text style={st.modalTitle}>Add credits</Text><Text style={st.modalSub}>Balance {fmtUSD(balance)}  -  1 credit = $1</Text><TextInput value={cardNum} onChangeText={setCardNum} placeholder="Card number" placeholderTextColor={C.text2} keyboardType="number-pad" style={st.authInput}/><View style={{flexDirection:'row'}}><TextInput value={cardExp} onChangeText={setCardExp} placeholder="MM/YY" placeholderTextColor={C.text2} style={[st.authInput,{flex:1,marginRight:8}]}/><TextInput value={cardCvv} onChangeText={setCardCvv} placeholder="CVV" placeholderTextColor={C.text2} keyboardType="number-pad" style={[st.authInput,{flex:1}]}/></View><View style={{flexDirection:'row',marginTop:12}}>{[500,1000,2000].map(a=>(<Pressable key={a} disabled={depositBusy} onPress={()=>doDeposit(a)} style={st.depAmt}><Text style={st.depAmtText}>{depositBusy?'...':('Add '+fmtUSD(a))}</Text></Pressable>))}</View>{E2E_KEY ? (<Pressable disabled={depositBusy} onPress={()=>doDeposit(500,{number:'4242424242424242',em:12,ey:2030,cvv:'100'})} style={[st.authBtn,{backgroundColor:'#7B8794',marginTop:10}]}><Text style={st.authBtnText}>{depositBusy?'...':'Test deposit $5'}</Text></Pressable>) : null}<Pressable onPress={()=>setShowDeposit(false)} style={st.modalLink}><Text style={st.modalLinkText}>Close</Text></Pressable></Pressable></Pressable></Modal>
+    <Modal visible={showDeposit} transparent animationType="fade" onRequestClose={()=>setShowDeposit(false)}><Pressable style={st.modalBg} onPress={()=>setShowDeposit(false)}><Pressable style={st.modalCard} onPress={()=>{}}><Text style={st.modalTitle}>{"\uD83D\uDCB5 Cash play is coming soon"}</Text><Text style={st.modalSub}>Soon you'll be able to play for real money. Want a heads-up the moment it goes live?</Text><Pressable disabled={notifyBusy} onPress={requestDepositNotify} style={[st.authBtn,{marginTop:14}]}><Text style={st.authBtnText}>{notifyOptIn?"\u2713 We'll let you know":"Notify me"}</Text></Pressable>{E2E_KEY ? (<Pressable disabled={depositBusy} onPress={()=>doDeposit(500,{number:'4242424242424242',em:12,ey:2030,cvv:'100'})} style={[st.authBtn,{backgroundColor:'#7B8794',marginTop:10}]}><Text style={st.authBtnText}>{depositBusy?'...':'Test deposit $5'}</Text></Pressable>) : null}<Pressable onPress={()=>setShowDeposit(false)} style={st.modalLink}><Text style={st.modalLinkText}>Close</Text></Pressable></Pressable></Pressable></Modal>
     {banners.length > 0 && (
       <View style={st.bannerWrap} pointerEvents="box-none">
         {banners.map(b => <Banner key={b.id} data={b} onPress={()=>{ setBanners(prev=>prev.filter(x=>x.id!==b.id)); navTo('history'); }} />)}
@@ -969,7 +953,6 @@ function LeaderboardScreen({ httpsBase }) {
   const sorted = [...data].sort((a,b)=>{ if(sortBy==='wins')return (b.wins||0)-(a.wins||0); if(sortBy==='winrate'){ const ar=(a.wins+a.losses+a.draws)>=10?a.wins/(a.wins+a.losses+a.draws):0, br=(b.wins+b.losses+b.draws)>=10?b.wins/(b.wins+b.losses+b.draws):0; return br-ar; } if(sortBy==='earnings')return (b.net_pnl||0)-(a.net_pnl||0); return 0; });
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Leaderboard</Text>
-    <View style={st.segRow}>{['free','paid'].map(m=><Pressable key={m} onPress={()=>setMode(m)} style={[st.seg, mode===m&&st.segOn]}><Text style={[st.segText, mode===m&&st.segTextOn]}>{m==='free'?'Free':'Paid'}</Text></Pressable>)}</View>
     <View style={st.sortRow}><Text style={st.sortLabel}>Sort:</Text>{[['wins','Wins'],['winrate','Win Rate'],['earnings','Earnings']].map(([k,l])=><Pressable key={k} onPress={()=>setSortBy(k)} style={st.sortBtn}><Text style={[st.sortText, sortBy===k&&{color:C.accent,fontFamily:F.x}]}>{l}</Text></Pressable>)}</View>
     {loading ? <Text style={st.emptyText}>Loading…</Text> : sorted.length===0 ? <Text style={st.emptyText}>No players yet.</Text> : (
       <View style={st.lbTable}>
@@ -989,14 +972,14 @@ function HistoryScreen({ matchLog, pending, serverLedger, balance, onCancel }) {
   const deltaFor = (mid) => { const ls = lg.filter(t=>t.match_id===mid); return { paid: ls.length>0, delta: ls.reduce((a,t)=>a+Number(t.amount||0),0) }; };
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>History</Text>
-    <View style={st.balCard}><Text style={st.balCardLabel}>Balance</Text><Text style={st.balCardVal}>{fmtUSD(balance)}</Text></View>
+    <View style={st.balCard}><Text style={st.balCardLabel}>Balance</Text><Text style={st.balCardVal}>{fmtCredits(balance)}</Text></View>
     {pend.length>0 && (<View style={{marginBottom:10}}><Text style={st.sectionSub}>Pending</Text>
       {pend.map(([mid,d])=>{ const locked = d.ts && (now - d.ts) < 120000; const remain = Math.ceil((120000 - (now - (d.ts||0))) / 1000); const isOpen = d.myTime == null; const left = Math.max(0, 300000 - (now - (d.ts||0))); const mm = Math.floor(left/60000), ss = Math.floor((left%60000)/1000); const sub = isOpen ? (left>0 ? `auto-cancels in ${mm}:${ss<10?'0':''}${ss}` : 'cancelling\u2026') : 'waiting for opponent\u2026'; return (<View key={mid} style={st.histRow}><View style={st.histMain}><View style={[st.badge,{backgroundColor:'rgba(108,99,255,0.15)'}]}><Text style={[st.badgeText,{color:C.accent}]}>PENDING</Text></View><View style={{flex:1,marginLeft:8}}><Text style={st.histOpp} numberOfLines={1}>vs {d.opponent||'Searching\u2026'}</Text><Text style={st.pendCountdown}>{sub}</Text></View></View><Pressable onPress={()=>{ if(!locked) onCancel(mid); }} disabled={locked} style={[st.histCancel, locked&&{opacity:0.45}]}><Text style={st.histCancelText}>{locked ? `${remain}s` : 'Cancel'}</Text></Pressable></View>); })}
     </View>)}
     <Text style={st.sectionSub}>Matches</Text>
     {matchLog.length===0 ? <Text style={st.emptyText}>No matches yet. Play a game!</Text> : null}
     {matchLog.map((m,idx)=>{ const rc = m.result==='win'?C.win:m.result==='loss'?C.lose:C.draw; const rl = m.result==='win'?'WIN':m.result==='loss'?'LOSS':'DRAW';
-      const {paid,delta}=deltaFor(m.matchId); const dtxt = !paid ? 'free' : (delta===0 ? 'refunded' : (delta>0?'+':'-')+fmtUSD(Math.abs(delta))); const dcol = !paid ? C.text2 : (delta>0?C.win:delta<0?C.lose:C.text2);
+      const {paid,delta}=deltaFor(m.matchId); const dtxt = !paid ? 'free' : (delta===0 ? 'refunded' : (delta>0?'+':'-')+Math.abs(delta)+' 🪙'); const dcol = !paid ? C.text2 : (delta>0?C.win:delta<0?C.lose:C.text2);
       return (<View key={m.matchId||idx} style={st.histRow}>
         <View style={{flex:1}}>
           <View style={st.histMain}><View style={[st.badge,{backgroundColor:rc+'22'}]}><Text style={[st.badgeText,{color:rc}]}>{rl}</Text></View><Text style={st.histOpp} numberOfLines={1}>vs {m.opponent}</Text></View>
@@ -1008,7 +991,7 @@ function HistoryScreen({ matchLog, pending, serverLedger, balance, onCancel }) {
     {lg.length===0 ? <Text style={st.emptyText}>No balance activity yet.</Text> : null}
     {lg.map((t,i)=>{ const amt=Number(t.amount||0); return (<View key={i} style={st.ledgerRow2}>
       <View style={{flex:1}}><Text style={st.ledgerLabel2}>{LAB[t.type]||t.type}</Text><Text style={st.ledgerTime}>{t.created_at?timeAgo(t.created_at):''}</Text></View>
-      <View style={{alignItems:'flex-end'}}><Text style={[st.ledgerAmt2,{color:amt>=0?C.win:C.lose}]}>{amt>=0?'+':'-'}{fmtUSD(Math.abs(amt))}</Text><Text style={st.ledgerBal}>{fmtUSD(t.balance_after)}</Text></View>
+      <View style={{alignItems:'flex-end'}}><Text style={[st.ledgerAmt2,{color:amt>=0?C.win:C.lose}]}>{amt>=0?'+':'-'}{Math.abs(amt)}</Text><Text style={st.ledgerBal}>{fmtCredits(t.balance_after)}</Text></View>
     </View>); })}
   </View>);
 }
@@ -1018,7 +1001,7 @@ function ProfileScreen({ rec, onlineRec, streakVal, sound, setSound, handle, aut
   return (<View style={{paddingTop:48}}>
     <Text style={st.screenTitle}>Profile</Text>
     {authUI || null}
-    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{fmtUSD(balance)}</Text><Text style={[st.memberSince,{marginTop:2}]}>Net lifetime: {netLifetime>=0?'+':''}{netLifetime} credits</Text></View>
+    <View style={st.profSection}><Text style={st.profLabel}>Credits</Text><Text style={st.profValue}>{fmtCredits(balance)}</Text><Text style={[st.memberSince,{marginTop:2}]}>Net lifetime: {netLifetime>=0?'+':''}{netLifetime} credits</Text></View>
     <View style={st.profSection}>
       <Text style={st.profLabel}>Username</Text>
       {editingName ? (
