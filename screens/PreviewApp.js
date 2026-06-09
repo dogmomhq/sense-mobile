@@ -22,7 +22,7 @@ const DEFAULT_SCREEN = 'home';
 
 export default function PreviewApp() {
   const ready = useSenseFonts();
-  let which = DEFAULT_SCREEN, t = 6;
+  let which = DEFAULT_SCREEN, t = NaN;  // no ?t= -> NaN -> secondsLeft=null -> live ring
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const q = new URLSearchParams(window.location.search);
     which = q.get('reskin') || DEFAULT_SCREEN;
