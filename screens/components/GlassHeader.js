@@ -9,7 +9,7 @@ import { View, Text, Image } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from '../theme';
 
-const DEFAULT_AVATAR = require('../../assets/avatar_demo.jpg');
+const DEFAULT_AVATAR = require('../../assets/avatar_demo.png');
 
 export function StatusBarMock() {
   const s = useScale();

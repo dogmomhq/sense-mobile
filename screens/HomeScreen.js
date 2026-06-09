@@ -67,7 +67,7 @@ export default function HomeScreen({
             shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s, shadowOpacity: 0.55,
             elevation: 10, opacity: pressed ? 0.85 : 1 })}>
           <Text style={{ fontFamily: FONTS.interBlack, fontSize: 72 * s, lineHeight: 86 * s, color: '#000',
-            letterSpacing: -0.01 * 72 * s, transform: [{ scaleY: 1.22 }], includeFontPadding: false }}>PLAY NOW</Text>
+            letterSpacing: -0.01 * 72 * s, transform: [{ scaleY: 1.22 }], includeFontPadding: false, top: 3 * s }}>PLAY NOW</Text>
           <Svg width={60 * s} height={66 * s} viewBox="0 0 24 24" preserveAspectRatio="none">
             <Path d="M13 2 L4 14 H11 L10 22 L19 10 H12 L13 2 Z" fill="#000" />
           </Svg>
@@ -77,7 +77,7 @@ export default function HomeScreen({
             borderRadius: RADII.ghost * s, paddingVertical: 32 * s, paddingHorizontal: 48 * s,
             alignItems: 'center', opacity: pressed ? 0.7 : 1 })}>
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 38 * s, color: COLORS.cream,
-            letterSpacing: 0.16 * 38 * s }}>PRACTICE FREE</Text>
+            letterSpacing: 0.16 * 38 * s, top: 5 * s }}>PRACTICE FREE</Text>
         </Pressable>
       </View>
 
@@ -104,7 +104,7 @@ export default function HomeScreen({
                 alignItems: 'center',
                 ...(sel ? { shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16 * s, shadowOpacity: 1 } : null) }}>
               <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 48 * s, lineHeight: 57 * s,
-                letterSpacing: -0.01 * 48 * s, color: sel ? '#000' : COLORS.cream }}>{t}</Text>
+                letterSpacing: -0.01 * 48 * s, color: sel ? '#000' : COLORS.cream, top: 1 * s }}>{t}</Text>
             </Pressable>
           );
         })}

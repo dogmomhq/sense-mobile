@@ -30,7 +30,7 @@ export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null,
             })}>
             <Text numberOfLines={1} style={{ fontFamily: FONTS.anton, fontSize: 52 * s, lineHeight: 76 * s,
               letterSpacing: 0.04 * 52 * s, color: isLocked ? COLORS.black : COLORS.cream,
-              textTransform: 'uppercase', textAlign: 'center' }}>{label}</Text>
+              textTransform: 'uppercase', textAlign: 'center', top: -3 * s }}>{label}</Text>
           </Pressable>
         );
       })}
