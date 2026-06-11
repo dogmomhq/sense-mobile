@@ -87,9 +87,9 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0;
 
 // welding color temperature buckets (spec tempColor) → tintColor
 function tempTint(heat) {
-  if (heat > 0.75) return '#FFFFF0';   // white-hot
-  if (heat > 0.5)  return '#FFE082';   // yellow
-  if (heat > 0.25) return '#FF9632';   // orange
+  if (heat > 0.85) return '#FFFFF0';   // white-hot
+  if (heat > 0.55) return '#FFE082';   // yellow
+  if (heat > 0.28) return '#FF9632';   // orange
   return '#CD3714';                    // deep red
 }
 
@@ -264,7 +264,7 @@ function FuseSparks({ tLeft }) {
     const sp = Math.hypot(p.vx, p.vy);
     const heat = k * Math.min(1, 0.35 + sp / 900);
     const tint = tempTint(heat);
-    const bright = Math.min(1, k * (0.6 + sp / 1100) * 1.8);
+    const bright = Math.min(1, k * (0.6 + sp / 1100) * 2.3);   // boosted: no additive blend on RN
     const stretch = p.glint ? 1 : Math.min(3.6, 0.7 + sp / 420);
     const w = p.size * stretch, h = Math.max(2, p.size * TEX_AR[p.tex]);
     const rot = `${Math.atan2(p.vy, p.vx)}rad`;
@@ -279,6 +279,8 @@ function FuseSparks({ tLeft }) {
     width: r * 2 * s, height: r * 2 * s, borderRadius: r * s, backgroundColor: color, opacity: op });
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 1024 * s, height: 2224 * s, zIndex: 16 }}>
+      {/* soft warm glow underlay (spec .spark-glow) */}
+      <View style={core(190, 'rgba(255,150,50,0.16)', 0.35 + hrand(Math.floor(T * 14), 5) * 0.3)} />
       {sparks}
       {/* blinding white core: violent 30Hz flicker + occasional 1.4x pop */}
       <View style={core(88 * f2 * pop, 'rgba(255,160,60,0.30)', f2 * 0.8)} />
