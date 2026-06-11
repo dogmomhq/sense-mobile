@@ -1,6 +1,6 @@
 // Standalone preview of the reskinned screens (no game logic).
 // Web/CI: pick a screen via URL —
-//   ?reskin=home | ?reskin=question&t=6 | ?reskin=countdown[&beat=3|2|1|go]
+//   ?reskin=home | ?reskin=question&ring=laser|fuse[&t=6] | ?reskin=countdown[&beat=3|2|1|go]
 //   ?reskin=results&outcome=win|loss|nearmiss|closewin|draw[&at=reveal|race|explode|burst|payout]
 //   ?reskin=shell  (AppShell: logged-out header, pendingCount=2, nav states)
 // Native (Expo Go): edit DEFAULT_SCREEN below, or wire into App.js later.
@@ -15,12 +15,12 @@ import { COLORS, FONTS, useSenseFonts, useScale } from './theme';
 
 // demo caption the locked reference render carries at the bottom of the
 // question screen (kept out of the real QuestionScreen — preview parity only)
-function DemoLabel() {
+function DemoLabel({ text = 'FUSE RING' }) {
   const s = useScale();
   return (
     <Text style={{ position: 'absolute', bottom: 40 * s, left: 0, right: 0, textAlign: 'center',
       color: COLORS.creamDim, fontFamily: FONTS.interBold, fontSize: 30 * s,
-      letterSpacing: 0.2 * 30 * s, zIndex: 15 }}>FUSE RING</Text>
+      letterSpacing: 0.2 * 30 * s, zIndex: 15 }}>{text}</Text>
   );
 }
 
@@ -65,11 +65,12 @@ const DEFAULT_SCREEN = 'home';
 
 export default function PreviewApp() {
   const ready = useSenseFonts();
-  let which = DEFAULT_SCREEN, t = NaN, beat = null;  // no ?t= -> NaN -> live ring
+  let which = DEFAULT_SCREEN, t = NaN, beat = null, ring = 'fuse';  // no ?t= -> NaN -> live ring
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const q = new URLSearchParams(window.location.search);
     which = q.get('reskin') || DEFAULT_SCREEN;
     if (q.get('t') != null) t = parseFloat(q.get('t'));
+    if (q.get('ring') === 'laser' || q.get('ring') === 'fuse') ring = q.get('ring');
     beat = q.get('beat');
     var outcome = q.get('outcome') || 'win';
     var at = q.get('at');
@@ -77,11 +78,11 @@ export default function PreviewApp() {
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#000' }} />;
   if (which === 'question') return (
     <View style={{ flex: 1 }}>
-      <QuestionScreen showClock secondsLeft={isNaN(t) ? null : t} />
-      <DemoLabel />
+      <QuestionScreen showClock secondsLeft={isNaN(t) ? null : t} ringMode={ring} />
+      <DemoLabel text={ring.toUpperCase() + ' RING'} />
     </View>
   );
-  if (which === 'question-live') return <QuestionScreen showClock />;
+  if (which === 'question-live') return <QuestionScreen showClock ringMode={ring} />;
   if (which === 'countdown') return <CountdownLoop freezeBeat={beat} />;
   if (which === 'results') return <ResultsLoop outcome={typeof outcome !== 'undefined' ? outcome : 'win'} at={typeof at !== 'undefined' ? at : null} />;
   if (which === 'shell') return (

@@ -22,6 +22,7 @@ export default function QuestionScreen({
   stake = '$1.00 · WIN $1.90',
   streak = 8, balance = '$24.50',
   onAnswer, onTimeout, showClock = false,
+  ringMode = 'fuse',                        // 'fuse' | 'laser' — which timer-ring engine
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
@@ -66,7 +67,7 @@ export default function QuestionScreen({
 
       <GlassHeader streak={streak} balance={balance} showClock={showClock} />
       <StakePill text={stake} />
-      <TimerRing secondsLeft={tLeft} />
+      <TimerRing secondsLeft={tLeft} mode={ringMode} />
       <AnswerGrid answers={answers} lockedIndex={locked}
         onAnswer={(i, label) => { setLocked(i); if (onAnswer) onAnswer(i, label); }} />
     </View>
