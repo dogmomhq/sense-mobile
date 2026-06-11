@@ -5,7 +5,7 @@
 // `showClock` renders the prototype's mock status bar (preview/pixel-diff
 // parity only — real devices draw their own status bar over the photo).
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, Pressable } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from '../theme';
 
@@ -88,7 +88,23 @@ export function BalancePill({ balance = '$24.50', onPressAdd }) {
   );
 }
 
-export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = DEFAULT_AVATAR, showClock = false }) {
+// Logged-out header (AUTH decision 2026-06-11): avatar slot is replaced by a
+// SIGN IN lime pill. Streak chip + balance pill stay (guest balance still real).
+function SignInPill({ onPress }) {
+  const s = useScale();
+  return (
+    <Pressable onPress={onPress} style={{ height: 114 * s, borderRadius: RADII.chip * s,
+      backgroundColor: COLORS.lime, paddingHorizontal: 38 * s,
+      alignItems: 'center', justifyContent: 'center',
+      shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12 * s, shadowOpacity: 1 }}>
+      <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: COLORS.forest,
+        letterSpacing: 0.08 * 36 * s }}>SIGN IN</Text>
+    </Pressable>
+  );
+}
+
+export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = DEFAULT_AVATAR,
+  showClock = false, signedIn = true, onSignIn }) {
   const s = useScale();
   return (
     <>
@@ -102,10 +118,14 @@ export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = D
       <View style={{ position: 'absolute', top: 121 * s, left: 46 * s, right: 55 * s, height: 114 * s,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 21 * s }}>
-          <Image source={avatar} fadeDuration={0}
-            style={{ width: 144 * s, height: 144 * s, borderRadius: 72 * s, marginTop: -8 * s,
-              borderWidth: 3 * s, borderColor: COLORS.lime,
-              shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12 * s, shadowOpacity: 1 }} />
+          {signedIn ? (
+            <Image source={avatar} fadeDuration={0}
+              style={{ width: 144 * s, height: 144 * s, borderRadius: 72 * s, marginTop: -8 * s,
+                borderWidth: 3 * s, borderColor: COLORS.lime,
+                shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12 * s, shadowOpacity: 1 }} />
+          ) : (
+            <SignInPill onPress={onSignIn} />
+          )}
           <StreakChip streak={streak} />
         </View>
         <BalancePill balance={balance} />

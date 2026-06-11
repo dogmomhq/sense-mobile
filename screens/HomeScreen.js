@@ -17,7 +17,7 @@ const TIERS = ['$0.50', '$1.00', '$5.00', '$10.00'];
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
-  onPlay, onPractice, onSelectTier, onTab, activeTab = 'play', showClock = false,
+  onPlay, onPractice, onSelectTier, onTab, activeTab = 'home', showClock = false,
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
