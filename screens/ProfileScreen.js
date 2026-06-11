@@ -20,14 +20,22 @@ const CARD = (s, extra = {}) => ({ backgroundColor: 'rgba(16,20,13,0.82)', borde
    Demo mode (preview): no onSendCode/onVerify → static mock boxes (locked look).
    Live mode (ReskinApp): controlled email/code + 2-step Supabase OTP flow
    (`step` = 'email' | 'code'); code boxes mirror a hidden numeric input. ── */
+const OTP_LEN = 6;      // expected Supabase email OTP length (boxes shown by default)
+const OTP_MAX = 10;     // hard cap — Supabase may send 6 OR 8 digit codes; accept up to 10
+
 function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], onSignIn,
   onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify }) {
   const s = useScale();
   const live = !!(onSendCode || onVerify);
-  const N = 6; // Supabase email OTP length
+  // boxes expand past OTP_LEN if the user types/pastes a longer code (max OTP_MAX)
+  const N = live ? Math.min(OTP_MAX, Math.max(OTP_LEN, codeStr.length)) : code.length;
   const boxes = live
     ? Array.from({ length: N }, (_, i) => codeStr[i] || '')
     : code;
+  // shrink boxes so longer codes still fit the card width (6 boxes = design size)
+  const bw = N <= OTP_LEN ? 92 : Math.floor((OTP_LEN * 92 + (OTP_LEN - 1) * 14 - (N - 1) * 14) / N);
+  const bh = Math.round(bw * 114 / 92);
+  const bf = N <= OTP_LEN ? 44 : Math.max(28, Math.round(44 * bw / 92));
   const showCode = !live || step === 'code';
   const ctaLabel = busy ? '…' : (!live ? 'SIGN IN' : step === 'code' ? 'SIGN IN' : 'SEND CODE');
   const onCta = !live ? onSignIn : (step === 'code' ? onVerify : onSendCode);
@@ -48,14 +56,14 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
         <>
           <View style={{ flexDirection: 'row', gap: 14 * s, marginBottom: 24 * s }}>
             {boxes.map((c, i) => (
-              <View key={i} style={{ width: 92 * s, height: 114 * s, borderWidth: 2 * s,
+              <View key={i} style={{ width: bw * s, height: bh * s, borderWidth: 2 * s,
                 borderColor: c ? COLORS.lime : 'rgba(245,241,230,0.3)', borderRadius: 14 * s,
                 alignItems: 'center', justifyContent: 'center',
                 backgroundColor: c ? 'rgba(212,242,60,0.08)' : 'transparent' }}>
-                <Text style={{ fontFamily: FONTS.mono, fontSize: 44 * s, color: COLORS.cream }}>{c}</Text>
+                <Text style={{ fontFamily: FONTS.mono, fontSize: bf * s, color: COLORS.cream }}>{c}</Text>
               </View>))}
             {live ? (
-              <TextInput value={codeStr} onChangeText={(t) => onChangeCode && onChangeCode(t.replace(/[^0-9]/g, '').slice(0, N))}
+              <TextInput value={codeStr} onChangeText={(t) => onChangeCode && onChangeCode(t.replace(/[^0-9]/g, '').slice(0, OTP_MAX))}
                 keyboardType="number-pad" autoFocus caretHidden
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                   opacity: 0.02, color: 'transparent' }} />
@@ -63,7 +71,7 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
           </View>
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
             letterSpacing: 0.08 * 26 * s, marginBottom: 56 * s }}>
-            {live ? `ENTER THE ${N}-DIGIT CODE WE EMAILED YOU` : 'ENTER THE 8-DIGIT CODE WE EMAILED YOU'}</Text>
+            {live ? 'ENTER THE CODE FROM YOUR EMAIL' : 'ENTER THE 8-DIGIT CODE WE EMAILED YOU'}</Text>
         </>
       ) : (
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
