@@ -25,9 +25,9 @@ const SRC = {
 };
 // display height at scale 1 (prototype px) + natural aspect (w/h)
 const GLYPH = {
-  3:  { h: 950, ar: 635 / 858 },
-  2:  { h: 940, ar: 608 / 854 },
-  1:  { h: 870, ar: 524 / 822 },
+  3:  { h: 860, ar: 635 / 858 },
+  2:  { h: 850, ar: 608 / 854 },
+  1:  { h: 790, ar: 524 / 822 },
   go: { h: 540, ar: 884 / 552 },
 };
 // eye geometry (prototype px): cover crop zoomed 1.35x about the pupil
@@ -168,24 +168,24 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
             const k = Math.max(W / EYE_W, H / EYE_H);
             return <Animated.Image source={EYE} fadeDuration={0} style={{
               position: 'absolute', top: (H - EYE_H * k) / 2, left: (W - EYE_W * k) / 2,
-              width: EYE_W * k, height: EYE_H * k, opacity: 0.32 }} />;
+              width: EYE_W * k, height: EYE_H * k, opacity: 0.62 }} />;
           })()}
         </View>
         {/* vignette (120% x 75% radial at pupil) */}
         <Radial w={W} h={H} cx={px} cy={py} rx={W * 1.2} ry={H * 0.75} stops={[
-          [0.22, ['#000', 0]], [0.55, ['#000', 0.55]], [1, ['#000', 0.9]]]} />
+          [0.3, ['#000', 0]], [0.62, ['#000', 0.35]], [1, ['#000', 0.78]]]} />
         {/* dim warm iris glow — CSS used screen blend; alpha overlay needs ~1.8x
             the stop opacities to read the same over the near-black plate */}
         <Radial w={W} h={H} cx={ix} cy={iy} rx={460 * s} ry={405 * s} stops={[
-          [0, ['#FFAA3C', 0.32]], [0.55, ['#FF8C28', 0.14]], [0.75, ['#FF8C28', 0]]]} />
+          [0, ['#FFAA3C', 0.4]], [0.55, ['#FF8C28', 0.18]], [0.75, ['#FF8C28', 0]]]} />
         {/* iris pulse on land */}
         <Animated.View pointerEvents="none" style={{ position: 'absolute', inset: 0, opacity: pulse, zIndex: 6 }}>
           <Radial w={W} h={H} cx={ix} cy={iy} rx={500 * s} ry={440 * s} stops={[
             [0, ['#FFBE5A', 0.6]], [0.5, ['#FFA032', 0.3]], [0.75, ['#FFA032', 0]]]} />
         </Animated.View>
         {/* static dark pupil disk: clean black backdrop for the glyph */}
-        <Radial w={W} h={H} cx={px} cy={py} rx={222 * s} ry={214 * s} stops={[
-          [0, ['#050603', 1]], [0.58, ['#050603', 1]], [0.76, ['#050603', 0.8]], [1, ['#050603', 0]]]} />
+        <Radial w={W} h={H} cx={px} cy={py} rx={196 * s} ry={188 * s} stops={[
+          [0, ['#050603', 1]], [0.5, ['#050603', 0.95]], [0.72, ['#050603', 0.6]], [1, ['#050603', 0]]]} />
         {/* GO flash */}
         <Animated.View pointerEvents="none" style={{ position: 'absolute', inset: 0, opacity: flash, zIndex: 7 }}>
           <Radial w={W} h={H} cx={px} cy={py} rx={W * 0.9} ry={W * 0.9} stops={[

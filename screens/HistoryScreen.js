@@ -35,9 +35,9 @@ function Badge({ kind }) {
   const b = BADGE[kind] || BADGE.draw;
   return (
     <View style={{ backgroundColor: b.bg, borderWidth: 2 * s, borderColor: b.border,
-      borderRadius: 12 * s, paddingVertical: 8 * s, paddingHorizontal: 20 * s,
+      borderRadius: 16 * s, paddingVertical: 14 * s, paddingHorizontal: 28 * s,
       alignSelf: 'flex-start' }}>
-      <Text style={{ fontFamily: FONTS.interExtra, fontSize: 28 * s,
+      <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s,
         letterSpacing: 0.06 * 28 * s, color: b.text }}>{b.label}</Text>
     </View>
   );
@@ -46,7 +46,7 @@ function Badge({ kind }) {
 /* ── ledger icon set ── */
 function LedgerIcon({ type, color }) {
   const s = useScale();
-  const size = 40 * s, sw = 2;
+  const size = 52 * s, sw = 2;
   if (type === 'deposit') return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={sw} />
@@ -108,8 +108,8 @@ function RowCard({ children, borderColor = 'rgba(215,248,74,0.35)', style }) {
   const s = useScale();
   return (
     <View style={[{ backgroundColor: 'rgba(16,20,13,0.82)', borderWidth: 1.5 * s,
-      borderColor, borderRadius: RADII.answer * s, paddingVertical: 26 * s,
-      paddingHorizontal: 32 * s, marginBottom: 20 * s }, style]}>
+      borderColor, borderRadius: RADII.answer * s, paddingVertical: 44 * s,
+      paddingHorizontal: 36 * s, marginBottom: 24 * s }, style]}>
       {children}
     </View>);
 }
@@ -146,20 +146,19 @@ function MatchRow({ row }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 * s, flex: 1 }}>
           <Badge kind={row.result} />
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s,
+            <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 40 * s,
               color: COLORS.cream }}>vs {row.opponent}</Text>
-            <Text style={{ fontFamily: FONTS.mono, fontSize: 26 * s, color: COLORS.creamDim,
-              marginTop: 6 * s }}>
+            <Text style={{ fontFamily: FONTS.mono, fontSize: 30 * s, color: COLORS.creamDim,
+              marginTop: 8 * s }}>
               {row.result === 'cancelled' ? '— · —' : `${row.yourTime} · ${row.theirTime}`}
-              {row.ago ? `   ${row.ago}` : ''}
             </Text>
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 38 * s, color: amtColor }}>
+          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 46 * s, color: amtColor }}>
             {row.amount}</Text>
-          <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
-            marginTop: 6 * s }}>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
+            marginTop: 8 * s }}>
             {row.result === 'cancelled' ? '(Refund) ' : ''}BAL {row.balance}</Text>
         </View>
       </View>
@@ -175,15 +174,13 @@ function LedgerRow({ row }) {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 * s }}>
           <LedgerIcon type={row.type} color={color} />
-          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s,
-            letterSpacing: 0.06 * 34 * s, color: COLORS.cream }}>{row.type.toUpperCase()}</Text>
-          {row.ago ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s,
-            color: COLORS.creamDim }}>{row.ago}</Text> : null}
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 40 * s,
+            letterSpacing: 0.06 * 40 * s, color: COLORS.cream }}>{row.type.toUpperCase()}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 38 * s, color }}>{row.amount}</Text>
-          <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
-            marginTop: 6 * s }}>BAL {row.balance}</Text>
+          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 46 * s, color }}>{row.amount}</Text>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
+            marginTop: 8 * s }}>BAL {row.balance}</Text>
         </View>
       </View>
     </RowCard>);
@@ -251,8 +248,8 @@ function PracticeTab({ practice, onStartPractice }) {
               <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s, color: COLORS.cream }}>
                 {row.animal}</Text>
             </View>
-            <Text style={{ fontFamily: FONTS.mono, fontSize: 26 * s, color: COLORS.creamDim }}>
-              {row.yourTime}{row.ago ? `  ${row.ago}` : ''}</Text>
+            <Text style={{ fontFamily: FONTS.mono, fontSize: 28 * s, color: COLORS.creamDim }}>
+              {row.yourTime}</Text>
           </View>
         </RowCard>))}
     </View>);

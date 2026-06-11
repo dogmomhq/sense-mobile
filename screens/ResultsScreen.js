@@ -174,8 +174,8 @@ function OppFlip({ subscribe, freezeAt, TL, answer, s }) {
 }
 
 // EKG heartbeat line — draws on with the time dilation (CLOSE races only)
-const EKG_D = 'M0 70 H280 L310 22 L345 116 L375 70 H540 L570 26 L605 112 L635 70 H880';
-const EKG_LEN = 1320; // measured path length of EKG_D
+const EKG_D = 'M0 70 H190 L222 26 L254 112 L280 70 H350 L382 32 L414 106 L440 70 H880';
+const EKG_LEN = 1290; // measured path length of EKG_D
 function EkgLine({ subscribe, freezeAt, TL, s }) {
   const t = useT(subscribe, freezeAt);
   const dil = win01(t, TL.DIL_START, TL.DIL_DUR);
@@ -610,10 +610,10 @@ export default function ResultsScreen({
                 <Animated.View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: TRACK_W,
                   borderRadius: 12 * s, transform: barT(L.frac),
                   opacity: L.you ? youFillOp : 1,
-                  backgroundColor: L.you ? COLORS.lime : '#FFB3A8' }} />
+                  backgroundColor: L.you ? COLORS.lime : '#E8E4D8' }} />
                 <Animated.View pointerEvents="none" style={{ position: 'absolute', top: -23 * s,
                   width: 70 * s, height: 70 * s, borderRadius: 35 * s, marginLeft: -35 * s,
-                  backgroundColor: L.you ? 'rgba(215,248,74,0.55)' : 'rgba(255,138,110,0.5)',
+                  backgroundColor: L.you ? 'rgba(215,248,74,0.55)' : 'rgba(245,241,230,0.45)',
                   opacity: Animated.multiply(
                     L.frac.interpolate({ inputRange: [0.001, 0.02, L.lock / TL.maxT - 0.01, L.lock / TL.maxT],
                       outputRange: [0, 1, 1, 0], extrapolate: 'clamp' }),

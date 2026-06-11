@@ -13,6 +13,12 @@ const fs = require('fs');
   const shots = [
     ['home', 'http://localhost:8080/?reskin=home'],
     ['question_6s', 'http://localhost:8080/?reskin=question&t=6'],
+    ['countdown', 'http://localhost:8080/?reskin=countdown&beat=3'],
+    ['waiting', 'http://localhost:8080/?reskin=waiting&t=0'],
+    ['results_nearmiss', 'http://localhost:8080/?reskin=results&outcome=nearmiss&at=race'],
+    ['history', 'http://localhost:8080/?reskin=history'],
+    ['shell', 'http://localhost:8080/?reskin=shell'],
+    ['profile_in', 'http://localhost:8080/?reskin=profile&auth=in'],
   ];
   for (const [name, url] of shots) {
     await page.goto(url, { waitUntil: 'load' });
