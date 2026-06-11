@@ -64,8 +64,8 @@ export default function WaitingScreen({
           boxW={width} boxH={height} />
       </View>
       <LinearGradient pointerEvents="none"
-        colors={['rgba(11,15,10,0.55)', 'rgba(11,15,10,0.2)', 'rgba(11,15,10,0)', 'rgba(11,15,10,0.35)', 'rgba(11,15,10,0.85)']}
-        locations={[0, 0.22, 0.5, 0.74, 0.92]}
+        colors={['rgba(11,15,10,0.55)', 'rgba(11,15,10,0.2)', 'rgba(11,15,10,0)', 'rgba(11,15,10,0)', 'rgba(11,15,10,0.8)']}
+        locations={[0, 0.22, 0.45, 0.66, 0.92]}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 }} />
 
       <GlassHeader streak={streak} balance={balance} handle={handle}
