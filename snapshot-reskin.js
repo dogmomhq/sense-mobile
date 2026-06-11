@@ -19,6 +19,10 @@ const fs = require('fs');
     ['history', 'http://localhost:8080/?reskin=history'],
     ['shell', 'http://localhost:8080/?reskin=shell'],
     ['profile_in', 'http://localhost:8080/?reskin=profile&auth=in'],
+    // LIVE integration boot check: root URL (no ?reskin=) = ReskinApp wired to
+    // the live server — verifies App.js's RESKIN swap renders home w/ real state
+    // (balance/streak from device account; WS reachable from CI).
+    ['live_root_home', 'http://localhost:8080/'],
   ];
   for (const [name, url] of shots) {
     await page.goto(url, { waitUntil: 'load' });
