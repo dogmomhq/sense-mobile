@@ -16,37 +16,65 @@ import { COLORS, FONTS, RADII, useScale } from './theme';
 const CARD = (s, extra = {}) => ({ backgroundColor: 'rgba(16,20,13,0.82)', borderWidth: 1.5 * s,
   borderColor: 'rgba(215,248,74,0.35)', borderRadius: RADII.glass * s, ...extra });
 
-/* ── logged-out: sign-in card ── */
-function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], onSignIn }) {
+/* ── logged-out: sign-in card ───────────────────────────────────────────────
+   Demo mode (preview): no onSendCode/onVerify → static mock boxes (locked look).
+   Live mode (ReskinApp): controlled email/code + 2-step Supabase OTP flow
+   (`step` = 'email' | 'code'); code boxes mirror a hidden numeric input. ── */
+function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], onSignIn,
+  onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify }) {
   const s = useScale();
+  const live = !!(onSendCode || onVerify);
+  const N = 6; // Supabase email OTP length
+  const boxes = live
+    ? Array.from({ length: N }, (_, i) => codeStr[i] || '')
+    : code;
+  const showCode = !live || step === 'code';
+  const ctaLabel = busy ? '…' : (!live ? 'SIGN IN' : step === 'code' ? 'SIGN IN' : 'SEND CODE');
+  const onCta = !live ? onSignIn : (step === 'code' ? onVerify : onSendCode);
   return (
     <View style={[CARD(s), { marginHorizontal: 45 * s, marginTop: 60 * s,
       paddingVertical: 70 * s, paddingHorizontal: 45 * s, alignItems: 'center' }]}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 92 * s, lineHeight: 104 * s,
         color: COLORS.cream, textAlign: 'center', includeFontPadding: false,
         marginBottom: 60 * s }}>SIGN IN TO SAVE{'\n'}YOUR STREAK</Text>
-      <TextInput placeholder="EMAIL" placeholderTextColor={COLORS.creamDim} defaultValue={email}
+      <TextInput placeholder="EMAIL" placeholderTextColor={COLORS.creamDim}
+        {...(live ? { value: email, onChangeText: onChangeEmail } : { defaultValue: email })}
+        autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
         style={{ alignSelf: 'stretch', borderWidth: 2 * s, borderColor: 'rgba(215,248,74,0.5)',
           borderRadius: 16 * s, paddingVertical: 28 * s, paddingHorizontal: 32 * s,
           color: COLORS.cream, fontFamily: FONTS.interBold, fontSize: 34 * s,
           letterSpacing: 0.08 * 34 * s, marginBottom: 44 * s }} />
-      <View style={{ flexDirection: 'row', gap: 14 * s, marginBottom: 24 * s }}>
-        {code.map((c, i) => (
-          <View key={i} style={{ width: 92 * s, height: 114 * s, borderWidth: 2 * s,
-            borderColor: c ? COLORS.lime : 'rgba(245,241,230,0.3)', borderRadius: 14 * s,
-            alignItems: 'center', justifyContent: 'center',
-            backgroundColor: c ? 'rgba(212,242,60,0.08)' : 'transparent' }}>
-            <Text style={{ fontFamily: FONTS.mono, fontSize: 44 * s, color: COLORS.cream }}>{c}</Text>
-          </View>))}
-      </View>
-      <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
-        letterSpacing: 0.08 * 26 * s, marginBottom: 56 * s }}>ENTER THE 8-DIGIT CODE WE EMAILED YOU</Text>
-      <Pressable onPress={onSignIn} style={{ alignSelf: 'stretch', backgroundColor: COLORS.lime,
-        borderRadius: 24 * s, paddingVertical: 40 * s, alignItems: 'center',
+      {showCode ? (
+        <>
+          <View style={{ flexDirection: 'row', gap: 14 * s, marginBottom: 24 * s }}>
+            {boxes.map((c, i) => (
+              <View key={i} style={{ width: 92 * s, height: 114 * s, borderWidth: 2 * s,
+                borderColor: c ? COLORS.lime : 'rgba(245,241,230,0.3)', borderRadius: 14 * s,
+                alignItems: 'center', justifyContent: 'center',
+                backgroundColor: c ? 'rgba(212,242,60,0.08)' : 'transparent' }}>
+                <Text style={{ fontFamily: FONTS.mono, fontSize: 44 * s, color: COLORS.cream }}>{c}</Text>
+              </View>))}
+            {live ? (
+              <TextInput value={codeStr} onChangeText={(t) => onChangeCode && onChangeCode(t.replace(/[^0-9]/g, '').slice(0, N))}
+                keyboardType="number-pad" autoFocus caretHidden
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  opacity: 0.02, color: 'transparent' }} />
+            ) : null}
+          </View>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
+            letterSpacing: 0.08 * 26 * s, marginBottom: 56 * s }}>
+            {live ? `ENTER THE ${N}-DIGIT CODE WE EMAILED YOU` : 'ENTER THE 8-DIGIT CODE WE EMAILED YOU'}</Text>
+        </>
+      ) : (
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
+          letterSpacing: 0.08 * 26 * s, marginBottom: 56 * s }}>WE'LL EMAIL YOU A ONE-TIME CODE</Text>
+      )}
+      <Pressable onPress={busy ? undefined : onCta} style={{ alignSelf: 'stretch', backgroundColor: COLORS.lime,
+        borderRadius: 24 * s, paddingVertical: 40 * s, alignItems: 'center', opacity: busy ? 0.6 : 1,
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
         shadowOpacity: 0.55, elevation: 10 }}>
         <Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
-          letterSpacing: 0.06 * 60 * s, includeFontPadding: false }}>SIGN IN</Text>
+          letterSpacing: 0.06 * 60 * s, includeFontPadding: false }}>{ctaLabel}</Text>
       </Pressable>
     </View>);
 }
@@ -56,7 +84,9 @@ function StatsGrid({ stats }) {
   const s = useScale();
   const cells = [
     ['PLAYED', String(stats.played)], ['WINS', String(stats.w)], ['LOSSES', String(stats.l)],
-    ['DRAWS', String(stats.d)], ['WIN RATE', `${stats.winPct}%`], ['STREAK', `${stats.streak} 🔥`],
+    ['DRAWS', String(stats.d)],
+    (stats.accuracy != null ? ['ACCURACY', `${stats.accuracy}%`] : ['WIN RATE', `${stats.winPct}%`]),
+    ['STREAK', `${stats.streak} 🔥`],
   ];
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 * s }}>
@@ -87,7 +117,7 @@ function SettingsRow({ label, right = null, danger = false, onPress }) {
 }
 
 function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
-  onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, version }) {
+  onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version }) {
   const s = useScale();
   const netPos = !String(netLifetime).startsWith('-');
   return (
@@ -145,6 +175,7 @@ function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
       <SettingsRow label="PRIVACY" onPress={onPrivacy} />
       <SettingsRow label="TERMS" onPress={onTerms} />
       <SettingsRow label="HELP" onPress={onHelp} />
+      {onSignOut ? <SettingsRow label="LOG OUT" danger onPress={onSignOut} /> : null}
       <SettingsRow label="DELETE ACCOUNT" danger onPress={onDeleteAccount} />
       <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
         textAlign: 'center', marginTop: 20 * s, letterSpacing: 0.1 * 24 * s }}>
@@ -158,6 +189,8 @@ export default function ProfileScreen({
   netLifetime = '+$212.40', balance = '$24.50', soundsOn = true, version = 'v0.9.0',
   email = '', code = undefined,
   onSignIn, onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount,
+  // live OTP wiring (ReskinApp)
+  onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onSignOut,
 }) {
   const s = useScale();
   return (
@@ -166,9 +199,11 @@ export default function ProfileScreen({
         <LoggedIn handle={handle} memberSince={memberSince} stats={stats}
           netLifetime={netLifetime} balance={balance} soundsOn={soundsOn} version={version}
           onDeposit={onDeposit} onToggleSounds={onToggleSounds} onPrivacy={onPrivacy}
-          onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} />
+          onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} onSignOut={onSignOut} />
       ) : (
-        <SignInCard email={email} {...(code ? { code } : {})} onSignIn={onSignIn} />
+        <SignInCard email={email} {...(code ? { code } : {})} onSignIn={onSignIn}
+          onChangeEmail={onChangeEmail} codeStr={codeStr} onChangeCode={onChangeCode}
+          step={step} busy={busy} onSendCode={onSendCode} onVerify={onVerify} />
       )}
     </ScrollView>
   );

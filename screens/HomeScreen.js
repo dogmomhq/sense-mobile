@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import SegmentedNav from './components/SegmentedNav';
 import CoverPhoto from './components/CoverPhoto';
+import { PendingStrip } from './AppShell';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 
 const CHEETAH = require('../assets/cheetah.jpeg');
@@ -18,6 +19,10 @@ const TIERS = ['$0.50', '$1.00', '$5.00', '$10.00'];
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
   onPlay, onPractice, onSelectTier, onTab, activeTab = 'home', showClock = false,
+  // live wiring (ReskinApp): identity header, pending strip, insufficient-balance state
+  handle = null, signedIn = true, onSignIn, onAddFunds,
+  pendingCount = 0, onPendingPress,
+  playDisabled = false, insufficientLabel = 'NOT ENOUGH BALANCE',
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
@@ -43,7 +48,9 @@ export default function HomeScreen({
         locations={[0, 0.2, 0.4, 0.65, 0.88, 1]}
         style={{ position: 'absolute', top: height * 0.35, left: 0, right: 0, height: height * 0.7, zIndex: 2 }} />
 
-      <GlassHeader streak={streak} balance={balance} showClock={showClock} />
+      <GlassHeader streak={streak} balance={balance} handle={handle} signedIn={signedIn}
+        onSignIn={onSignIn} onPressAdd={onAddFunds} showClock={showClock} />
+      {pendingCount > 0 ? <PendingStrip count={pendingCount} onPress={onPendingPress} /> : null}
 
       {/* wordmark + tagline */}
       <View style={{ position: 'absolute', top: 1150 * s, left: 0, right: 0,
@@ -60,12 +67,16 @@ export default function HomeScreen({
 
       {/* CTA stack — PLAY NOW (lime, h~170) + PRACTICE FREE (ghost, h~110) */}
       <View style={{ position: 'absolute', top: 1500 * s, left: 45 * s, right: 45 * s, gap: 16 * s, zIndex: 15 }}>
-        <Pressable onPress={onPlay}
+        {playDisabled ? (
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 28 * s, color: '#FF5A48',
+            letterSpacing: 0.08 * 28 * s, textAlign: 'center' }}>{insufficientLabel}</Text>
+        ) : null}
+        <Pressable onPress={playDisabled ? undefined : onPlay} disabled={playDisabled}
           style={({ pressed }) => ({ backgroundColor: COLORS.lime, borderRadius: RADII.cta * s,
             paddingVertical: 50 * s, paddingHorizontal: 48 * s,
             flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18 * s,
             shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s, shadowOpacity: 0.55,
-            elevation: 10, opacity: pressed ? 0.85 : 1 })}>
+            elevation: 10, opacity: playDisabled ? 0.45 : pressed ? 0.85 : 1 })}>
           <Text style={{ fontFamily: FONTS.interBlack, fontSize: 72 * s, lineHeight: 86 * s, color: '#000',
             letterSpacing: -0.01 * 72 * s, transform: [{ scaleY: 1.22 }], includeFontPadding: false, top: 3 * s }}>PLAY NOW</Text>
           <Svg width={60 * s} height={66 * s} viewBox="0 0 24 24" preserveAspectRatio="none">

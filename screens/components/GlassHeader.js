@@ -81,10 +81,11 @@ export function BalancePill({ balance = '$24.50', onPressAdd }) {
         <Text style={{ fontFamily: FONTS.interBlack, fontSize: 48 * s, lineHeight: 48 * s,
           letterSpacing: -0.02 * 48 * s, color: COLORS.cream }}>{balance}</Text>
       </View>
-      <View style={{ width: 54 * s, height: 54 * s, borderRadius: 27 * s, borderWidth: 3 * s,
-        borderColor: COLORS.lime, alignItems: 'center', justifyContent: 'center' }}>
+      <Pressable onPress={onPressAdd} hitSlop={14}
+        style={{ width: 54 * s, height: 54 * s, borderRadius: 27 * s, borderWidth: 3 * s,
+          borderColor: COLORS.lime, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: COLORS.lime, fontFamily: FONTS.interBold, fontSize: 38 * s, lineHeight: 44 * s }}>+</Text>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -107,7 +108,7 @@ function SignInPill({ onPress }) {
 // `handle` (no `avatar` prop): deterministic initials avatar replaces the
 // demo photo — the locked screens that pass an explicit avatar are unchanged.
 export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = DEFAULT_AVATAR,
-  handle = null, showClock = false, signedIn = true, onSignIn }) {
+  handle = null, showClock = false, signedIn = true, onSignIn, onPressAdd }) {
   const s = useScale();
   return (
     <>
@@ -135,7 +136,7 @@ export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = D
           )}
           <StreakChip streak={streak} />
         </View>
-        <BalancePill balance={balance} />
+        <BalancePill balance={balance} onPressAdd={onPressAdd} />
       </View>
     </>
   );

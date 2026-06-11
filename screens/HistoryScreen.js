@@ -157,9 +157,14 @@ function MatchRow({ row }) {
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ fontFamily: FONTS.interBlack, fontSize: 46 * s, color: amtColor }}>
             {row.amount}</Text>
-          <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
-            marginTop: 8 * s }}>
-            {row.result === 'cancelled' ? '(Refund) ' : ''}BAL {row.balance}</Text>
+          {row.balance ? (
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
+              marginTop: 8 * s }}>
+              {row.result === 'cancelled' ? '(Refund) ' : ''}BAL {row.balance}</Text>
+          ) : row.result === 'cancelled' ? (
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
+              marginTop: 8 * s }}>REFUNDED</Text>
+          ) : null}
         </View>
       </View>
     </RowCard>);

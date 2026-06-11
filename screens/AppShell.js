@@ -12,7 +12,7 @@ import GlassHeader from './components/GlassHeader';
 import SegmentedNav from './components/SegmentedNav';
 import { COLORS, FONTS, useScale } from './theme';
 
-function PendingStrip({ count, onPress }) {
+export function PendingStrip({ count, onPress }) {
   const s = useScale();
   return (
     <Pressable onPress={onPress} style={{ position: 'absolute', top: 278 * s, left: 22 * s, right: 22 * s,
@@ -30,7 +30,7 @@ function PendingStrip({ count, onPress }) {
 
 export default function AppShell({
   streak = 8, balance = '$24.50', avatar, handle = null, signedIn = true, onSignIn,
-  pendingCount = 0, onPendingPress,
+  pendingCount = 0, onPendingPress, onAddFunds,
   activeTab = 'home', onTab, showClock = false, children,
 }) {
   const s = useScale();
@@ -43,7 +43,8 @@ export default function AppShell({
         {children}
       </View>
       <GlassHeader streak={streak} balance={balance} handle={handle}
-        {...(avatar ? { avatar } : {})} signedIn={signedIn} onSignIn={onSignIn} showClock={showClock} />
+        {...(avatar ? { avatar } : {})} signedIn={signedIn} onSignIn={onSignIn}
+        onPressAdd={onAddFunds} showClock={showClock} />
       {pendingCount > 0 ? <PendingStrip count={pendingCount} onPress={onPendingPress} /> : null}
       <SegmentedNav active={activeTab} onTab={onTab}
         badges={pendingCount > 0 ? { history: true } : {}} />
