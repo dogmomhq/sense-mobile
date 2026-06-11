@@ -174,9 +174,10 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
         {/* vignette (120% x 75% radial at pupil) */}
         <Radial w={W} h={H} cx={px} cy={py} rx={W * 1.2} ry={H * 0.75} stops={[
           [0.22, ['#000', 0]], [0.55, ['#000', 0.55]], [1, ['#000', 0.9]]]} />
-        {/* dim warm iris glow */}
+        {/* dim warm iris glow — CSS used screen blend; alpha overlay needs ~1.8x
+            the stop opacities to read the same over the near-black plate */}
         <Radial w={W} h={H} cx={ix} cy={iy} rx={460 * s} ry={405 * s} stops={[
-          [0, ['#FFAA3C', 0.18]], [0.55, ['#FF8C28', 0.08]], [0.75, ['#FF8C28', 0]]]} />
+          [0, ['#FFAA3C', 0.32]], [0.55, ['#FF8C28', 0.14]], [0.75, ['#FF8C28', 0]]]} />
         {/* iris pulse on land */}
         <Animated.View pointerEvents="none" style={{ position: 'absolute', inset: 0, opacity: pulse, zIndex: 6 }}>
           <Radial w={W} h={H} cx={ix} cy={iy} rx={500 * s} ry={440 * s} stops={[
