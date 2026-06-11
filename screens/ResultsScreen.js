@@ -30,6 +30,7 @@ import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
 import ConfettiBurst from './components/ConfettiBurst';
 import { COLORS, FONTS, useScale, BASE_W, BASE_H } from './theme';
+import PressBtn from './components/PressBtn';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
 const AVATAR = require('../assets/avatar_demo.png');
@@ -807,7 +808,7 @@ export default function ResultsScreen({
         {/* PLAY AGAIN (lime, idle pulse, nearmiss ignite) + ghost HOME */}
         <Animated.View style={{ position: 'absolute', top: 1848 * s, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn, transform: [{ translateY: btnY }, { scale: btnScale }] }}>
-          <Pressable onPress={onPlayAgain} style={{ height: 152 * s, borderRadius: 30 * s,
+          <PressBtn onPress={onPlayAgain} style={{ height: 152 * s, borderRadius: 30 * s,
             backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
             shadowColor: COLORS.lime, shadowOpacity: 0.25, shadowRadius: 40 * s, shadowOffset: { width: 0, height: 12 * s } }}>
             <Text style={{ fontFamily: FONTS.anton, fontSize: 66 * s, letterSpacing: 0.06 * 66 * s,
@@ -817,7 +818,7 @@ export default function ResultsScreen({
                 width: 240 * s, backgroundColor: 'rgba(255,255,255,0.55)',
                 transform: [{ translateX: shimmerX }, { rotate: '14deg' }] }} />
             ) : null}
-          </Pressable>
+          </PressBtn>
           {isMiss ? (
             <Animated.View pointerEvents="none" style={{ position: 'absolute', top: -8 * s, left: -8 * s,
               right: -8 * s, height: 168 * s, borderRadius: 36 * s, borderWidth: 5 * s,
@@ -826,12 +827,12 @@ export default function ResultsScreen({
         </Animated.View>
         <Animated.View style={{ position: 'absolute', top: 2038 * s, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn }}>
-          <Pressable onPress={onHome} style={{ height: 112 * s, borderRadius: 26 * s,
+          <PressBtn onPress={onHome} style={{ height: 112 * s, borderRadius: 26 * s,
             borderWidth: 2.5 * s, borderColor: 'rgba(245,241,230,0.4)', backgroundColor: 'rgba(16,20,13,0.6)',
             alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 40 * s, letterSpacing: 0.22 * 40 * s,
               color: COLORS.cream }}>HOME</Text>
-          </Pressable>
+          </PressBtn>
         </Animated.View>
       </Animated.View>
 

@@ -256,6 +256,7 @@ export default function App() {
   const [myTime, setMyTime] = useState(null);
   const [notice, setNotice] = useState(null);
   const [toast, setToast] = useState(null);
+  const [toastKind, setToastKind] = useState('info'); // 'info' | 'error' — reskin toast tint (old UI ignores)
   // online/challenge parity state
   const [onlineRec, setOnlineRec] = useState({ wins:0, losses:0, draws:0 });
   const [matchLog, setMatchLog] = useState([]);      // settled online/challenge matches
@@ -380,7 +381,7 @@ export default function App() {
 
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
-  function showToast(m) { setToast(m); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
+  function showToast(m, kind) { setToast(m); setToastKind(kind === 'error' ? 'error' : 'info'); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
   function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; setOnline(false); matchIdRef.current = null; fadeTo(() => { setMode(null); setTab('home'); }); }
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
@@ -555,8 +556,8 @@ export default function App() {
     wsSend({ ...queue(myName(), qTier, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
   }
   // Supabase email one-time-code sign-in
-  async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
-  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); identify(data.session.user.id, { email: data.session.user.email }); syncAccount(); } } catch (e) { showToast('Invalid code'); } setSigninBusy(false); }
+  async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message || 'Invalid code', 'error'); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); identify(data.session.user.id, { email: data.session.user.email }); syncAccount(); } else { showToast('Sign-in failed — try again', 'error'); } } catch (e) { showToast((e && e.message) || 'Invalid code', 'error'); } setSigninBusy(false); }
   async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
@@ -609,7 +610,7 @@ export default function App() {
     const g = {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
-      matchId, myTime, notice, toast, banners, pending, matchLog, onlineRec, rec,
+      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec,
       balance, stake, ledger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,

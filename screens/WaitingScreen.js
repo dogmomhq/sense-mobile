@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
 import { COLORS, FONTS, RADII, useScale } from './theme';
+import PressBtn from './components/PressBtn';
 
 // dark panther-eyes plate derived from the locked batch6/waiting.png mockup
 const PHOTO = require('../assets/waiting_eyes.png');
@@ -109,7 +110,7 @@ export default function WaitingScreen({
       </View>
 
       {/* PLAY AGAIN (same tier, decision #13/Q7 sticky tier) */}
-      <Pressable onPress={onPlayAgain} style={{ position: 'absolute', top: 1700 * s, left: 40 * s,
+      <PressBtn onPress={onPlayAgain} style={{ position: 'absolute', top: 1700 * s, left: 40 * s,
         right: 40 * s, height: 210 * s, borderRadius: RADII.cta * s, backgroundColor: COLORS.lime,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18 * s, zIndex: 12,
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
@@ -120,18 +121,18 @@ export default function WaitingScreen({
         <Svg width={56 * s} height={62 * s} viewBox="0 0 24 24" preserveAspectRatio="none">
           <Path d="M13 2 L4 14 H11 L10 22 L19 10 H12 L13 2 Z" fill="#000" />
         </Svg>
-      </Pressable>
+      </PressBtn>
 
       {/* ghost HISTORY / HOME row */}
       <View style={{ position: 'absolute', top: 1955 * s, left: 40 * s, right: 40 * s,
         flexDirection: 'row', gap: 26 * s, zIndex: 12 }}>
         {[['HISTORY', onHistory], ['HOME', onHome]].map(([label, fn]) => (
-          <Pressable key={label} onPress={fn} style={{ flex: 1, height: 150 * s,
+          <PressBtn key={label} onPress={fn} style={{ flex: 1, height: 150 * s,
             borderRadius: RADII.ghost * s, borderWidth: 3 * s, borderColor: COLORS.ghostBorder,
             backgroundColor: 'rgba(16,20,13,0.55)', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 42 * s,
               letterSpacing: 0.16 * 42 * s, color: COLORS.cream }}>{label}</Text>
-          </Pressable>
+          </PressBtn>
         ))}
       </View>
     </View>

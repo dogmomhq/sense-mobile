@@ -9,6 +9,7 @@ import React from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
+import PressBtn from './components/PressBtn';
 
 function Lock({ size }) {
   return (
@@ -61,13 +62,13 @@ export default function DepositScreen({
       </View>
 
       {/* notify CTA */}
-      <Pressable onPress={onNotify} style={{ marginHorizontal: 45 * s, backgroundColor: COLORS.lime,
+      <PressBtn onPress={onNotify} style={{ marginHorizontal: 45 * s, backgroundColor: COLORS.lime,
         borderRadius: RADII.cta * s, paddingVertical: 46 * s, alignItems: 'center',
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
         shadowOpacity: 0.55, elevation: 10 }}>
         <Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
           letterSpacing: 0.03 * 60 * s, includeFontPadding: false }}>NOTIFY ME · EARN FREE COINS</Text>
-      </Pressable>
+      </PressBtn>
       <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
         textAlign: 'center', letterSpacing: 0.1 * 26 * s, marginTop: 30 * s }}>
         BE FIRST IN LINE WHEN DEPOSITS OPEN</Text>

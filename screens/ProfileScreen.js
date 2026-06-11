@@ -8,9 +8,10 @@
 //   WITHDRAW disabled), settings rows, version.
 // Badges grid CUT from MVP (Q10) — slot reserved below, do not delete.
 // Pure presentational; renders inside AppShell.
-import React from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, Switch } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Pressable, ScrollView, TextInput, Switch, Animated } from 'react-native';
 import InitialsAvatar from './components/InitialsAvatar';
+import PressBtn from './components/PressBtn';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 
 const CARD = (s, extra = {}) => ({ backgroundColor: 'rgba(16,20,13,0.82)', borderWidth: 1.5 * s,
@@ -37,8 +38,22 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
   const bh = Math.round(bw * 114 / 92);
   const bf = N <= OTP_LEN ? 44 : Math.max(28, Math.round(44 * bw / 92));
   const showCode = !live || step === 'code';
-  const ctaLabel = busy ? '…' : (!live ? 'SIGN IN' : step === 'code' ? 'SIGN IN' : 'SEND CODE');
+  // explicit flow states: idle → SENDING…/SIGNING IN… (disabled + pulse) → step transition / toast
+  const ctaLabel = busy ? (step === 'code' ? 'SIGNING IN…' : 'SENDING…')
+    : (!live ? 'SIGN IN' : step === 'code' ? 'SIGN IN' : 'SEND CODE');
   const onCta = !live ? onSignIn : (step === 'code' ? onVerify : onSendCode);
+  // idle-disabled when there's nothing to send (taps used to silently no-op in App.js)
+  const ctaDisabled = busy || (live && (step === 'code' ? !codeStr.trim() : !email.trim()));
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!busy) { pulse.setValue(1); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 0.55, duration: 450, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 1, duration: 450, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [busy]);
   return (
     <View style={[CARD(s), { marginHorizontal: 45 * s, marginTop: 60 * s,
       paddingVertical: 70 * s, paddingHorizontal: 45 * s, alignItems: 'center' }]}>
@@ -77,13 +92,14 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
           letterSpacing: 0.08 * 26 * s, marginBottom: 56 * s }}>WE'LL EMAIL YOU A ONE-TIME CODE</Text>
       )}
-      <Pressable onPress={busy ? undefined : onCta} style={{ alignSelf: 'stretch', backgroundColor: COLORS.lime,
-        borderRadius: 24 * s, paddingVertical: 40 * s, alignItems: 'center', opacity: busy ? 0.6 : 1,
+      <PressBtn onPress={onCta} disabled={ctaDisabled} style={{ alignSelf: 'stretch', backgroundColor: COLORS.lime,
+        borderRadius: 24 * s, paddingVertical: 40 * s, alignItems: 'center',
+        opacity: busy ? 0.75 : ctaDisabled ? 0.5 : 1,
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
         shadowOpacity: 0.55, elevation: 10 }}>
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
-          letterSpacing: 0.06 * 60 * s, includeFontPadding: false }}>{ctaLabel}</Text>
-      </Pressable>
+        <Animated.Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
+          letterSpacing: 0.06 * 60 * s, includeFontPadding: false, opacity: pulse }}>{ctaLabel}</Animated.Text>
+      </PressBtn>
     </View>);
 }
 

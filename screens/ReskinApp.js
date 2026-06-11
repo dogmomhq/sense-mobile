@@ -46,15 +46,16 @@ function streakFromLog(matchLog) {
 }
 
 // ── toast + background-result banners (reskin-styled, DECISIONS #24) ─────────
-function ReskinToast({ text }) {
+function ReskinToast({ text, kind = 'info' }) {
   const s = useScale();
+  const err = kind === 'error';
   return (
     <View pointerEvents="none" style={{ position: 'absolute', bottom: 180 * s, left: 0, right: 0,
       alignItems: 'center', zIndex: 90 }}>
       <View style={{ backgroundColor: 'rgba(16,20,13,0.94)', borderWidth: 1.5 * s,
-        borderColor: COLORS.stakeBorder, borderRadius: 30 * s,
+        borderColor: err ? '#FF5A48' : COLORS.stakeBorder, borderRadius: 30 * s,
         paddingVertical: 22 * s, paddingHorizontal: 44 * s, maxWidth: '88%' }}>
-        <Text style={{ color: COLORS.lime, fontFamily: FONTS.interExtra, fontSize: 32 * s,
+        <Text style={{ color: err ? '#FF5A48' : COLORS.lime, fontFamily: FONTS.interExtra, fontSize: 32 * s,
           letterSpacing: 0.06 * 32 * s, textAlign: 'center' }}>{text}</Text>
       </View>
     </View>
@@ -379,7 +380,7 @@ export default function ReskinApp({ g }) {
         <ReskinBanners banners={g.banners}
           onPress={(b) => { g.setBanners((prev) => prev.filter((x) => x.id !== b.id)); g.navTo('history'); }} />
       ) : null}
-      {g.toast ? <ReskinToast text={String(g.toast).toUpperCase()} /> : null}
+      {g.toast ? <ReskinToast text={String(g.toast).toUpperCase()} kind={g.toastKind} /> : null}
       {g.notice && !g.mode ? <ReskinToast text={String(g.notice).toUpperCase()} /> : null}
     </View>
   );
