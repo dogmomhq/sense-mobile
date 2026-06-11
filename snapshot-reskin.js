@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 
 (async () => {
-  const srv = spawn('npx', ['--yes', 'serve', 'dist', '-l', '8080'], { stdio: 'ignore' });
+  const srv = spawn('npx', ['--yes', 'serve', process.env.SNAP_DIST || 'dist', '-l', '8080'], { stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 6000));
   fs.mkdirSync('reskin-shots', { recursive: true });
   const browser = await chromium.launch();
