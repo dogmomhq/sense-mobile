@@ -32,7 +32,7 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
           letterSpacing: 0.08 * 34 * s, marginBottom: 44 * s }} />
       <View style={{ flexDirection: 'row', gap: 14 * s, marginBottom: 24 * s }}>
         {code.map((c, i) => (
-          <View key={i} style={{ flex: 1, aspectRatio: 0.82, borderWidth: 2 * s,
+          <View key={i} style={{ width: 92 * s, height: 114 * s, borderWidth: 2 * s,
             borderColor: c ? COLORS.lime : 'rgba(245,241,230,0.3)', borderRadius: 14 * s,
             alignItems: 'center', justifyContent: 'center',
             backgroundColor: c ? 'rgba(212,242,60,0.08)' : 'transparent' }}>

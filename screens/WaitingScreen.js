@@ -32,12 +32,12 @@ function RadarPulse({ cx, cy, freeze = false }) {
   const rings = [0, 1 / 3, 2 / 3].map((off, i) => {
     const p = Animated.modulo(Animated.add(t, off), 1);
     const scale = p.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
-    const opacity = p.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.38, 0] });
+    const opacity = p.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.6, 0] });
     const D = 760 * s;
     return (
       <Animated.View key={i} pointerEvents="none" style={{ position: 'absolute',
         left: cx - D / 2, top: cy - D / 2, width: D, height: D, borderRadius: D / 2,
-        borderWidth: 2.5 * s, borderColor: COLORS.lime, opacity, transform: [{ scale }] }} />
+        borderWidth: 3.5 * s, borderColor: COLORS.lime, opacity, transform: [{ scale }] }} />
     );
   });
   return <>{rings}</>;
