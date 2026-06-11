@@ -15,6 +15,15 @@ import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, P
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
 
+// ===== RESKIN feature flag (branch reskin-ui) ================================
+// true  -> render the new pixel-locked UI (screens/ReskinApp.js) on top of the
+//          UNCHANGED state machine below. Every WS handler / logic function in
+//          this file stays byte-identical; ReskinApp is a pure render layer.
+// false -> the original UI below renders exactly as on main.
+import ReskinApp from './screens/ReskinApp';
+const RESKIN = true;
+const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 1000: 4 }; // canonical tier ladder (DECISIONS #1, mirrors server CREDIT_TIER_CENTS)
+
 const TIME_LIMIT = 10000;
 const SERVER_WS = PREVIEW_SERVER_WS;
 const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
@@ -540,7 +549,10 @@ export default function App() {
   async function sendQueueMsg() {
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
-    wsSend({ ...queue(myName(), 1, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
+    // RESKIN: the tier selector queues into the matching server pool (1..4 per the
+    // canonical ladder). With RESKIN=false this is the exact old line (tier 1).
+    const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
+    wsSend({ ...queue(myName(), qTier, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) return; setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message); else setSigninStep('code'); } catch (e) { showToast('Could not send code'); } setSigninBusy(false); }
@@ -588,6 +600,33 @@ export default function App() {
   // Do NOT block the app on font loading — render immediately; Inter swaps in if/when it loads,
   // otherwise the system font is used. (Blocking here caused a permanent white screen when useFonts hung.)
   void fontsLoaded; void fontError;
+
+  // ===== RESKIN render swap: hand the live state machine to the new UI ======
+  // (after the ref assignments above so WS handlers stay wired; everything
+  // below this block is the original render layer, untouched, used when
+  // RESKIN=false.)
+  if (RESKIN) {
+    const g = {
+      // live state
+      tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
+      matchId, myTime, notice, toast, banners, pending, matchLog, onlineRec, rec,
+      balance, stake, ledger, sound, displayName, showActions,
+      authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
+      isChallenge: isChallengeRef.current,
+      // setters / actions (all pre-existing logic — nothing reimplemented)
+      setTab, setStake, setCountdown, setBanners, setShowActions, setSound,
+      setSigninEmail, setSigninCode, setSigninStep,
+      navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
+      startPractice, cancelOnline, sendCode, verifyCode, signOutAuth, doRename,
+      showToast, applyCredit, hydrateHistory,
+      cancelPendingMatch: (mid) => { try { wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
+      // refs + env
+      stakeRef, accountRef, supabaseTokenRef, httpsBase: HTTPS_BASE, myName,
+    };
+    const AW = PHProvider || React.Fragment;
+    const ap = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
+    return (<ErrorBoundary><AW {...ap}><ReskinApp g={g} /></AW></ErrorBoundary>);
+  }
 
   let body;
   if (mode === 'play' && q) {
