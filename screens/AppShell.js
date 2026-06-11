@@ -29,7 +29,7 @@ function PendingStrip({ count, onPress }) {
 }
 
 export default function AppShell({
-  streak = 8, balance = '$24.50', avatar, signedIn = true, onSignIn,
+  streak = 8, balance = '$24.50', avatar, handle = null, signedIn = true, onSignIn,
   pendingCount = 0, onPendingPress,
   activeTab = 'home', onTab, showClock = false, children,
 }) {
@@ -42,7 +42,7 @@ export default function AppShell({
         left: 0, right: 0, bottom: 156 * s, zIndex: 5 }}>
         {children}
       </View>
-      <GlassHeader streak={streak} balance={balance}
+      <GlassHeader streak={streak} balance={balance} handle={handle}
         {...(avatar ? { avatar } : {})} signedIn={signedIn} onSignIn={onSignIn} showClock={showClock} />
       {pendingCount > 0 ? <PendingStrip count={pendingCount} onPress={onPendingPress} /> : null}
       <SegmentedNav active={activeTab} onTab={onTab}

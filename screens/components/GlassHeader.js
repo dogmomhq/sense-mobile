@@ -8,6 +8,7 @@ import React from 'react';
 import { View, Text, Image, Pressable } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from '../theme';
+import InitialsAvatar from './InitialsAvatar';
 
 const DEFAULT_AVATAR = require('../../assets/avatar_demo.png');
 
@@ -103,8 +104,10 @@ function SignInPill({ onPress }) {
   );
 }
 
+// `handle` (no `avatar` prop): deterministic initials avatar replaces the
+// demo photo — the locked screens that pass an explicit avatar are unchanged.
 export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = DEFAULT_AVATAR,
-  showClock = false, signedIn = true, onSignIn }) {
+  handle = null, showClock = false, signedIn = true, onSignIn }) {
   const s = useScale();
   return (
     <>
@@ -119,10 +122,14 @@ export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = D
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 21 * s }}>
           {signedIn ? (
+            (avatar === DEFAULT_AVATAR && handle) ? (
+              <InitialsAvatar handle={handle} size={144} ring={3} style={{ marginTop: -8 * s }} />
+            ) : (
             <Image source={avatar} fadeDuration={0}
               style={{ width: 144 * s, height: 144 * s, borderRadius: 72 * s, marginTop: -8 * s,
                 borderWidth: 3 * s, borderColor: COLORS.lime,
                 shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12 * s, shadowOpacity: 1 }} />
+            )
           ) : (
             <SignInPill onPress={onSignIn} />
           )}

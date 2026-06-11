@@ -3,6 +3,8 @@
 //   ?reskin=home | ?reskin=question&ring=laser|fuse[&t=6] | ?reskin=countdown[&beat=3|2|1|go]
 //   ?reskin=results&outcome=win|loss|nearmiss|closewin|draw[&at=reveal|race|explode|burst|payout]
 //   ?reskin=shell  (AppShell: logged-out header, pendingCount=2, nav states)
+//   ?reskin=waiting | ?reskin=history[&tab=matches|practice]
+//   ?reskin=leaderboard | ?reskin=profile[&auth=out|in] | ?reskin=deposit
 // Native (Expo Go): edit DEFAULT_SCREEN below, or wire into App.js later.
 import React from 'react';
 import { View, Text, Platform } from 'react-native';
@@ -11,6 +13,11 @@ import QuestionScreen from './QuestionScreen';
 import CountdownScreen from './CountdownScreen';
 import AppShell from './AppShell';
 import ResultsScreen from './ResultsScreen';
+import WaitingScreen from './WaitingScreen';
+import HistoryScreen from './HistoryScreen';
+import LeaderboardScreen from './LeaderboardScreen';
+import ProfileScreen from './ProfileScreen';
+import DepositScreen from './DepositScreen';
 import { COLORS, FONTS, useSenseFonts, useScale } from './theme';
 
 // demo caption the locked reference render carries at the bottom of the
@@ -61,7 +68,42 @@ function ResultsLoop({ outcome, at }) {
   );
 }
 
+/* ── demo data for the static screens (preview parity with batch5/6 mockups;
+      the real app passes live props) ── */
+const HISTORY_DEMO = {
+  pending: [{ yourTime: '1.42s', stake: '$1.00', lockoutSec: 103 }],
+  feed: [
+    { kind: 'match', result: 'win', opponent: 'ALEX_R', yourTime: '1.42s', theirTime: '1.60s', amount: '+$0.95', balance: '$24.50', ago: '2m' },
+    { kind: 'ledger', type: 'deposit', amount: '+$5.00', balance: '$23.55', ago: '1h' },
+    { kind: 'match', result: 'loss', opponent: 'SPEEDY_TOM', yourTime: '1.75s', theirTime: '1.55s', amount: '-$1.00', balance: '$18.55', ago: '1h' },
+    { kind: 'ledger', type: 'payout', amount: '+$0.95', balance: '$19.55', ago: '3h' },
+    { kind: 'match', result: 'draw', opponent: 'JUNGLE_CAT', yourTime: '1.62s', theirTime: '1.62s', amount: '+$0.00', balance: '$18.60', ago: '3h' },
+    { kind: 'ledger', type: 'stake', amount: '-$1.00', balance: '$18.60', ago: '5h' },
+    { kind: 'match', result: 'cancelled', opponent: 'PHANTOM', amount: '+$1.00', balance: '$19.60', ago: '1d' },
+  ],
+  practice: { w: 12, l: 5, d: 1, log: [
+    { result: 'win', animal: 'CHEETAH', yourTime: '1.42s', ago: '2m' },
+    { result: 'loss', animal: 'OCELOT', yourTime: '2.31s', ago: '1h' },
+    { result: 'win', animal: 'CARACAL', yourTime: '1.18s', ago: '1d' },
+  ] },
+};
+const LB_DEMO = {
+  yourName: 'NIGHTOWL88',
+  rows: [
+    { rank: 1, name: 'LION_QUEEN', w: 95, l: 8, d: 2 },
+    { rank: 2, name: 'SHADOW_FALCON', w: 82, l: 15, d: 1 },
+    { rank: 3, name: 'ZEBRA_STALKER', w: 78, l: 19, d: 0 },
+    { rank: 4, name: 'BERRY_GLUBT', w: 55, l: 12, d: 3 },
+    { rank: 5, name: 'PARK_NEWSS', w: 55, l: 14, d: 1 },
+    { rank: 6, name: 'SWIFT_CHEETAH', w: 45, l: 20, d: 2 },
+    { rank: 7, name: 'NIGHTOWL88', w: 41, l: 12, d: 3 },
+    { rank: 8, name: 'BRATH_TALZ', w: 40, l: 21, d: 0 },
+  ],
+};
+
 const DEFAULT_SCREEN = 'home';
+
+const qhas = (t) => !isNaN(t);   // ?t= present -> deterministic still (freeze)
 
 export default function PreviewApp() {
   const ready = useSenseFonts();
@@ -85,6 +127,31 @@ export default function PreviewApp() {
   if (which === 'question-live') return <QuestionScreen showClock ringMode={ring} />;
   if (which === 'countdown') return <CountdownLoop freezeBeat={beat} />;
   if (which === 'results') return <ResultsLoop outcome={typeof outcome !== 'undefined' ? outcome : 'win'} at={typeof at !== 'undefined' ? at : null} />;
+  if (which === 'waiting') return <WaitingScreen showClock handle="NIGHTOWL88" freeze={qhas(t)} />;
+  if (which === 'history') return (
+    <AppShell activeTab="history" handle="NIGHTOWL88" pendingCount={1} showClock>
+      <HistoryScreen tab={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'practice' ? 'practice' : 'matches'}
+        pending={HISTORY_DEMO.pending} feed={HISTORY_DEMO.feed} practice={HISTORY_DEMO.practice} />
+    </AppShell>
+  );
+  if (which === 'leaderboard') return (
+    <AppShell activeTab="leaderboard" handle="NIGHTOWL88" showClock>
+      <LeaderboardScreen rows={LB_DEMO.rows} yourName={LB_DEMO.yourName} />
+    </AppShell>
+  );
+  if (which === 'profile') {
+    const out = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('auth') === 'out';
+    return (
+      <AppShell activeTab="profile" handle="NIGHTOWL88" signedIn={!out} showClock>
+        <ProfileScreen signedIn={!out} />
+      </AppShell>
+    );
+  }
+  if (which === 'deposit') return (
+    <AppShell activeTab="profile" handle="NIGHTOWL88" showClock>
+      <DepositScreen />
+    </AppShell>
+  );
   if (which === 'shell') return (
     <AppShell signedIn={false} pendingCount={2} activeTab="home" showClock>
       <ShellPlaceholder />
