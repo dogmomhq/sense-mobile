@@ -38,10 +38,13 @@ const BEAT_MS = 800;                                   // 3 x 800 = 2400 = COUNT
 
 function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
   const id = useRef('g' + Math.random().toString(36).slice(2)).current;
+  // NB: SVG RadialGradient has no rx/ry (web silently ignores them and falls
+  // back to a giant default radius) — use r=rx + a gradientTransform squash.
   return (
     <Svg width={w} height={h} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none" opacity={opacity}>
       <Defs>
-        <RadialGradient id={id} gradientUnits="userSpaceOnUse" cx={cx} cy={cy} rx={rx} ry={ry}>
+        <RadialGradient id={id} gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={rx}
+          gradientTransform={`translate(0 ${cy - (ry / rx) * cy}) scale(1 ${ry / rx})`}>
           {stops.map(([off, c], i) => <Stop key={i} offset={off} stopColor={c[0]} stopOpacity={c[1]} />)}
         </RadialGradient>
       </Defs>

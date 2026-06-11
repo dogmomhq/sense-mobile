@@ -33,7 +33,7 @@ function RadarPulse({ cx, cy, freeze = false }) {
   const rings = [0, 1 / 3, 2 / 3].map((off, i) => {
     const p = Animated.modulo(Animated.add(t, off), 1);
     const scale = p.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
-    const opacity = p.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.8, 0] });
+    const opacity = p.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.9, 0] });
     const D = 700 * s;
     return (
       <Animated.View key={i} pointerEvents="none" style={{ position: 'absolute',
