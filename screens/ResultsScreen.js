@@ -111,12 +111,13 @@ export function buildTimeline(youT, oppT) {
 /* warped-explode-time inverse: event scheduled at warped ew fires at real e */
 const invWarp = (ew, HIT, HOLD_GAIN, isWin) => (!isWin || ew <= HIT) ? ew : ew + HOLD_GAIN;
 
-/* keyframe sampler -> Animated interpolation */
-function kf(clock, t0, t1, fn, steps = 10, pre = null) {
+/* keyframe sampler -> Animated interpolation (t0 = start ms, dur = length ms) */
+function kf(clock, t0, dur, fn, steps = 10, pre = null) {
+  const t1 = t0 + dur;
   const inR = [], outR = [];
   if (pre != null && t0 > 0) { inR.push(0, t0); outR.push(pre, fn(0)); }
   for (let i = pre != null ? 1 : 0; i <= steps; i++) {
-    inR.push(t0 + ((t1 - t0) * i) / steps); outR.push(fn(i / steps));
+    inR.push(t0 + (dur * i) / steps); outR.push(fn(i / steps));
   }
   return clock.interpolate({ inputRange: inR, outputRange: outR, extrapolate: 'clamp' });
 }
@@ -339,7 +340,7 @@ export default function ResultsScreen({
   const raceIn = seg(clock, TL.RACE_START - 200, 300);
 
   // race fills: scaleX sampled through the time warp (dilation curve baked in)
-  const fillFrac = (lock) => kf(clock, TL.RACE_START, TL.RACE_END,
+  const fillFrac = (lock) => kf(clock, TL.RACE_START, TL.RACE_END - TL.RACE_START,
     (q) => Math.min(lock, TL.raceState(TL.RACE_START + q * (TL.RACE_END - TL.RACE_START)).s) / TL.maxT, 36, 0);
   const youFracI = fillFrac(you.time), oppFracI = fillFrac(opp.time);
   const TRACK_W = 880 * s;
