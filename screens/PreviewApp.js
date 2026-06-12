@@ -72,14 +72,16 @@ function ResultsLoop({ outcome, at }) {
       the real app passes live props) ── */
 const HISTORY_DEMO = {
   pending: [{ yourTime: '1.42s', stake: '$1.00', lockoutSec: 103 }],
+  // RUNNING LEDGER (CJ spec 2026-06-11): one unified row per credit movement
   feed: [
-    { kind: 'match', result: 'win', opponent: 'ALEX_R', yourTime: '1.42s', theirTime: '1.60s', amount: '+$0.95', balance: '$24.50', ago: '2m' },
-    { kind: 'ledger', type: 'deposit', amount: '+$5.00', balance: '$23.55', ago: '1h' },
-    { kind: 'match', result: 'loss', opponent: 'SPEEDY_TOM', yourTime: '1.75s', theirTime: '1.55s', amount: '-$1.00', balance: '$18.55', ago: '1h' },
-    { kind: 'ledger', type: 'payout', amount: '+$0.95', balance: '$19.55', ago: '3h' },
-    { kind: 'match', result: 'draw', opponent: 'JUNGLE_CAT', yourTime: '1.62s', theirTime: '1.62s', amount: '+$0.00', balance: '$18.60', ago: '3h' },
-    { kind: 'ledger', type: 'stake', amount: '-$1.00', balance: '$18.60', ago: '5h' },
-    { kind: 'match', result: 'cancelled', opponent: 'PHANTOM', amount: '+$1.00', balance: '$19.60', ago: '1d' },
+    { badge: 'stake', title: 'STAKED · VS ???', sub: 'PENDING — WAITING FOR OPPONENT', amount: '-$1.00', balance: '$24.50' },
+    { badge: 'win', label: 'PAYOUT', title: 'WON VS ALEX_R', sub: '1.42s VS 1.60s', amount: '+$0.95', balance: '$25.50' },
+    { badge: 'stake', title: 'STAKED · VS ALEX_R', sub: 'WON — SEE PAYOUT', amount: '-$0.50', balance: '$24.55' },
+    { badge: 'deposit', title: 'DEPOSIT', sub: 'CARD DEPOSIT', amount: '+$5.00', balance: '$25.05' },
+    { badge: 'loss', label: 'STAKE', title: 'STAKED · VS SPEEDY_TOM', sub: 'LOST · 1.75s VS 1.55s', amount: '-$1.00', balance: '$20.05' },
+    { badge: 'draw', title: 'DRAW VS JUNGLE_CAT', sub: 'STAKE RETURNED', amount: '+$1.00', balance: '$21.05' },
+    { badge: 'refund', title: 'REFUNDED', sub: 'MATCH CANCELLED / EXPIRED', amount: '+$0.50', balance: '$20.05' },
+    { badge: 'bonus', title: 'BONUS', sub: 'DAILY CHECK-IN', amount: '+$0.25', balance: '$19.55' },
   ],
   practice: { w: 12, l: 5, d: 1, log: [
     { result: 'win', animal: 'CHEETAH', yourTime: '1.42s', ago: '2m' },

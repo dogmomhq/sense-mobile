@@ -198,45 +198,63 @@ export default function ReskinApp({ g }) {
   const stakeCents = TIER_CENTS[tierIdx];
   const insufficient = g.balance < stakeCents;
 
-  /* ── history feed (MERGED matches + transactions per DECISIONS #16) ── */
+  /* ── history feed: RUNNING LEDGER (CJ spec 2026-06-11). ONE unified row per
+        credit movement, enriched with match context by match_id. The credit
+        ledger is the single source of truth — match results annotate the money
+        rows instead of rendering as a second parallel card (fixes the
+        double-refund / +$0.00 refund bugs). ── */
   const feed = useMemo(() => {
+    const byId = {};
+    (g.matchLog || []).forEach((m) => { if (m.matchId) byId[m.matchId] = m; });
+    const cancelledIds = new Set((cancelledRows || []).map((c) => c.match_id).filter(Boolean));
+    const vs = (m) => 'VS ' + String(m.opponent || '???').toUpperCase();
+    const times = (m) => `${fmtSecs(m.myTime)} VS ${m.oppTime != null ? fmtSecs(m.oppTime) : '—'}`;
+    // map a ledger entry (server type + linked match) -> unified row text
+    const enrich = (type, matchId) => {
+      const m = matchId ? byId[matchId] : null;
+      if (type === 'entry') {
+        if (m && m.result === 'loss') return { badge: 'loss', label: 'STAKE', title: `STAKED · ${vs(m)}`, sub: `LOST · ${times(m)}` };
+        if (m && m.result === 'win') return { badge: 'stake', title: `STAKED · ${vs(m)}`, sub: 'WON — SEE PAYOUT' };
+        if (m) return { badge: 'stake', title: `STAKED · ${vs(m)}`, sub: 'DRAW — STAKE RETURNED' };
+        if (matchId && cancelledIds.has(matchId)) return { badge: 'stake', title: 'STAKED · VS ???', sub: 'CANCELLED — SEE REFUND' };
+        if (matchId && g.pending && g.pending[matchId]) return { badge: 'stake', title: 'STAKED · VS ???', sub: 'PENDING — WAITING FOR OPPONENT' };
+        return { badge: 'stake', title: 'STAKED', sub: '' };
+      }
+      if (type === 'win') return m ? { badge: 'win', label: 'PAYOUT', title: `WON ${vs(m)}`, sub: times(m) }
+        : { badge: 'win', label: 'PAYOUT', title: 'WON', sub: '' };
+      if (type === 'refund') return (m && m.result === 'draw')
+        ? { badge: 'draw', title: `DRAW ${vs(m)}`, sub: 'STAKE RETURNED' }
+        : { badge: 'refund', title: 'REFUNDED', sub: 'MATCH CANCELLED / EXPIRED' };
+      if (type === 'deposit') return { badge: 'deposit', title: 'DEPOSIT', sub: 'CARD DEPOSIT' };
+      if (type === 'signup_bonus') return { badge: 'bonus', title: 'BONUS', sub: 'WELCOME CREDITS' };
+      if (type === 'daily_checkin') return { badge: 'bonus', title: 'BONUS', sub: 'DAILY CHECK-IN' };
+      if (type === 'bonus') return { badge: 'bonus', title: 'BONUS', sub: '' };
+      // unknown / legacy types render honestly with their raw type
+      return { badge: 'other', title: String(type || 'credit').toUpperCase().replace(/_/g, ' '), sub: '' };
+    };
     const rows = [];
-    (g.matchLog || []).forEach((m) => {
-      const stk = m.stake || 0;
-      rows.push({ kind: 'match', ts: m.timestamp ? new Date(m.timestamp).getTime() : 0,
-        result: m.result, opponent: String(m.opponent || '???').toUpperCase(),
-        yourTime: fmtSecs(m.myTime), theirTime: m.oppTime != null ? fmtSecs(m.oppTime) : '—',
-        amount: m.result === 'win' ? '+' + fmtMoney(winCents(stk))
-          : m.result === 'loss' ? '-' + fmtMoney(stk) : '+$0.00',
-        balance: '' });
-    });
-    (cancelledRows || []).forEach((c) => {
-      rows.push({ kind: 'match', ts: c.created_at ? new Date(c.created_at).getTime() : 0,
-        result: 'cancelled', opponent: '???', yourTime: '—', theirTime: '—',
-        amount: c.refund && c.refund.amount_cents ? '+' + fmtMoney(c.refund.amount_cents) : '+$0.00',
-        balance: '' });
-    });
-    // transactions: prefer the SERVER ledger (source of truth, has balance_after per row,
-    // survives device switches / email sign-in) — fall back to the local AsyncStorage ledger
-    // with a walked-back running balance only when the server feed isn't available.
     if (g.serverLedger && g.serverLedger.length) {
+      // server ledger = source of truth: balance_after per row, survives devices
       g.serverLedger.forEach((t) => {
-        const type = t.type === 'entry' ? 'stake' : t.type === 'win' ? 'payout'
-          : (t.type === 'bonus' || t.type === 'signup_bonus' || t.type === 'daily_checkin' || t.type === 'deposit') ? 'deposit' : t.type;
-        rows.push({ kind: 'ledger', ts: t.created_at ? new Date(t.created_at).getTime() : 0,
-          type, amount: fmtSigned(Number(t.amount)), balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
+        rows.push({ ts: t.created_at ? new Date(t.created_at).getTime() : 0,
+          ...enrich(t.type, t.match_id),
+          amount: fmtSigned(Number(t.amount)),
+          balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
       });
     } else {
-      // local ledger is newest-first; running balance walks back from the current balance
+      // fallback: local AsyncStorage ledger (newest-first), running balance
+      // walked back from the current balance; no match_id locally so the
+      // stored label doubles as the context line
       let run = g.balance;
       (g.ledger || []).forEach((t) => {
-        const type = t.type === 'entry' ? 'stake' : t.type === 'win' ? 'payout' : t.type === 'bonus' ? 'deposit' : t.type;
-        rows.push({ kind: 'ledger', ts: t.ts || 0, type, amount: fmtSigned(t.amount), balance: fmtMoney(run) });
+        const r = enrich(t.type, t.matchId);
+        rows.push({ ts: t.ts || 0, ...r, sub: r.sub || String(t.label || '').toUpperCase(),
+          amount: fmtSigned(t.amount || 0), balance: fmtMoney(run) });
         run -= (t.amount || 0);
       });
     }
     return rows.sort((a, b) => b.ts - a.ts).slice(0, 250);
-  }, [g.matchLog, g.ledger, g.serverLedger, g.balance, cancelledRows]);
+  }, [g.matchLog, g.ledger, g.serverLedger, g.balance, g.pending, cancelledRows]);
 
   const pendingRows = useMemo(() => Object.entries(g.pending || {}).map(([mid, d]) => {
     const left = d.ts ? Math.ceil((120000 - (now - d.ts)) / 1000) : 0;

@@ -1,15 +1,16 @@
 // ── HISTORY (DECISIONS 2026-06-11 #16/#17 + batch6 historymerged/practice/
 //    cancellock mockups) ─────────────────────────────────────────────────────
 // Two tabs: MATCHES | PRACTICE (Matches + Transactions MERGED per #16).
-// MATCHES = one chronological feed mixing:
-//   · pending match rows on top (PENDING badge, vs ???, locked time, stake,
-//     CANCEL — or the cancel-lockout state: greyed CANCEL + countdown ring
-//     when `cancel-denied` remainingMs < 2min, per #17)
-//   · match rows  (WIN/LOSS/DRAW/CANCELLED badge, vs name, your·their time,
-//     payout +/- and running balance, time-ago)
-//   · ledger rows (DEPOSIT/PAYOUT/STAKE/REFUND, amount, running balance from
-//     `balance_after` — ESCROW DISPLAY RULE: stake-out shows while pending,
-//     refund row on cancel/expiry)
+// MATCHES = a RUNNING LEDGER (CJ spec 2026-06-11): ONE unified row type — every
+//   credit movement is a row, enriched with match context where applicable:
+//   · STAKE  −$X · 'STAKED · VS ???' (pending) or annotated 'LOST · times' once
+//     settled as a loss (no second money row for losses — money left at stake)
+//   · PAYOUT +$X · 'WON VS NAME · 1.42s VS 1.76s'
+//   · REFUND +$X · 'MATCH CANCELLED / EXPIRED' — or 'DRAW · STAKE RETURNED'
+//   · DEPOSIT / BONUS rows as-is
+//   Every row shows the running balance (server balance_after).
+//   Pending match cards (CANCEL + lockout ring) stay pinned on top; their
+//   STAKE row ALSO appears in the feed per the spec.
 // PRACTICE = W/L/D record tiles + practice-vs-computer card + START PRACTICE
 //   CTA + recent practice log rows.
 // Pure presentational: everything arrives via props; renders inside AppShell.
@@ -28,50 +29,24 @@ const BADGE = {
   draw:      { label: 'DRAW',      bg: 'transparent', border: COLORS.cream, text: COLORS.cream },
   cancelled: { label: 'CANCELLED', bg: 'transparent', border: GREY, text: GREY },
   pending:   { label: 'PENDING',   bg: 'transparent', border: COLORS.lime, text: COLORS.lime },
+  stake:     { label: 'STAKE',     bg: 'transparent', border: COLORS.cream, text: COLORS.cream },
+  refund:    { label: 'REFUND',    bg: 'transparent', border: GREY, text: GREY },
+  deposit:   { label: 'DEPOSIT',   bg: 'transparent', border: COLORS.lime, text: COLORS.lime },
+  bonus:     { label: 'BONUS',     bg: 'transparent', border: COLORS.lime, text: COLORS.lime },
+  other:     { label: 'CREDIT',    bg: 'transparent', border: GREY, text: GREY },
 };
 
-function Badge({ kind }) {
+function Badge({ kind, label }) {
   const s = useScale();
-  const b = BADGE[kind] || BADGE.draw;
+  const b = BADGE[kind] || BADGE.other;
   return (
     <View style={{ backgroundColor: b.bg, borderWidth: 2 * s, borderColor: b.border,
       borderRadius: 16 * s, paddingVertical: 14 * s, paddingHorizontal: 28 * s,
       alignSelf: 'flex-start' }}>
       <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s,
-        letterSpacing: 0.06 * 28 * s, color: b.text }}>{b.label}</Text>
+        letterSpacing: 0.06 * 28 * s, color: b.text }}>{label || b.label}</Text>
     </View>
   );
-}
-
-/* ── ledger icon set ── */
-function LedgerIcon({ type, color }) {
-  const s = useScale();
-  const size = 52 * s, sw = 2;
-  if (type === 'deposit') return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={sw} />
-      <Path d="M12 7 L12 16 M8.5 12.5 L12 16 L15.5 12.5" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>);
-  if (type === 'payout') return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 4 H18 V8 C18 13 15 16 12 16 C9 16 6 13 6 8 Z" stroke={color} strokeWidth={sw} strokeLinejoin="round" />
-      <Path d="M12 16 V19 M8 21 H16" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-      <Path d="M6 6 H3.5 C3.5 10 5 11.5 7 12 M18 6 H20.5 C20.5 10 19 11.5 17 12" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-    </Svg>);
-  if (type === 'refund') return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 12 A7 7 0 1 1 12 19" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-      <Path d="M5 8 L5 12.5 L9.5 12.5" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>);
-  // stake: paw
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Circle cx={8} cy={8.5} r={2} fill={color} />
-      <Circle cx={16} cy={8.5} r={2} fill={color} />
-      <Circle cx={4.5} cy={12.5} r={1.7} fill={color} />
-      <Circle cx={19.5} cy={12.5} r={1.7} fill={color} />
-      <Path d="M12 11 C 15 11, 17.5 14, 17 16.5 C 16.6 18.8, 14.5 20, 12 20 C 9.5 20, 7.4 18.8, 7 16.5 C 6.5 14, 9 11, 12 11 Z" fill={color} />
-    </Svg>);
 }
 
 /* ── cancel button: live (lime ghost) or locked-out (greyed + countdown ring,
@@ -134,24 +109,26 @@ function PendingRow({ row, onCancel }) {
     </RowCard>);
 }
 
-function MatchRow({ row }) {
+/* ── ONE unified feed row: a money event + optional match context.
+      row = { badge, label?, title, sub?, amount, balance } ── */
+function FeedRow({ row }) {
   const s = useScale();
-  const b = BADGE[row.result] || BADGE.draw;
-  const amtColor = row.amount.startsWith('+') && row.amount !== '+$0.00' ? COLORS.lime
-    : row.amount.startsWith('-') ? RED : COLORS.cream;
+  const pos = String(row.amount || '').startsWith('+');
+  const amtColor = pos ? COLORS.lime : RED;
+  const border = row.badge === 'loss' ? 'rgba(255,90,72,0.45)'
+    : row.badge === 'win' ? 'rgba(215,248,74,0.35)' : 'rgba(245,241,230,0.18)';
   return (
-    <RowCard borderColor={row.result === 'loss' ? 'rgba(255,90,72,0.45)'
-      : row.result === 'cancelled' ? 'rgba(245,241,230,0.18)' : 'rgba(215,248,74,0.35)'}>
+    <RowCard borderColor={border}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 * s, flex: 1 }}>
-          <Badge kind={row.result} />
+          <Badge kind={row.badge} label={row.label} />
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 40 * s,
-              color: COLORS.cream }}>vs {row.opponent}</Text>
-            <Text style={{ fontFamily: FONTS.mono, fontSize: 30 * s, color: COLORS.creamDim,
-              marginTop: 8 * s }}>
-              {row.result === 'cancelled' ? '— · —' : `${row.yourTime} · ${row.theirTime}`}
-            </Text>
+            <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s,
+              color: COLORS.cream }}>{row.title}</Text>
+            {row.sub ? (
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.mono, fontSize: 28 * s,
+                color: COLORS.creamDim, marginTop: 8 * s }}>{row.sub}</Text>
+            ) : null}
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
@@ -159,33 +136,8 @@ function MatchRow({ row }) {
             {row.amount}</Text>
           {row.balance ? (
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
-              marginTop: 8 * s }}>
-              {row.result === 'cancelled' ? '(Refund) ' : ''}BAL {row.balance}</Text>
-          ) : row.result === 'cancelled' ? (
-            <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
-              marginTop: 8 * s }}>REFUNDED</Text>
+              marginTop: 8 * s }}>BAL {row.balance}</Text>
           ) : null}
-        </View>
-      </View>
-    </RowCard>);
-}
-
-function LedgerRow({ row }) {
-  const s = useScale();
-  const pos = row.amount.startsWith('+');
-  const color = pos ? COLORS.lime : RED;
-  return (
-    <RowCard borderColor="rgba(245,241,230,0.18)">
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 * s }}>
-          <LedgerIcon type={row.type} color={color} />
-          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 40 * s,
-            letterSpacing: 0.06 * 40 * s, color: COLORS.cream }}>{row.type.toUpperCase()}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 46 * s, color }}>{row.amount}</Text>
-          <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
-            marginTop: 8 * s }}>BAL {row.balance}</Text>
         </View>
       </View>
     </RowCard>);
@@ -262,7 +214,7 @@ function PracticeTab({ practice, onStartPractice }) {
 
 export default function HistoryScreen({
   tab: tabProp = 'matches', onTabChange,
-  pending = [], feed = [],            // feed rows: {kind:'match'|'ledger', ...}
+  pending = [], feed = [],            // feed rows: {badge,label?,title,sub?,amount,balance}
   practice = { w: 0, l: 0, d: 0, log: [] },
   onCancelPending, onStartPractice,
 }) {
@@ -297,9 +249,7 @@ export default function HistoryScreen({
         <View style={{ paddingHorizontal: 45 * s }}>
           {pending.map((row, i) => (
             <PendingRow key={`p${i}`} row={row} onCancel={onCancelPending} />))}
-          {feed.map((row, i) => row.kind === 'ledger'
-            ? <LedgerRow key={i} row={row} />
-            : <MatchRow key={i} row={row} />)}
+          {feed.map((row, i) => <FeedRow key={i} row={row} />)}
         </View>
       )}
     </ScrollView>
