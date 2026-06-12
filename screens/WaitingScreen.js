@@ -12,7 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
-import { COLORS, FONTS, RADII, useScale } from './theme';
+import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 import PressBtn from './components/PressBtn';
 
 // dark panther-eyes plate derived from the locked batch6/waiting.png mockup
@@ -52,7 +52,14 @@ export default function WaitingScreen({
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
-  const eyesCY = 1287 * s; // radar center: panther eye line baked into waiting_eyes.png
+  // Height-aware anchors (theme.useVScale): buttons + stake pill stack up from
+  // the bottom with compressible gaps (g); upper content compresses by vs. On
+  // the 1024x2224 canvas these resolve to the exact design-Y values.
+  const { vs, g, safeB } = useVScale();
+  const ghostB = 119 * s + safeB;                       // ghost row (design top 1955, h150)
+  const playB = ghostB + (150 + 45 * g) * s;            // PLAY AGAIN (design top 1700, h210)
+  const pillB = playB + (210 + 64 * g) * s;             // stake pill (design top 1565)
+  const eyesCY = 1287 * s * vs; // radar center: panther eye line baked into waiting_eyes.png
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest, overflow: 'hidden' }}>
@@ -73,7 +80,7 @@ export default function WaitingScreen({
         signedIn={signedIn} showClock={showClock} />
 
       {/* YOU LOCKED + giant lime time */}
-      <View style={{ position: 'absolute', top: 350 * s, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+      <View style={{ position: 'absolute', top: 350 * s * vs, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <Text style={{ fontFamily: FONTS.anton, fontSize: 196 * s, lineHeight: 212 * s,
           color: COLORS.cream, letterSpacing: -0.01 * 196 * s, includeFontPadding: false,
           textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 6 * s },
@@ -91,7 +98,7 @@ export default function WaitingScreen({
       </View>
 
       {/* mystery-opponent chip (#7: pre-reveal treatment, opponent unknown) */}
-      <View style={{ position: 'absolute', top: 1040 * s, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+      <View style={{ position: 'absolute', top: 1040 * s * vs, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: 'rgba(16,20,13,0.72)', borderWidth: 1.5 * s,
           borderColor: 'rgba(245,241,230,0.25)', borderRadius: RADII.stake * s,
           paddingVertical: 18 * s, paddingHorizontal: 42 * s }}>
@@ -101,16 +108,16 @@ export default function WaitingScreen({
       </View>
 
       {/* stake pill */}
-      <View style={{ position: 'absolute', top: 1565 * s, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+      <View style={{ position: 'absolute', bottom: pillB, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: COLORS.stakeBg, borderWidth: 1.5 * s, borderColor: COLORS.stakeBorder,
           borderRadius: RADII.stake * s, paddingVertical: 14 * s, paddingHorizontal: 44 * s }}>
-          <Text style={{ color: COLORS.cream, fontFamily: FONTS.interExtra, fontSize: 34 * s,
-            letterSpacing: 0.06 * 34 * s }}>{stakeText}</Text>
+          <Text style={{ color: COLORS.cream, fontFamily: FONTS.interExtra, fontSize: 34 * s, lineHeight: 40 * s,
+            letterSpacing: 0.06 * 34 * s, includeFontPadding: false }}>{stakeText}</Text>
         </View>
       </View>
 
       {/* PLAY AGAIN (same tier, decision #13/Q7 sticky tier) */}
-      <PressBtn onPress={onPlayAgain} style={{ position: 'absolute', top: 1700 * s, left: 40 * s,
+      <PressBtn onPress={onPlayAgain} style={{ position: 'absolute', bottom: playB, left: 40 * s,
         right: 40 * s, height: 210 * s, borderRadius: RADII.cta * s, backgroundColor: COLORS.lime,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18 * s, zIndex: 12,
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
@@ -124,7 +131,7 @@ export default function WaitingScreen({
       </PressBtn>
 
       {/* ghost HISTORY / HOME row */}
-      <View style={{ position: 'absolute', top: 1955 * s, left: 40 * s, right: 40 * s,
+      <View style={{ position: 'absolute', bottom: ghostB, left: 40 * s, right: 40 * s,
         flexDirection: 'row', gap: 26 * s, zIndex: 12 }}>
         {[['HISTORY', onHistory], ['HOME', onHome]].map(([label, fn]) => (
           <PressBtn key={label} onPress={fn} style={{ flex: 1, height: 150 * s,

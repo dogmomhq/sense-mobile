@@ -7,7 +7,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Svg, { Path, Circle, Ellipse, Rect } from 'react-native-svg';
-import { COLORS, FONTS, RADII, useScale } from '../theme';
+import { COLORS, FONTS, RADII, useScale, getSafeBottom } from '../theme';
 
 function Icon({ tab, color, size }) {
   const sw = 2;
@@ -51,7 +51,7 @@ const TABS = [
 export default function SegmentedNav({ active = 'home', onTab, badges = {} }) {
   const s = useScale();
   return (
-    <View style={{ position: 'absolute', left: 12 * s, right: 12 * s, bottom: 4 * s, height: 140 * s,
+    <View style={{ position: 'absolute', left: 12 * s, right: 12 * s, bottom: 4 * s + getSafeBottom(), height: 140 * s,
       flexDirection: 'row', gap: 6 * s, zIndex: 15 }}>
       {TABS.map((t) => {
         const isActive = t.key === active;

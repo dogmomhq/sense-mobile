@@ -31,7 +31,7 @@ import Svg, { Path, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
 import ConfettiBurst from './components/ConfettiBurst';
-import { COLORS, FONTS, useScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
+import { COLORS, FONTS, useScale, useVScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
 import PressBtn from './components/PressBtn';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
@@ -195,14 +195,14 @@ function OppFlip({ clock, TL, answer, s }) {
 // EKG heartbeat line — draws on with the time dilation (CLOSE races only)
 const EKG_D = 'M0 70 H190 L222 26 L254 112 L280 70 H350 L382 32 L414 106 L440 70 H880';
 const EKG_LEN = 1290; // measured path length of EKG_D
-function EkgLine({ subscribe, freezeAt, TL, s }) {
+function EkgLine({ subscribe, freezeAt, TL, s, vsC = 1 }) {
   const t = useT(subscribe, freezeAt);
   const dil = win01(t, TL.DIL_START, TL.DIL_DUR);
   const op = win01(t, TL.DIL_START, 300) * (1 - win01(t, TL.EXPLODE, 250));
   if (op <= 0) return null;
   const b1 = spike(dil, 0.30, 0.07, 0.18), b2 = spike(dil, 0.62, 0.07, 0.18);
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: 72 * s, top: 1884 * s,
+    <View pointerEvents="none" style={{ position: 'absolute', left: 72 * s, top: 1884 * s * vsC,
       width: 880 * s, height: 130 * s, opacity: op, zIndex: 16 }}>
       <Svg width={880 * s} height={130 * s} viewBox="0 0 880 130">
         <Path d={EKG_D} stroke={COLORS.lime} strokeWidth={6} fill="none"
@@ -220,7 +220,7 @@ function EkgLine({ subscribe, freezeAt, TL, s }) {
 
 // loss crumble: 9 fragments of your bar fall with gravity — the quadratic
 // fall is pre-sampled onto the native clock (translate/rotate/opacity only)
-function CrumbleFrags({ clock, TL, s, youFrac }) {
+function CrumbleFrags({ clock, TL, s, youFrac, vsC = 1 }) {
   const frags = useMemo(() => {
     const rnd = mulberry32(7 * 97 + 1), arr = [];
     for (let i = 0; i < 9; i++) arr.push({
@@ -245,7 +245,7 @@ function CrumbleFrags({ clock, TL, s, youFrac }) {
           <Animated.View key={i} pointerEvents="none" style={{
             position: 'absolute', width: (bw - 4) * s, height: 24 * s, borderRadius: 5 * s,
             backgroundColor: 'rgba(175,185,155,0.85)', zIndex: 16,
-            left: (72 + i * bw) * s, top: 1424 * s, opacity: op,
+            left: (72 + i * bw) * s, top: 1424 * s * vsC, opacity: op,
             transform: [{ translateX: tx }, { translateY: ty }, { rotate: rot }] }} />
         );
       })}
@@ -268,6 +268,15 @@ export default function ResultsScreen({
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
+  // Height-aware vertical layout (theme.useVScale): PLAY AGAIN + HOME are
+  // bottom-anchored (safe-area aware) and the content above compresses by
+  // vsC so nothing ever underlaps the buttons or the viewport. On the
+  // 1024x2224 canvas vsC = 1 and everything sits at the exact design-Y.
+  const { g: vg, safeB } = useVScale();
+  const homeB = 74 * s + safeB;                          // HOME (design top 2038, h112)
+  const playB = homeB + (112 + 38 * vg) * s;             // PLAY AGAIN (design top 1848, h152)
+  const vsC = Math.min(1, (height - playB - 152 * s) / (1848 * s));
+  const sy = (y) => y * s * vsC;
 
   /* outcome derivation (deterministic from props; override for previews) */
   let kind = outcome;
@@ -528,15 +537,15 @@ export default function ResultsScreen({
   const mark = (c) => (c ? ' ✓' : ' ✗');
 
   /* ── shared text styles ── */
-  const lblSt = { fontFamily: FONTS.interExtra, fontSize: 27 * s, letterSpacing: 0.28 * 27 * s, color: COLORS.creamDim, marginBottom: 18 * s };
+  const lblSt = { fontFamily: FONTS.interExtra, fontSize: 27 * s, letterSpacing: 0.28 * 27 * s, color: COLORS.creamDim, marginBottom: 18 * s * vg };
   const monoChip = { fontFamily: FONTS.mono, fontSize: 46 * s, color: COLORS.lime };
   const cardBox = { position: 'absolute', left: 60 * s, right: 60 * s, backgroundColor: 'rgba(16,20,13,0.84)',
     borderWidth: 2.5 * s, borderColor: 'rgba(215,248,74,0.55)', borderRadius: 28 * s,
-    paddingTop: 46 * s, paddingHorizontal: 52 * s, paddingBottom: 42 * s, zIndex: 15 };
+    paddingTop: 46 * s * vg, paddingHorizontal: 52 * s, paddingBottom: 42 * s * vg, zIndex: 15 };
 
   const Ring = ({ p, o, color, size = 340, cx = 512, cy = 840, bw = 10 }) => (
     <Animated.View pointerEvents="none" style={{ position: 'absolute',
-      left: (cx - size / 2) * s, top: (cy - size / 2) * s, width: size * s, height: size * s,
+      left: (cx - size / 2) * s, top: sy(cy) - (size / 2) * s, width: size * s, height: size * s,
       borderRadius: (size / 2) * s, borderWidth: bw * s, borderColor: color,
       opacity: o, zIndex: 48, transform: [{ scale: p }] }} />
   );
@@ -593,7 +602,7 @@ export default function ResultsScreen({
         ) : null}
 
         {/* stake context pill */}
-        <Animated.View style={{ position: 'absolute', top: 292 * s, left: 0, right: 0,
+        <Animated.View style={{ position: 'absolute', top: sy(292), left: 0, right: 0,
           alignItems: 'center', zIndex: 15, opacity: fadeOld }}>
           <View style={{ backgroundColor: COLORS.stakeBg, borderWidth: 1.5 * s, borderColor: COLORS.stakeBorder,
             borderRadius: 40 * s, paddingVertical: 14 * s, paddingHorizontal: 44 * s }}>
@@ -603,7 +612,7 @@ export default function ResultsScreen({
         </Animated.View>
 
         {/* ── STEP 1: reveal cards ── */}
-        <Animated.View style={[cardBox, { top: 430 * s, borderColor: COLORS.lime,
+        <Animated.View style={[cardBox, { top: sy(430), borderColor: COLORS.lime,
           opacity: Animated.multiply(youIn, fadeOld),
           transform: [{ translateX: youIn.interpolate({ inputRange: [0, 1], outputRange: [-220 * s, 0] }) },
             { translateY: youIn.interpolate({ inputRange: [0, 1], outputRange: [50 * s, 0] }) }] }]}>
@@ -619,7 +628,7 @@ export default function ResultsScreen({
             <Text style={monoChip}>{you.time.toFixed(2)}s</Text>
           </View>
         </Animated.View>
-        <Animated.View style={[cardBox, { top: 818 * s,
+        <Animated.View style={[cardBox, { top: sy(818),
           opacity: Animated.multiply(oppIn, fadeOld),
           transform: [{ translateX: oppIn.interpolate({ inputRange: [0, 1], outputRange: [220 * s, 0] }) },
             { translateY: oppIn.interpolate({ inputRange: [0, 1], outputRange: [50 * s, 0] }) }] }]}>
@@ -629,7 +638,7 @@ export default function ResultsScreen({
         </Animated.View>
 
         {/* ── STEP 2: the race ── */}
-        <Animated.View style={{ position: 'absolute', left: 72 * s, right: 72 * s, top: 1224 * s,
+        <Animated.View style={{ position: 'absolute', left: 72 * s, right: 72 * s, top: sy(1224),
           zIndex: 15, opacity: Animated.multiply(raceIn, isLoss
             ? mkFlash([[E, 1], [E + 750, 1], [E + 1030, 0]]) : fadeOld) }}>
           <Text style={{ textAlign: 'center', fontFamily: FONTS.interExtra, fontSize: 31 * s,
@@ -639,7 +648,7 @@ export default function ResultsScreen({
             ⏱ 0.3× TIME DILATION</Animated.Text>
           {[{ who: 'YOU', lock: you.time, frac: youFracI, wins: youWins, you: true },
             { who: 'RIVAL', lock: opp.time, frac: oppFracI, wins: !youWins && !isDraw, you: false }].map((L, i) => (
-            <View key={L.who} style={{ marginTop: i === 0 ? 42 * s : 48 * s }}>
+            <View key={L.who} style={{ marginTop: (i === 0 ? 42 : 48) * s * vg }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s,
                   letterSpacing: 0.14 * 32 * s, color: COLORS.cream }}>{L.who}</Text>
@@ -667,7 +676,7 @@ export default function ResultsScreen({
             </View>
           ))}
           {/* THE GAP stamp */}
-          <Animated.View style={{ marginTop: 46 * s, alignItems: 'center',
+          <Animated.View style={{ marginTop: 46 * s * vg, alignItems: 'center',
             opacity: isMiss ? Animated.multiply(gapIn, mkFlash([[E, 1], [E + 250, 0]])) : gapIn,
             transform: [{ scale: gapScale }] }}>
             <Text style={{ fontFamily: FONTS.anton, fontSize: 78 * s, lineHeight: 84 * s,
@@ -678,22 +687,22 @@ export default function ResultsScreen({
         </Animated.View>
 
         {/* finish line + smash ring */}
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 949 * s, top: 1398 * s,
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 949 * s, top: sy(1398),
           width: 9 * s, height: 242 * s, borderRadius: 4 * s, backgroundColor: COLORS.lime,
           opacity: finOp, zIndex: 16, transform: [{ scaleY: finScaleY }],
           shadowColor: COLORS.lime, shadowOpacity: 0.8, shadowRadius: 24 * s, shadowOffset: { width: 0, height: 0 } }} />
         <Ring p={finShockP} o={finShockO} color={COLORS.lime} size={220} cx={952} cy={1519} bw={9} />
-        {TL.CLOSE ? <EkgLine subscribe={subscribe} freezeAt={FT} TL={TL} s={s} /> : null}
-        {isLoss ? <CrumbleFrags clock={clock} TL={TL} s={s} youFrac={you.time / TL.maxT} /> : null}
+        {TL.CLOSE ? <EkgLine subscribe={subscribe} freezeAt={FT} TL={TL} s={s} vsC={vsC} /> : null}
+        {isLoss ? <CrumbleFrags clock={clock} TL={TL} s={s} youFrac={you.time / TL.maxT} vsC={vsC} /> : null}
 
         {/* ── STEP 3: explode ── */}
         {!isDraw ? (
           <>
-            <Animated.Text style={{ position: 'absolute', top: 350 * s, left: 0, right: 0, textAlign: 'center',
+            <Animated.Text style={{ position: 'absolute', top: sy(350), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.interBlack, fontSize: 37 * s, letterSpacing: 0.42 * 37 * s,
               color: isWin ? COLORS.lime : RED, opacity: eyebrowIn, zIndex: 20,
               transform: [{ translateY: eyebrowY }] }}>{eyebrowTxt}</Animated.Text>
-            <Animated.Text style={{ position: 'absolute', top: 486 * s, left: 0, right: 0, textAlign: 'center',
+            <Animated.Text style={{ position: 'absolute', top: sy(486), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.anton, fontSize: 226 * s, lineHeight: 238 * s,
               color: isWin ? COLORS.lime : COLORS.cream, opacity: hlOp, zIndex: 20,
               textShadowColor: isWin ? 'rgba(215,248,74,0.35)' : 'rgba(255,90,72,0.4)',
@@ -707,7 +716,7 @@ export default function ResultsScreen({
           <>
             {REDUCED_FX ? null : Array.from({ length: 12 }).map((_, i) => (
               <Animated.View key={i} pointerEvents="none" style={{ position: 'absolute',
-                left: (512 - 7) * s, top: 600 * s, width: 14 * s, height: 430 * s,
+                left: (512 - 7) * s, top: sy(600), width: 14 * s, height: 430 * s,
                 backgroundColor: COLORS.lime, opacity: rayOp, zIndex: 44,
                 transform: [{ translateY: -215 * s }, { rotate: (i / 12) * 360 + 15 + 'deg' },
                   { translateY: 215 * s },
@@ -715,7 +724,7 @@ export default function ResultsScreen({
                   { scaleX: rayP.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] }) }] }} />
             ))}
             <ConfettiBurst clock={clock} hit={E + HIT} s={s} />
-            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: 756 * s, left: 0, right: 0,
+            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(756), left: 0, right: 0,
               textAlign: 'center', fontFamily: FONTS.anton, fontSize: 190 * s, lineHeight: 200 * s,
               color: COLORS.lime, opacity: heroOp, zIndex: 46,
               textShadowColor: 'rgba(212,242,60,0.75)', textShadowRadius: 30 * s,
@@ -724,7 +733,7 @@ export default function ResultsScreen({
               +{fmt(payout)}</Animated.Text>
             <Ring p={heroShockP} o={heroShockO} color="#FFFFFF" cx={512} cy={851} />
             {pillLabel ? (
-              <Animated.View style={{ position: 'absolute', top: 742 * s, left: 0, right: 0,
+              <Animated.View style={{ position: 'absolute', top: sy(742), left: 0, right: 0,
                 alignItems: 'center', opacity: pillIn, zIndex: 22,
                 transform: [{ rotate: '-8deg' }, { scale: pillScale }] }}>
                 <View style={{ backgroundColor: COLORS.forest, borderWidth: 3 * s, borderColor: COLORS.lime,
@@ -740,7 +749,7 @@ export default function ResultsScreen({
 
         {/* LOSS: rival anchor + BEAT THAT */}
         {isLoss ? (
-          <Animated.View style={{ position: 'absolute', top: 790 * s, left: 0, right: 0,
+          <Animated.View style={{ position: 'absolute', top: sy(790), left: 0, right: 0,
             alignItems: 'center', opacity: anchorIn, zIndex: 20, transform: [{ translateY: anchorY }] }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 35 * s, letterSpacing: 0.16 * 35 * s,
               color: COLORS.creamDim }}>RIVAL HIT <Text style={{ fontFamily: FONTS.mono, fontSize: 44 * s,
@@ -754,14 +763,14 @@ export default function ResultsScreen({
         {/* NEARMISS: gap monument -> collapses into PLAY AGAIN */}
         {isMiss ? (
           <>
-            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: 760 * s, left: 0, right: 0,
+            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(760), left: 0, right: 0,
               textAlign: 'center', fontFamily: FONTS.anton, fontSize: 230 * s, lineHeight: 242 * s,
               color: RED, opacity: monOp, zIndex: 24,
               textShadowColor: 'rgba(255,90,72,0.65)', textShadowRadius: 40 * s,
               textShadowOffset: { width: 0, height: 6 * s },
               transform: [{ translateY: monY }, { scale: monScale }] }}>
               {(you.time - opp.time).toFixed(2)}s</Animated.Text>
-            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: 1020 * s, left: 0, right: 0,
+            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(1020), left: 0, right: 0,
               textAlign: 'center', fontFamily: FONTS.interBlack, fontSize: 30 * s,
               letterSpacing: 0.42 * 30 * s, color: RED, opacity: monLblOp, zIndex: 24 }}>THE GAP</Animated.Text>
           </>
@@ -770,12 +779,12 @@ export default function ResultsScreen({
         {/* DRAW: lime split + mirrored avatars + stamp + refund pill (batch6/draw.png) */}
         {isDraw ? (
           <>
-            <Animated.View pointerEvents="none" style={{ position: 'absolute', left: (512 - 4) * s, top: 480 * s,
+            <Animated.View pointerEvents="none" style={{ position: 'absolute', left: (512 - 4) * s, top: sy(480),
               width: 8 * s, height: 1080 * s, borderRadius: 4 * s, backgroundColor: COLORS.lime, zIndex: 20,
               opacity: splitIn, transform: [{ scaleY: splitIn }],
               shadowColor: COLORS.lime, shadowOpacity: 0.7, shadowRadius: 24 * s, shadowOffset: { width: 0, height: 0 } }} />
             {[{ cx: 300, av: avInL, time: you.time }, { cx: 724, av: avInR, time: opp.time }].map((P, i) => (
-              <Animated.View key={i} style={{ position: 'absolute', left: (P.cx - 130) * s, top: 560 * s,
+              <Animated.View key={i} style={{ position: 'absolute', left: (P.cx - 130) * s, top: sy(560),
                 alignItems: 'center', width: 260 * s, opacity: P.av, zIndex: 20,
                 transform: [{ scale: P.av.interpolate({ inputRange: [0, 1.2], outputRange: [0.4, 1.2], extrapolate: 'extend' }) }] }}>
                 <Image source={AVATAR} style={{ width: 260 * s, height: 260 * s, borderRadius: 130 * s,
@@ -784,12 +793,12 @@ export default function ResultsScreen({
                   {P.time.toFixed(2)}s</Text>
               </Animated.View>
             ))}
-            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: 1180 * s, left: 0, right: 0,
+            <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(1180), left: 0, right: 0,
               textAlign: 'center', fontFamily: FONTS.anton, fontSize: 240 * s, lineHeight: 252 * s,
               color: COLORS.cream, opacity: stampOp, zIndex: 24,
               textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 2 * s, textShadowOffset: { width: 0, height: 10 * s },
               transform: [{ rotate: '-8deg' }, { scale: stampScale }] }}>DRAW</Animated.Text>
-            <Animated.View style={{ position: 'absolute', top: 1640 * s, left: 0, right: 0,
+            <Animated.View style={{ position: 'absolute', top: sy(1640), left: 0, right: 0,
               alignItems: 'center', opacity: refundIn, zIndex: 20,
               transform: [{ translateY: refundIn.interpolate({ inputRange: [0, 1], outputRange: [30 * s, 0] }) }] }}>
               <View style={{ backgroundColor: 'rgba(16,20,13,0.86)', borderWidth: 2 * s,
@@ -808,15 +817,15 @@ export default function ResultsScreen({
         {/* result card + stats + mode line (not on draw — per locked mockup) */}
         {!isDraw ? (
           <>
-            <Animated.Text style={{ position: 'absolute', top: 1166 * s, left: 0, right: 0, textAlign: 'center',
+            <Animated.Text style={{ position: 'absolute', top: sy(1166), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.interExtra, fontSize: 25 * s, letterSpacing: 0.3 * 25 * s,
               color: COLORS.creamDim, opacity: cardIn, zIndex: 18 }}>
               ONLINE MATCH · {fmt(stake)} STAKE</Animated.Text>
-            <Animated.View style={{ position: 'absolute', top: 1222 * s, left: 60 * s, right: 60 * s,
+            <Animated.View style={{ position: 'absolute', top: sy(1222), left: 60 * s, right: 60 * s,
               backgroundColor: 'rgba(16,20,13,0.86)', borderWidth: 2.5 * s, borderColor: 'rgba(215,248,74,0.55)',
-              borderRadius: 28 * s, paddingVertical: 36 * s, paddingHorizontal: 52 * s, zIndex: 18,
+              borderRadius: 28 * s, paddingVertical: 36 * s * vg, paddingHorizontal: 52 * s, zIndex: 18,
               opacity: cardIn, transform: [{ translateY: cardY }] }}>
-              <View style={{ flexDirection: 'row', paddingBottom: 22 * s, paddingTop: 10 * s }}>
+              <View style={{ flexDirection: 'row', paddingBottom: 22 * s * vg, paddingTop: 10 * s * vg }}>
                 {['RESULT', 'ANSWER', 'TIME'].map((h, i) => (
                   <Text key={h} style={{ width: i === 0 ? 190 * s : i === 2 ? 250 * s : undefined, flex: i === 1 ? 1 : 0,
                     textAlign: i === 2 ? 'right' : 'left', fontFamily: FONTS.interExtra, fontSize: 26 * s,
@@ -826,7 +835,7 @@ export default function ResultsScreen({
               {[{ who: 'YOU', ans: you.answer + mark(you.correct), time: you.time.toFixed(2) + 's', me: true },
                 { who: 'RIVAL', ans: opp.answer + (opp.correct ? '' : ' ✗'), time: opp.time.toFixed(2) + 's', me: false },
                 { who: 'CORRECT ANSWER', ans: correctAnswer, time: '', corr: true }].map((r, i) => (
-                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 26 * s,
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 26 * s * vg,
                   borderTopWidth: 1.5 * s, borderTopColor: 'rgba(245,241,230,0.14)' }}>
                   <Text style={{ width: 190 * s, fontFamily: r.corr ? FONTS.interExtra : FONTS.interBlack,
                     fontSize: (r.corr ? 26 : 36) * s, letterSpacing: 0.06 * 36 * s,
@@ -839,14 +848,14 @@ export default function ResultsScreen({
                 </View>
               ))}
             </Animated.View>
-            <Animated.Text style={{ position: 'absolute', top: 1768 * s, left: 0, right: 0, textAlign: 'center',
+            <Animated.Text style={{ position: 'absolute', top: sy(1768), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.interExtra, fontSize: 34 * s, letterSpacing: 0.16 * 34 * s,
               color: COLORS.creamDim, opacity: cardIn, zIndex: 18 }}>{statsTxt}</Animated.Text>
           </>
         ) : null}
 
         {/* PLAY AGAIN (lime, idle pulse, nearmiss ignite) + ghost HOME */}
-        <Animated.View style={{ position: 'absolute', top: 1848 * s, left: 60 * s, right: 60 * s,
+        <Animated.View style={{ position: 'absolute', bottom: playB, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn, transform: [{ translateY: btnY }, { scale: btnScale }] }}>
           <PressBtn onPress={onPlayAgain} style={{ height: 152 * s, borderRadius: 30 * s,
             backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
@@ -865,7 +874,7 @@ export default function ResultsScreen({
               borderColor: COLORS.lime, opacity: igniteGlow }} />
           ) : null}
         </Animated.View>
-        <Animated.View style={{ position: 'absolute', top: 2038 * s, left: 60 * s, right: 60 * s,
+        <Animated.View style={{ position: 'absolute', bottom: homeB, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn }}>
           <PressBtn onPress={onHome} style={{ height: 112 * s, borderRadius: 26 * s,
             borderWidth: 2.5 * s, borderColor: 'rgba(245,241,230,0.4)', backgroundColor: 'rgba(16,20,13,0.6)',

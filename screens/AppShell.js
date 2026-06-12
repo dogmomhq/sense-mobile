@@ -10,7 +10,7 @@ import React from 'react';
 import { View, Text, Pressable, StatusBar } from 'react-native';
 import GlassHeader from './components/GlassHeader';
 import SegmentedNav from './components/SegmentedNav';
-import { COLORS, FONTS, useScale } from './theme';
+import { COLORS, FONTS, useScale, getSafeBottom } from './theme';
 
 export function PendingStrip({ count, onPress }) {
   const s = useScale();
@@ -39,7 +39,7 @@ export default function AppShell({
       <StatusBar barStyle="light-content" />
       {/* content slot: between header zone and nav */}
       <View style={{ position: 'absolute', top: (pendingCount > 0 ? 370 : 280) * s,
-        left: 0, right: 0, bottom: 156 * s, zIndex: 5 }}>
+        left: 0, right: 0, bottom: 156 * s + getSafeBottom(), zIndex: 5 }}>
         {children}
       </View>
       <GlassHeader streak={streak} balance={balance} handle={handle}

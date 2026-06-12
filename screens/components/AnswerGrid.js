@@ -5,13 +5,13 @@
 //         locked (answer submitted) = solid lime cell, others dimmed.
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { COLORS, FONTS, RADII, useScale } from '../theme';
+import { COLORS, FONTS, RADII, useScale, getSafeBottom } from '../theme';
 
 export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null, disabled = false }) {
   const s = useScale();
   const cellW = (1024 - 45 * 2 - 24) / 2; // 455 prototype px
   return (
-    <View style={{ position: 'absolute', left: 45 * s, right: 45 * s, bottom: 120 * s,
+    <View style={{ position: 'absolute', left: 45 * s, right: 45 * s, bottom: 120 * s + getSafeBottom(),
       flexDirection: 'row', flexWrap: 'wrap', gap: 24 * s, zIndex: 15 }}>
       {answers.map((label, i) => {
         const locked = lockedIndex != null;

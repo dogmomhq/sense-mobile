@@ -42,7 +42,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Image } from 'react-native';
 import * as RNSvg from 'react-native-svg';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
-import { COLORS, FONTS, useScale, REDUCED_FX } from '../theme';
+import { COLORS, FONTS, useScale, useVScale, REDUCED_FX } from '../theme';
 
 const R = 396, CX = 420, CY = 420;
 const RING_OX = 92, RING_OY = 430;            // ring-wrap offset inside 1024x2224 screen
@@ -123,6 +123,7 @@ function makePool() {
 
 function FuseSparks({ tLeft }) {
   const s = useScale();
+  const { vs } = useVScale();   // shifts the full-canvas spark layer with the ring on short viewports
   const stateRef = useRef(null);
   if (!stateRef.current) stateRef.current = {
     pool: makePool(), rnd: mulberry32(SEED * 7919 + 3),
@@ -278,7 +279,7 @@ function FuseSparks({ tLeft }) {
   const core = (r, color, op) => ({ position: 'absolute', left: (hx - r) * s, top: (hy - r) * s,
     width: r * 2 * s, height: r * 2 * s, borderRadius: r * s, backgroundColor: color, opacity: op });
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 1024 * s, height: 2224 * s, zIndex: 16 }}>
+    <View pointerEvents="none" style={{ position: 'absolute', top: RING_OY * (vs - 1) * s, left: 0, width: 1024 * s, height: 2224 * s, zIndex: 16 }}>
       {/* soft warm glow underlay (spec .spark-glow) */}
       <View style={core(190, 'rgba(255,150,50,0.16)', 0.35 + hrand(Math.floor(T * 14), 5) * 0.3)} />
       {sparks}
@@ -293,6 +294,7 @@ function FuseSparks({ tLeft }) {
 // ── main component ──────────────────────────────────────────────────────────
 export default function TimerRing({ secondsLeft = 10, mode = 'fuse' }) {
   const s = useScale();
+  const { vs } = useVScale();   // compresses the ring's design-Y on short viewports
   const tLeft = Math.max(0, Math.min(10, secondsLeft));
   const T = 10 - tLeft;                          // animation time for breathing/pulse
   const headA = (T / 10) * 360;                  // head angle from top, clockwise
@@ -382,7 +384,7 @@ export default function TimerRing({ secondsLeft = 10, mode = 'fuse' }) {
   return (
     <>
       <View pointerEvents="none"
-        style={{ position: 'absolute', top: RING_OY * s, left: RING_OX * s, width: 840 * s, height: 840 * s, zIndex: 15 }}>
+        style={{ position: 'absolute', top: RING_OY * s * vs, left: RING_OX * s, width: 840 * s, height: 840 * s, zIndex: 15 }}>
         <Svg width={840 * s} height={840 * s} viewBox="0 0 840 840" style={{ overflow: 'visible' }}>
           {HAS_FILTERS && mode === 'fuse' ? (
             <Defs>

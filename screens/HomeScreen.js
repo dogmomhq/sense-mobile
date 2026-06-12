@@ -10,7 +10,7 @@ import GlassHeader from './components/GlassHeader';
 import SegmentedNav from './components/SegmentedNav';
 import CoverPhoto from './components/CoverPhoto';
 import { PendingStrip } from './AppShell';
-import { COLORS, FONTS, RADII, useScale } from './theme';
+import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 
 const CHEETAH = require('../assets/cheetah.jpeg');
 const CHEETAH_W = 768, CHEETAH_H = 1376;
@@ -26,6 +26,17 @@ export default function HomeScreen({
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
+  // Height-aware vertical anchors (see theme.useVScale): nav is bottom-anchored,
+  // tier row / caption / CTA stack stack upward from it with gaps that compress
+  // (factor g) on short viewports; the wordmark clamps above the CTAs and the
+  // photo area absorbs the remaining shrink. On the 1024x2224 canvas (g=1,
+  // safeB=0) these resolve to the exact locked design-Y values (1500/1845/1895).
+  const { g, safeB } = useVScale();
+  const navB = 4 * s + safeB;                       // SegmentedNav bottom edge
+  const pillsB = navB + (140 + 53 * g) * s;         // tier pills (design h132)
+  const captionB = pillsB + (132 + 14 * g) * s;     // caption row (design h36)
+  const ctaB = captionB + (36 + 33 * g) * s;        // CTA stack (design h312)
+  const wmTop = Math.min(1150 * s, height - ctaB - (312 + 350) * s);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
@@ -52,8 +63,8 @@ export default function HomeScreen({
         onSignIn={onSignIn} onPressAdd={onAddFunds} showClock={showClock} />
       {pendingCount > 0 ? <PendingStrip count={pendingCount} onPress={onPendingPress} /> : null}
 
-      {/* wordmark + tagline */}
-      <View style={{ position: 'absolute', top: 1150 * s, left: 0, right: 0,
+      {/* wordmark + tagline (clamps upward on short viewports) */}
+      <View style={{ position: 'absolute', top: wmTop, left: 0, right: 0,
         alignItems: 'center', paddingHorizontal: 32 * s, zIndex: 10 }}>
         <Text style={{ fontFamily: FONTS.anton, fontSize: 340 * s, lineHeight: 0.86 * 340 * s,
           color: COLORS.wordmark, letterSpacing: -0.045 * 340 * s, marginBottom: 16 * s,
@@ -66,7 +77,7 @@ export default function HomeScreen({
       </View>
 
       {/* CTA stack — PLAY NOW (lime, h~170) + PRACTICE FREE (ghost, h~110) */}
-      <View style={{ position: 'absolute', top: 1500 * s, left: 45 * s, right: 45 * s, gap: 16 * s, zIndex: 15 }}>
+      <View style={{ position: 'absolute', bottom: ctaB, left: 45 * s, right: 45 * s, gap: 16 * s, zIndex: 15 }}>
         {playDisabled ? (
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 28 * s, color: '#FF5A48',
             letterSpacing: 0.08 * 28 * s, textAlign: 'center' }}>{insufficientLabel}</Text>
@@ -87,22 +98,22 @@ export default function HomeScreen({
           style={({ pressed }) => ({ borderWidth: 3 * s, borderColor: COLORS.ghostBorder,
             borderRadius: RADII.ghost * s, paddingVertical: 32 * s, paddingHorizontal: 48 * s,
             alignItems: 'center', opacity: pressed ? 0.7 : 1 })}>
-          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 38 * s, color: COLORS.cream,
-            letterSpacing: 0.16 * 38 * s, top: 5 * s }}>PRACTICE FREE</Text>
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 38 * s, lineHeight: 40 * s, color: COLORS.cream,
+            letterSpacing: 0.16 * 38 * s, top: 5 * s, includeFontPadding: false }}>PRACTICE FREE</Text>
         </Pressable>
       </View>
 
-      {/* tier caption row (y1845) */}
-      <View style={{ position: 'absolute', top: 1845 * s, left: 32 * s, right: 32 * s,
+      {/* tier caption row (design y1845, bottom-anchored) */}
+      <View style={{ position: 'absolute', bottom: captionB, left: 32 * s, right: 32 * s,
         flexDirection: 'row', justifyContent: 'space-between', zIndex: 15 }}>
-        <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, letterSpacing: 0.08 * 30 * s,
-          color: COLORS.creamDim }}>SELECT YOUR TIER</Text>
-        <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, letterSpacing: 0.08 * 30 * s,
-          color: COLORS.lime }}>{winAmount}</Text>
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, lineHeight: 36 * s, letterSpacing: 0.08 * 30 * s,
+          color: COLORS.creamDim, includeFontPadding: false }}>SELECT YOUR TIER</Text>
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, lineHeight: 36 * s, letterSpacing: 0.08 * 30 * s,
+          color: COLORS.lime, includeFontPadding: false }}>{winAmount}</Text>
       </View>
 
-      {/* tier pills (y1895, selected cell 1.09x wider) */}
-      <View style={{ position: 'absolute', top: 1895 * s, left: 43 * s, right: 48 * s,
+      {/* tier pills (design y1895, bottom-anchored, selected cell 1.09x wider) */}
+      <View style={{ position: 'absolute', bottom: pillsB, left: 43 * s, right: 48 * s,
         flexDirection: 'row', gap: 16 * s, zIndex: 15 }}>
         {tiers.map((t, i) => {
           const sel = i === selectedTier;

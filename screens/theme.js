@@ -85,3 +85,37 @@ export function useSenseFonts() {
   });
   return loaded;
 }
+
+// ── Height-aware vertical layout (2026-06-12 responsive fix) ────────────────
+// Real phones are proportionally SHORTER than the 1024x2224 design canvas
+// (Safari URL bar etc), so fixed design-Y placement pushes bottom content
+// under the nav. vs compresses vertical POSITIONS (sizes stay width-scaled);
+// g compresses GAPS faster than vs so spacing absorbs shrink first. On a
+// proportional (tall) canvas vs = g = 1 and every screen renders the exact
+// locked design.
+import { Platform } from 'react-native';
+
+let _safeBottom = null;
+export function getSafeBottom() {
+  if (_safeBottom != null) return _safeBottom;
+  _safeBottom = 0;
+  if (Platform.OS === 'web' && typeof document !== 'undefined' && document.body) {
+    try { // probe env(safe-area-inset-bottom) — returns 0 unless viewport-fit=cover
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;bottom:0;width:0;pointer-events:none;height:env(safe-area-inset-bottom,0px);';
+      document.body.appendChild(el);
+      _safeBottom = el.getBoundingClientRect().height || 0;
+      el.remove();
+    } catch (e) { _safeBottom = 0; }
+  }
+  return _safeBottom;
+}
+
+export function useVScale() {
+  const { width, height } = useWindowDimensions();
+  const s = width / BASE_W;
+  const designH = BASE_H * s;
+  const vs = Math.min(1, height / designH);
+  const g = vs >= 1 ? 1 : Math.max(0.3, 1 - (1 - vs) * 1.6);
+  return { s, vs, g, width, height, safeB: getSafeBottom() };
+}
