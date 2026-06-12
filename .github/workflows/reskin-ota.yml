@@ -1,0 +1,35 @@
+name: Reskin OTA (publish reskin-ui to preview channel)
+
+# Publishes the reskin-ui branch JS bundle as an EAS Update to the "preview"
+# channel — the channel the testflight-profile builds (incl. builds 9 and 11)
+# are pinned to. Runtime version policy is appVersion (1.0.0), so installed
+# binaries pick this up on next cold launch. Workflow lives on main
+# (workflow_dispatch requirement) but checks out reskin-ui.
+on:
+  workflow_dispatch:
+    inputs:
+      message: { description: "Update message", required: false, default: "reskin OTA" }
+
+concurrency:
+  group: reskin-ota
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reskin-ui
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Publish OTA update to preview channel
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest update --channel preview --message "${{ github.event.inputs.message || 'reskin OTA' }}" --non-interactive
+      - name: Show published updates (group / runtime / branch)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest update:list --branch preview --limit 3 --non-interactive
