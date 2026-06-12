@@ -93,22 +93,74 @@ export function useSenseFonts() {
 // g compresses GAPS faster than vs so spacing absorbs shrink first. On a
 // proportional (tall) canvas vs = g = 1 and every screen renders the exact
 // locked design.
-import { Platform } from 'react-native';
+import { Platform, Dimensions } from 'react-native';
+import Constants from 'expo-constants';
 
 let _safeBottom = null;
 export function getSafeBottom() {
   if (_safeBottom != null) return _safeBottom;
   _safeBottom = 0;
-  if (Platform.OS === 'web' && typeof document !== 'undefined' && document.body) {
-    try { // probe env(safe-area-inset-bottom) — returns 0 unless viewport-fit=cover
-      const el = document.createElement('div');
-      el.style.cssText = 'position:fixed;bottom:0;width:0;pointer-events:none;height:env(safe-area-inset-bottom,0px);';
-      document.body.appendChild(el);
-      _safeBottom = el.getBoundingClientRect().height || 0;
-      el.remove();
-    } catch (e) { _safeBottom = 0; }
+  if (Platform.OS === 'web') {
+    if (typeof document !== 'undefined' && document.body) {
+      try { // probe env(safe-area-inset-bottom) — returns 0 unless viewport-fit=cover
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;bottom:0;width:0;pointer-events:none;height:env(safe-area-inset-bottom,0px);';
+        document.body.appendChild(el);
+        _safeBottom = el.getBoundingClientRect().height || 0;
+        el.remove();
+      } catch (e) { _safeBottom = 0; }
+    }
+    return _safeBottom;
+  }
+  // Native: home-indicator inset. expo-constants doesn't report the bottom
+  // inset, so infer it — devices WITH a top notch/island (no home button) also
+  // have the ~34pt home-indicator gesture bar; older home-button devices have 0.
+  if (Platform.OS === 'ios') {
+    let top = 0;
+    try { top = Number(Constants.statusBarHeight) || 0; } catch (e) { top = 0; }
+    _safeBottom = top > 24 ? 34 : 0; // notch/island status bar > 24pt -> home indicator
   }
   return _safeBottom;
+}
+
+// ── Safe-area TOP inset (2026-06-12 Dynamic Island / notch fix) ─────────────
+// The locked design canvas (1024x2224) has NO OS status bar — the glass header
+// was tuned to sit 94px from the very top. On a real phone the OS draws its own
+// status bar / Dynamic Island in that exact zone, so header chrome collides with
+// it. getSafeTop() returns the real top inset (in DEVICE px, NOT prototype px —
+// so callers add it RAW, never * s, exactly like getSafeBottom()). On web the
+// preview canvas has no inset, so this returns 0 and the locked design + mock
+// status bar render unchanged.
+let _safeTop = null;
+export function getSafeTop() {
+  if (_safeTop != null) return _safeTop;
+  if (Platform.OS === 'web') {
+    _safeTop = 0;
+    if (typeof document !== 'undefined' && document.body) {
+      try { // probe env(safe-area-inset-top) — 0 unless viewport-fit=cover (preview = 0)
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;top:0;width:0;pointer-events:none;height:env(safe-area-inset-top,0px);';
+        document.body.appendChild(el);
+        _safeTop = el.getBoundingClientRect().height || 0;
+        el.remove();
+      } catch (e) { _safeTop = 0; }
+    }
+    return _safeTop;
+  }
+  // Native: prefer the OS-reported status-bar height (expo-constants, no provider
+  // needed). Floor it with a Dynamic-Island / notch heuristic so a stale/0 value
+  // never lets content slide under the island.
+  let top = 0;
+  try { top = Number(Constants.statusBarHeight) || 0; } catch (e) { top = 0; }
+  if (Platform.OS === 'ios') {
+    const { height, width } = Dimensions.get('window');
+    const longest = Math.max(height, width);
+    // Dynamic Island devices (iPhone 14 Pro+/15/16) report >= ~852pt tall.
+    const islandFloor = longest >= 850 ? 59 : 47; // 59 island, 47 notch
+    if (top < islandFloor) top = islandFloor;
+  }
+  _safeTop = top;
+  return _safeTop;
 }
 
 export function useVScale() {
@@ -117,5 +169,5 @@ export function useVScale() {
   const designH = BASE_H * s;
   const vs = Math.min(1, height / designH);
   const g = vs >= 1 ? 1 : Math.max(0.3, 1 - (1 - vs) * 1.6);
-  return { s, vs, g, width, height, safeB: getSafeBottom() };
+  return { s, vs, g, width, height, safeB: getSafeBottom(), safeT: getSafeTop() };
 }

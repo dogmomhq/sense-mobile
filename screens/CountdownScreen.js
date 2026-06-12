@@ -19,7 +19,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, Animated, Easing, useWindowDimensions, StatusBar } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
-import { COLORS, FONTS, useScale } from './theme';
+import { COLORS, FONTS, useScale, getSafeTop } from './theme';
 import { sfx, hapTap } from './sfx';
 
 const EYE = require('../assets/countdown/eye_base.jpeg');
@@ -66,6 +66,9 @@ function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
 // not the GO beat start (rev3). The scheduled flip stays as the fallback t0.
 export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onHandoff, freezeBeat = null }) {
   const s = useScale();
+  // full-bleed takeover (no header), but the stake pill must clear the island.
+  const safeTop = getSafeTop();
+  const pillTop = (safeTop > 0 ? safeTop + 12 : 118 * s);
   const { width: W, height: H } = useWindowDimensions();
   // ── Eye-centering fix (2026-06-12) ──────────────────────────────────────
   // The old code placed the pupil at PUPIL_X/Y * s, i.e. design-canvas pixels
@@ -275,7 +278,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
         {glyphWrap(0)}
         {glyphWrap(1)}
         {/* stake pill (locked prototype chrome) */}
-        <View style={{ position: 'absolute', top: 118 * s, left: 0, right: 0, alignItems: 'center', zIndex: 30 }}>
+        <View style={{ position: 'absolute', top: pillTop, left: 0, right: 0, alignItems: 'center', zIndex: 30 }}>
           <View style={{ backgroundColor: 'rgba(16,20,13,0.78)', borderWidth: 1.5 * s,
             borderColor: COLORS.stakeBorder, borderRadius: 44 * s, paddingVertical: 16 * s, paddingHorizontal: 52 * s }}>
             <Text style={{ color: COLORS.lime, fontFamily: FONTS.interExtra, fontSize: 38 * s,

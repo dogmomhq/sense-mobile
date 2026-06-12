@@ -10,12 +10,15 @@ import React from 'react';
 import { View, Text, Pressable, StatusBar } from 'react-native';
 import GlassHeader from './components/GlassHeader';
 import SegmentedNav from './components/SegmentedNav';
-import { COLORS, FONTS, useScale, getSafeBottom } from './theme';
+import { COLORS, FONTS, useScale, getSafeBottom, getSafeTop } from './theme';
 
 export function PendingStrip({ count, onPress }) {
   const s = useScale();
+  const safeTop = getSafeTop();
+  // header shifted down by (safeTop + 12 - 94*s) on device; shift this with it.
+  const headerShift = safeTop > 0 ? (safeTop + 12 - 94 * s) : 0;
   return (
-    <Pressable onPress={onPress} style={{ position: 'absolute', top: 278 * s, left: 22 * s, right: 22 * s,
+    <Pressable onPress={onPress} style={{ position: 'absolute', top: 278 * s + headerShift, left: 22 * s, right: 22 * s,
       height: 76 * s, borderRadius: 38 * s, backgroundColor: 'rgba(16,20,13,0.82)',
       borderWidth: 1.5 * s, borderColor: COLORS.stakeBorder, zIndex: 14,
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14 * s }}>
@@ -34,11 +37,16 @@ export default function AppShell({
   activeTab = 'home', onTab, showClock = false, children,
 }) {
   const s = useScale();
+  const safeTop = getSafeTop();
+  // On device the header is pushed below the status bar / island; the content
+  // slot (and pending strip) shift down by the same amount so nothing collides.
+  // On web safeTop = 0, so the locked design-Y values are exact.
+  const headerShift = safeTop > 0 ? (safeTop + 12 - 94 * s) : 0;
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest, overflow: 'hidden' }}>
       <StatusBar barStyle="light-content" />
       {/* content slot: between header zone and nav */}
-      <View style={{ position: 'absolute', top: (pendingCount > 0 ? 370 : 280) * s,
+      <View style={{ position: 'absolute', top: (pendingCount > 0 ? 370 : 280) * s + headerShift,
         left: 0, right: 0, bottom: 156 * s + getSafeBottom(), zIndex: 5 }}>
         {children}
       </View>

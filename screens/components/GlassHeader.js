@@ -5,9 +5,9 @@
 // `showClock` renders the prototype's mock status bar (preview/pixel-diff
 // parity only — real devices draw their own status bar over the photo).
 import React from 'react';
-import { View, Text, Image, Pressable } from 'react-native';
+import { View, Text, Image, Pressable, Platform } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { COLORS, FONTS, RADII, useScale } from '../theme';
+import { COLORS, FONTS, RADII, useScale, getSafeTop } from '../theme';
 import InitialsAvatar from './InitialsAvatar';
 
 const DEFAULT_AVATAR = require('../../assets/avatar_demo.png');
@@ -113,16 +113,25 @@ function SignInPill({ onPress }) {
 export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = DEFAULT_AVATAR,
   handle = null, showClock = false, signedIn = true, onSignIn, onPressAdd }) {
   const s = useScale();
+  // On device the OS draws the real status bar / Dynamic Island in the top zone;
+  // push the whole header below it. safeTop is DEVICE px (added raw, never * s).
+  // On web safeTop = 0 so the locked 94/121 design + mock status bar are exact.
+  const safeTop = getSafeTop();
+  const slabTop = (safeTop > 0 ? safeTop + 12 : 94 * s);   // design 94 -> island + gap
+  const rowTop = slabTop + 27 * s;                         // float row sits 27px below slab top
+  // The 9:41 mock status bar is preview/pixel-diff chrome only — never on native
+  // (the OS draws its own). Keep it on web so the export still looks complete.
+  const wantClock = showClock && Platform.OS === 'web';
   return (
     <>
-      {showClock ? <StatusBarMock /> : null}
+      {wantClock ? <StatusBarMock /> : null}
       {/* glass slab w/ lime line (v56) */}
-      <View style={{ position: 'absolute', top: 94 * s, left: 22 * s, right: 22 * s, height: 168 * s,
+      <View style={{ position: 'absolute', top: slabTop, left: 22 * s, right: 22 * s, height: 168 * s,
         backgroundColor: COLORS.glassBg, borderWidth: 1.5 * s, borderColor: COLORS.glassBorder,
         borderRadius: RADII.glass * s, zIndex: 12,
         shadowColor: '#000', shadowOffset: { width: 0, height: 6 * s }, shadowRadius: 24 * s, shadowOpacity: 0.45, elevation: 8 }} />
       {/* floating row */}
-      <View style={{ position: 'absolute', top: 121 * s, left: 46 * s, right: 55 * s, height: 114 * s,
+      <View style={{ position: 'absolute', top: rowTop, left: 46 * s, right: 55 * s, height: 114 * s,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 21 * s }}>
           {signedIn ? (

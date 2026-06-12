@@ -277,7 +277,10 @@ export default function ResultsScreen({
   // bottom-anchored (safe-area aware) and the content above compresses by
   // vsC so nothing ever underlaps the buttons or the viewport. On the
   // 1024x2224 canvas vsC = 1 and everything sits at the exact design-Y.
-  const { g: vg, safeB } = useVScale();
+  const { g: vg, safeB, safeT } = useVScale();
+  // header (and its balance pill) shift down by this on device; the win-absorb
+  // glow that frames the pill must track the same offset. 0 on web.
+  const headerShift = safeT > 0 ? (safeT + 12 - 94 * s) : 0;
   const homeB = 74 * s + safeB;                          // HOME (design top 2038, h112)
   const playB = homeB + (112 + 38 * vg) * s;             // PLAY AGAIN (design top 1848, h152)
   const vsC = Math.min(1, (height - playB - 152 * s) / (1848 * s));
@@ -632,7 +635,7 @@ export default function ResultsScreen({
             style={{ fontFamily: FONTS.interBlack, fontSize: 48 * s, letterSpacing: -0.02 * 48 * s, color: COLORS.cream }} />} />
         {/* balance absorb glow */}
         {isWin ? (
-          <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 121 * s, right: 55 * s,
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 121 * s + headerShift, right: 55 * s,
             width: 343 * s, height: 114 * s, borderRadius: 22 * s, borderWidth: 3 * s,
             borderColor: COLORS.lime, zIndex: 25,
             opacity: kf(clock, E + HERO + 1330, 370, (q) => spike(q * 370, 0, 110, 260) * 0.8, 10, 0),
