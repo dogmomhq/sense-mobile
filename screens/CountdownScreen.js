@@ -2,16 +2,17 @@
 // LOCKED LOOK: faded eye photo (brightness 0.32 + vignette), dim warm iris
 // glow, clean neon glyph sprites slam-landing on the pupil. No ring/particles.
 //
-// TIMING (DECISION A10 rev2, 2026-06-12): 2400ms total = 3 beats x 800ms to
-// match server COUNTDOWN_MS=2400. At EXACTLY 2400ms the opaque countdown
-// (eye photo, vignette, glows, numeral, stake pill) unmounts INSTANTLY — the
-// question screen beneath is fully visible and answerable from 2400.0ms.
-// GO is a zero-cost transient: a <=180ms TRANSPARENT flash burst (GO glyph
-// slam + lime flash + shockwave) rendered above the live question with
-// pointerEvents none, fully faded by ~2600ms when onDone fires. The old
-// slam/hold/fade kept GO covering the question until ~3200ms while the
-// scoring clock burned — the clock and the visible question now start
-// together at 2400ms.
+// TIMING (DECISION A10 rev3, 2026-06-12): 2400ms total = 4 beats x 600ms —
+// '3' @0, '2' @600, '1' @1200, 'GO' @1800 as a FULL OPAQUE BEAT (eye photo +
+// GO glyph slam + flash/shockwave, same visual weight as the numerals; the
+// old 2400ms transparent GO flash was invisible to CJ). At EXACTLY 2400ms the
+// opaque countdown (eye photo, vignette, glows, glyph, stake pill) unmounts
+// INSTANTLY — the question beneath is fully visible and answerable from
+// 2400.0ms (server COUNTDOWN_MS=2400). A <=150ms residual flash + fading GO
+// glyph (transparent, pointerEvents none) ride over the live question at the
+// handoff; onDone fires @2550ms. The t0 anchor (onHandoff) fires on the
+// 2400ms handoff frame — the moment the question appears — NOT the GO beat
+// start.
 //
 // Full takeover: NO header (CJ confirmed 2026-06-11). Stake pill kept per the
 // locked prototype. All dimensions in prototype px (1024x2224) * s.
@@ -39,7 +40,7 @@ const GLYPH = {
 const ZOOM = 1.35, PUPIL_X = 507, PUPIL_Y = 1064, IRIS_X = 543, IRIS_Y = 1133;
 const SLAM_IN = Easing.bezier(0.34, 1.56, 0.64, 1);   // locked spring
 const SHOCK_EASE = Easing.bezier(0.16, 1, 0.3, 1);
-const BEAT_MS = 800;                                   // 3 x 800 = 2400 = COUNTDOWN_MS
+const BEAT_MS = 600;                                   // 4 x 600 = 2400 = COUNTDOWN_MS
 
 function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
   const id = useRef('g' + Math.random().toString(36).slice(2)).current;
@@ -58,11 +59,11 @@ function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
   );
 }
 
-// onGoVisible(ts): fires on the first RENDERED frame of the GO beat (rAF after
-// the GO slam starts) — the integration uses it to anchor the scoring t0 to
-// the GO the player actually SEES instead of the scheduled 2400ms timer
-// (TIMING FIX 2, 2026-06-12). The scheduled flip stays as the fallback t0.
-export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onGoVisible, freezeBeat = null }) {
+// onHandoff(ts): fires on the first RENDERED frame after the 2400ms handoff
+// (rAF after the opaque tree unmounts) — the integration anchors the scoring
+// t0 to the frame the question actually APPEARS, not the scheduled timer and
+// not the GO beat start (rev3). The scheduled flip stays as the fallback t0.
+export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onHandoff, freezeBeat = null }) {
   const s = useScale();
   const { width: W, height: H } = useWindowDimensions();
   const px = PUPIL_X * s, py = PUPIL_Y * s, ix = IRIS_X * s, iy = IRIS_Y * s;
@@ -104,11 +105,11 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
         Animated.timing(flash, { toValue: 0.15, duration: 42, easing: Easing.out(Easing.quad), useNativeDriver: true }),
         Animated.timing(flash, { toValue: 0, duration: 78, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]).start();
-      // single thin shockwave 0.2 -> scale 3.4 over 700ms
+      // single thin shockwave 0.2 -> scale 3.4 over 450ms (fits the 600ms beat)
       shockS.setValue(0.2); shockO.setValue(0.2);
       Animated.parallel([
-        Animated.timing(shockS, { toValue: 3.4, duration: 700, easing: SHOCK_EASE, useNativeDriver: true }),
-        Animated.timing(shockO, { toValue: 0, duration: 700, easing: SHOCK_EASE, useNativeDriver: true }),
+        Animated.timing(shockS, { toValue: 3.4, duration: 450, easing: SHOCK_EASE, useNativeDriver: true }),
+        Animated.timing(shockO, { toValue: 0, duration: 450, easing: SHOCK_EASE, useNativeDriver: true }),
       ]).start();
     }
   }, [s]);
@@ -118,25 +119,28 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     cur.current = 1 - cur.current;
     const next = wraps[cur.current];
     wrapBeat.current[cur.current] = b; force();
-    // slam-in: scale 2.6 (GO: 3 -> 1.15) over 180ms locked spring
+    // slam-in: scale 2.6 (GO: 3 -> 1.15) over 150ms — same locked spring,
+    // tightened from 180ms for the 600ms beats (rev3)
     next.scale.setValue(b === 'go' ? 3 : 2.6); next.opacity.setValue(0);
     Animated.parallel([
-      Animated.timing(next.scale, { toValue: b === 'go' ? 1.15 : 1, duration: 180, easing: SLAM_IN, useNativeDriver: true }),
-      Animated.timing(next.opacity, { toValue: 1, duration: 180, easing: SLAM_IN, useNativeDriver: true }),
+      Animated.timing(next.scale, { toValue: b === 'go' ? 1.15 : 1, duration: 150, easing: SLAM_IN, useNativeDriver: true }),
+      Animated.timing(next.opacity, { toValue: 1, duration: 150, easing: SLAM_IN, useNativeDriver: true }),
     ]).start();
-    // slam-out previous: collapse to 0.7 over 150ms
+    // slam-out previous: collapse to 0.7 over 130ms
     Animated.parallel([
-      Animated.timing(prev.scale, { toValue: 0.7, duration: 150, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      Animated.timing(prev.opacity, { toValue: 0, duration: 150, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(prev.scale, { toValue: 0.7, duration: 130, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(prev.opacity, { toValue: 0, duration: 130, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start();
-    timers.current.push(setTimeout(() => landFX(b === 'go'), 180));
+    timers.current.push(setTimeout(() => landFX(b === 'go'), 150));
   }, [landFX]);
 
   useEffect(() => {
     if (freezeBeat != null) {   // deterministic hold (preview / pixel-diff)
-      if (freezeBeat === 'go') { // mid-burst frame of the transparent GO transient
-        setGoPhase(true);
-        goScale.setValue(1.15); goOp.setValue(1);
+      if (freezeBeat === 'go') { // OPAQUE GO beat held mid-flash (rev3)
+        wrapBeat.current[0] = 'go'; force();
+        wraps[0].opacity.setValue(1);
+        wraps[0].scale.setValue(1.15);
+        breathe.setValue(0.15);
         flash.setValue(0.15); shockS.setValue(1.6); shockO.setValue(0.12);
         return;
       }
@@ -148,40 +152,30 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     }
     // idle breathing glow on whichever glyph is up
     Animated.loop(Animated.sequence([
-      Animated.timing(breathe, { toValue: 0.15, duration: 750, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.timing(breathe, { toValue: 0, duration: 750, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(breathe, { toValue: 0.15, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(breathe, { toValue: 0, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
     ])).start();
-    // 3 @0 · 2 @800 · 1 @1600 · GO burst @2400 (= question start, opaque
-    // countdown gone instantly) · burst fully faded ~2580 · onDone @2600
+    // 3 @0 · 2 @600 · 1 @1200 · GO (opaque beat) @1800 · handoff @2400
+    // (opaque tree unmounts in ONE frame, question live, <=150ms residual
+    // flash) · onDone @2550
     beat(3);
     timers.current.push(setTimeout(() => beat(2), BEAT_MS));
     timers.current.push(setTimeout(() => beat(1), BEAT_MS * 2));
+    timers.current.push(setTimeout(() => beat('go'), BEAT_MS * 3));
     timers.current.push(setTimeout(() => {
-      // 2400ms: render swaps to the transparent GO transient — eye/background/
-      // numeral/pill unmount THIS frame, question beneath is live immediately
+      // 2400ms HANDOFF: the render swaps to the transparent residual — eye/
+      // background/glyph/pill unmount THIS frame, question beneath is live
+      // immediately. Residual = quick lime flash + the GO glyph fading out in
+      // place (<=150ms, pointerEvents none).
       setGoPhase(true);
-      goScale.setValue(3); goOp.setValue(0);
-      Animated.parallel([
-        Animated.timing(goScale, { toValue: 1.15, duration: 120, easing: SLAM_IN, useNativeDriver: true }),
-        Animated.sequence([
-          Animated.timing(goOp, { toValue: 1, duration: 50, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(goOp, { toValue: 0, duration: 130, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-        ]),
-      ]).start();
-      flash.setValue(0);
-      Animated.sequence([
-        Animated.timing(flash, { toValue: 0.15, duration: 40, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(flash, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      ]).start();
-      shockS.setValue(0.2); shockO.setValue(0.22);
-      Animated.parallel([
-        Animated.timing(shockS, { toValue: 3.4, duration: 180, easing: SHOCK_EASE, useNativeDriver: true }),
-        Animated.timing(shockO, { toValue: 0, duration: 180, easing: SHOCK_EASE, useNativeDriver: true }),
-      ]).start();
-      // anchor on the first frame where the question is visible + GO paints
-      goRaf.current = requestAnimationFrame(() => { if (onGoVisible) onGoVisible(Date.now()); });
-    }, BEAT_MS * 3));
-    timers.current.push(setTimeout(() => onDone && onDone(), 2600));
+      goScale.setValue(1.15); goOp.setValue(0.9);
+      Animated.timing(goOp, { toValue: 0, duration: 140, easing: Easing.in(Easing.quad), useNativeDriver: true }).start();
+      flash.setValue(0.12);
+      Animated.timing(flash, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      // t0 anchor: first frame where the question is visible
+      goRaf.current = requestAnimationFrame(() => { if (onHandoff) onHandoff(Date.now()); });
+    }, BEAT_MS * 4));
+    timers.current.push(setTimeout(() => onDone && onDone(), 2550));
     return () => { timers.current.forEach(clearTimeout); if (goRaf.current) cancelAnimationFrame(goRaf.current); };
   }, []);
 
@@ -201,8 +195,8 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
   };
 
   if (goPhase) {
-    // <=180ms transient burst over the already-visible question — TRANSPARENT
-    // and pointerEvents none, so answer taps (onPressIn) land from 2400.0ms
+    // <=150ms transient residual over the already-visible question —
+    // TRANSPARENT and pointerEvents none, so answer taps land from 2400.0ms
     const gg = GLYPH.go, gh = gg.h * s, gw = gh * gg.ar;
     return (
       <View pointerEvents="none" style={{ flex: 1, backgroundColor: 'transparent', overflow: 'hidden' }}>
@@ -210,11 +204,6 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
           <Radial w={W} h={H} cx={px} cy={py} rx={W * 0.9} ry={W * 0.9} stops={[
             [0, [COLORS.fuseCore, 0.9]], [0.12, [COLORS.lime, 0.5]], [0.32, [COLORS.lime, 0.16]], [0.6, [COLORS.lime, 0]]]} />
         </Animated.View>
-        <Animated.View pointerEvents="none" style={{
-          position: 'absolute', left: px - 210 * s, top: py - 210 * s, width: 420 * s, height: 420 * s,
-          borderRadius: 210 * s, borderWidth: 3 * s, borderColor: COLORS.lime,
-          shadowColor: COLORS.lime, shadowOffset: { width: 0, height: 0 }, shadowRadius: 18 * s, shadowOpacity: 0.45,
-          opacity: shockO, transform: [{ scale: shockS }] }} />
         <Animated.View pointerEvents="none" style={{
           position: 'absolute', left: px - gw / 2, top: py - gh / 2, width: gw, height: gh,
           opacity: goOp, transform: [{ scale: goScale }] }}>

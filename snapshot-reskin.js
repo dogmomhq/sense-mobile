@@ -14,8 +14,8 @@ const fs = require('fs');
     ['home', 'http://localhost:8080/?reskin=home'],
     ['question_6s', 'http://localhost:8080/?reskin=question&t=6'],
     ['countdown', 'http://localhost:8080/?reskin=countdown&beat=3'],
-    // GO frame (TIMING FIX 3): transparent <=180ms burst held mid-flash —
-    // verifies the burst reads right and the opaque countdown plate is gone
+    // GO beat (rev3): FULL OPAQUE beat @1800-2400 held mid-flash — verifies
+    // GO is a real visible beat with the same weight as the numerals
     ['countdown_go', 'http://localhost:8080/?reskin=countdown&beat=go'],
     ['waiting', 'http://localhost:8080/?reskin=waiting&t=0'],
     ['results_nearmiss', 'http://localhost:8080/?reskin=results&outcome=nearmiss&at=race'],

@@ -293,11 +293,11 @@ export default function App() {
   const [nameInput, setNameInput] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
-  // TIMING FIX 2 (2026-06-12): t0 anchored to the RENDERED GO frame. The reskin
-  // countdown reports the timestamp of the frame where GO actually paints
-  // (CountdownScreen onGoVisible) into this override; the round-start effect
+  // TIMING FIX 2 rev3 (2026-06-12): t0 anchored to the rendered HANDOFF frame
+  // (2400ms — the moment the question appears). The reskin countdown reports it
+  // (CountdownScreen onHandoff, the 2400ms handoff frame) into this override; the round-start effect
   // consumes it (fresh within 1s) instead of its own Date.now(). Fallback: if
-  // GO never reports (old UI / edge), the scheduled flip's Date.now() is t0,
+  // it never reports (old UI / edge), the scheduled flip's Date.now() is t0,
   // exactly as before. Server contract unaffected: clientTime is still ms
   // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
   const startOverrideRef = useRef(null);

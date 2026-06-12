@@ -121,13 +121,14 @@ export default function ReskinApp({ g }) {
   // make sure the selected stake is on the canonical ladder (App default is 10)
   useEffect(() => { if (!TIER_CENTS.includes(g.stake)) g.setStake(TIER_CENTS[0]); }, []);
 
-  // COUNTDOWN CONTRACT (rev2 2026-06-12): question timer starts at 2400ms
-  // (server COUNTDOWN_MS). App.js starts its 50ms tick the moment `countdown`
-  // flips false — flip it at exactly 2400ms. The CountdownScreen overlay goes
-  // TRANSPARENT + pointerEvents-none at its own 2400ms goPhase swap, so the
+  // COUNTDOWN CONTRACT (rev3 2026-06-12): 4 beats x 600ms (3·2·1·GO, GO is a
+  // full opaque beat @1800-2400). Question timer starts at 2400ms (server
+  // COUNTDOWN_MS). App.js starts its 50ms tick the moment `countdown` flips
+  // false — flip it at exactly 2400ms. The CountdownScreen overlay goes
+  // TRANSPARENT + pointerEvents-none at its own 2400ms handoff swap, so the
   // question beneath (mounted throughout, zero mount jank) is visible and
-  // tappable from 2400.0ms; the <=180ms GO burst plays over it and onDone
-  // (~2600ms) just unmounts the empty overlay.
+  // tappable from 2400.0ms; a <=150ms residual flash rides over it and onDone
+  // (~2550ms) just unmounts the empty overlay.
   useEffect(() => {
     if (g.countdown && g.mode === 'play') {
       setCdOverlay(true);
@@ -411,17 +412,19 @@ export default function ReskinApp({ g }) {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest }}>
       {body}
-      {/* countdown takeover (no header, CJ confirmed) — opaque until exactly
-          2400ms, then a transparent <=180ms GO burst over the live question.
-          box-none + the overlay's own pointerEvents none let answer taps
-          (onPressIn stamps) reach QuestionScreen from 2400.0ms */}
+      {/* countdown takeover (no header, CJ confirmed) — opaque (3·2·1·GO
+          beats) until exactly 2400ms, then a transparent <=150ms residual
+          flash over the live question. box-none + the overlay's own
+          pointerEvents none let answer taps (onPressIn stamps) reach
+          QuestionScreen from 2400.0ms */}
       {cdOverlay && g.mode === 'play' && g.q ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 80 }}>
           <CountdownScreen stakeLabel={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
             onDone={() => setCdOverlay(false)}
-            onGoVisible={(ts) => {
-              // TIMING FIX 2 (2026-06-12): anchor t0 to the GO frame the player
-              // actually SEES. If App.js's round-start effect hasn't consumed
+            onHandoff={(ts) => {
+              // rev3 (2026-06-12): anchor t0 to the 2400ms HANDOFF frame — the
+              // moment the question the player sees appears (not the GO beat
+              // start @1800). If App.js's round-start effect hasn't consumed
               // its t0 yet, the override feeds it; if it already started off
               // the scheduled flip (≤ a frame ago), re-anchor startRef in
               // place — every consumer reads the ref per tick. Guard: if this
