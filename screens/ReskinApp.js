@@ -150,7 +150,7 @@ export default function ReskinApp({ g }) {
         }
       } catch (e) {}
       try {
-        const r = await fetch(`${g.httpsBase}/history/x?limit=50&token=${encodeURIComponent(tok)}`);
+        const r = await fetch(`${g.httpsBase}/history/x?limit=200&token=${encodeURIComponent(tok)}`);
         const d = await r.json();
         if (d && d.stats) setServerStats(d.stats);
         if (d && Array.isArray(d.cancelled)) setCancelledRows(d.cancelled);
@@ -216,15 +216,27 @@ export default function ReskinApp({ g }) {
         amount: c.refund && c.refund.amount_cents ? '+' + fmtMoney(c.refund.amount_cents) : '+$0.00',
         balance: '' });
     });
-    // local ledger is newest-first; running balance walks back from the current balance
-    let run = g.balance;
-    (g.ledger || []).forEach((t) => {
-      const type = t.type === 'entry' ? 'stake' : t.type === 'win' ? 'payout' : t.type === 'bonus' ? 'deposit' : t.type;
-      rows.push({ kind: 'ledger', ts: t.ts || 0, type, amount: fmtSigned(t.amount), balance: fmtMoney(run) });
-      run -= (t.amount || 0);
-    });
-    return rows.sort((a, b) => b.ts - a.ts).slice(0, 60);
-  }, [g.matchLog, g.ledger, g.balance, cancelledRows]);
+    // transactions: prefer the SERVER ledger (source of truth, has balance_after per row,
+    // survives device switches / email sign-in) — fall back to the local AsyncStorage ledger
+    // with a walked-back running balance only when the server feed isn't available.
+    if (g.serverLedger && g.serverLedger.length) {
+      g.serverLedger.forEach((t) => {
+        const type = t.type === 'entry' ? 'stake' : t.type === 'win' ? 'payout'
+          : (t.type === 'bonus' || t.type === 'signup_bonus' || t.type === 'daily_checkin' || t.type === 'deposit') ? 'deposit' : t.type;
+        rows.push({ kind: 'ledger', ts: t.created_at ? new Date(t.created_at).getTime() : 0,
+          type, amount: fmtSigned(t.amount), balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
+      });
+    } else {
+      // local ledger is newest-first; running balance walks back from the current balance
+      let run = g.balance;
+      (g.ledger || []).forEach((t) => {
+        const type = t.type === 'entry' ? 'stake' : t.type === 'win' ? 'payout' : t.type === 'bonus' ? 'deposit' : t.type;
+        rows.push({ kind: 'ledger', ts: t.ts || 0, type, amount: fmtSigned(t.amount), balance: fmtMoney(run) });
+        run -= (t.amount || 0);
+      });
+    }
+    return rows.sort((a, b) => b.ts - a.ts).slice(0, 250);
+  }, [g.matchLog, g.ledger, g.serverLedger, g.balance, cancelledRows]);
 
   const pendingRows = useMemo(() => Object.entries(g.pending || {}).map(([mid, d]) => {
     const left = d.ts ? Math.ceil((120000 - (now - d.ts)) / 1000) : 0;

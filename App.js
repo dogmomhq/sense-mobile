@@ -269,6 +269,7 @@ export default function App() {
   const [balance, setBalance] = useState(500);   // free starting credits
   const [stake, setStake] = useState(10);         // selected entry credits
   const [ledger, setLedger] = useState([]);       // [{ts,type,amount,label}]
+  const [serverLedger, setServerLedger] = useState([]); // server credit_ledger rows (source of truth when signed in)
   const [confirming, setConfirming] = useState(false);
   const stakeRef = useRef(10);
   const [rematchReq, setRematchReq] = useState(false);
@@ -426,19 +427,23 @@ export default function App() {
   async function hydrateHistory(name) {
     if (!name) return;
     try {
-      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=50`);
+      const tok = (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || '';
+      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=200${tok ? '&token=' + encodeURIComponent(tok) : ''}`);
       const d = await r.json();
       if (d && Array.isArray(d.matches)) {
         const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
-        setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,50); });
+        setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,200); });
         if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
+        if (Array.isArray(d.ledger)) setServerLedger(d.ledger);            // server-authoritative tx feed
+        if (typeof d.balance === 'number') { setBalance(d.balance); AsyncStorage.setItem('sense_balance', String(d.balance)).catch(()=>{}); }
       }
     } catch (e) {}
   }
   async function hydrateOpenGames(name) {
     if (!name) return;
     try {
-      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}`);
+      const tok = (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || '';
+      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}${tok ? '?token=' + encodeURIComponent(tok) : ''}`);
       const d = await r.json();
       if (d && Array.isArray(d.open) && d.open.length) {
         setPending(prev => { const next = { ...prev }; d.open.forEach(g => { if (g.match_id && !next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: g.created_at ? new Date(g.created_at).getTime() : Date.now(), stake: 0, myTime: null }; }); return next; });
@@ -468,7 +473,7 @@ export default function App() {
           accountRef.current = { accountId: msg.accountId, handle: msg.handle, token: msg.token, supabase: true };
           myNameRef.current = msg.handle; setDisplayName(msg.handle); identify(msg.accountId, { handle: msg.handle, email: msg.email });
           try { AsyncStorage.setItem('sense_account', JSON.stringify(accountRef.current)); AsyncStorage.setItem('sense_handle', msg.handle); } catch (e) {}
-          try { hydrateHistory(msg.handle); } catch (e) {}
+          try { hydrateHistory(msg.handle); hydrateOpenGames(msg.handle); } catch (e) {}
         }
         break;
       }
@@ -611,7 +616,7 @@ export default function App() {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec,
-      balance, stake, ledger, sound, displayName, showActions,
+      balance, stake, ledger, serverLedger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
       // setters / actions (all pre-existing logic — nothing reimplemented)
