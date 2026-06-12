@@ -117,10 +117,13 @@ const invWarp = (ew, HIT, HOLD_GAIN, isWin) => (!isWin || ew <= HIT) ? ew : ew +
 
 /* keyframe sampler -> Animated interpolation (t0 = start ms, dur = length ms) */
 function kf(clock, t0, dur, fn, steps = 10, pre = null) {
-  const t1 = t0 + dur;
   const inR = [], outR = [];
-  if (pre != null && t0 > 0) { inR.push(0, t0); outR.push(pre, fn(0)); }
-  for (let i = pre != null ? 1 : 0; i <= steps; i++) {
+  // `pre` must hold FLAT until t0 — the old [0, t0] -> [pre, fn(0)] pair
+  // linearly RAMPED across the whole pre-roll, so FX with pre=0 but fn(0)>0
+  // (shockwave ring opacities) sat faintly visible at rest scale on device
+  // before their start time (the stray red/lime circles in CJ's screenshots).
+  if (pre != null && t0 > 0) { inR.push(0, Math.max(t0 - 1, t0 * 0.5)); outR.push(pre, pre); }
+  for (let i = 0; i <= steps; i++) {
     inR.push(t0 + (dur * i) / steps); outR.push(fn(i / steps));
   }
   return clock.interpolate({ inputRange: inR, outputRange: outR, extrapolate: 'clamp' });
@@ -162,7 +165,7 @@ function BalanceOdometer({ subscribe, freezeAt, from, delta, t0, dur, style }) {
 // FLIP. Two stacked layers, ALL motion (shimmer alpha, both rotations) is
 // native interpolation on the master clock — no JS per-frame work here.
 function OppFlip({ clock, TL, answer, s }) {
-  const txt = { fontFamily: FONTS.anton, fontSize: 96 * s, lineHeight: 100 * s,
+  const txt = { fontFamily: FONTS.anton, fontSize: 96 * s, lineHeight: 108 * s,
     letterSpacing: 0.02 * 96 * s };
   // shimmer pulse sampled onto the clock (40ms grid, ~same alpha curve)
   const shimIn = [0, TL.REVEAL_OPP], shimOut = [1, 1];
@@ -652,7 +655,7 @@ export default function ResultsScreen({
           transform: [{ translateX: youIn.interpolate({ inputRange: [0, 1], outputRange: [-220 * s, 0] }) },
             { translateY: youIn.interpolate({ inputRange: [0, 1], outputRange: [50 * s, 0] }) }] }]}>
           <Text style={lblSt}>YOUR ANSWER</Text>
-          <Text style={{ fontFamily: FONTS.anton, fontSize: 96 * s, lineHeight: 100 * s,
+          <Text style={{ fontFamily: FONTS.anton, fontSize: 96 * s, lineHeight: 108 * s,
             letterSpacing: 0.02 * 96 * s, color: COLORS.lime }}>{you.answer}</Text>
           <Text style={{ marginTop: 16 * s, fontFamily: FONTS.interExtra, fontSize: 31 * s,
             letterSpacing: 0.12 * 31 * s, color: you.correct ? COLORS.lime : RED }}>
@@ -714,7 +717,7 @@ export default function ResultsScreen({
           <Animated.View style={{ marginTop: 46 * s * vg, alignItems: 'center',
             opacity: isMiss ? Animated.multiply(gapIn, mkFlash([[E, 1], [E + 250, 0]])) : gapIn,
             transform: [{ scale: gapScale }] }}>
-            <Text style={{ fontFamily: FONTS.anton, fontSize: 78 * s, lineHeight: 84 * s,
+            <Text style={{ fontFamily: FONTS.anton, fontSize: 78 * s, lineHeight: 88 * s,
               color: youWins ? COLORS.lime : RED }}>{gapTxt}</Text>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 25 * s, marginTop: 6 * s,
               letterSpacing: 0.34 * 25 * s, color: COLORS.creamDim }}>THE GAP</Text>
@@ -738,7 +741,7 @@ export default function ResultsScreen({
               color: isWin ? COLORS.lime : RED, opacity: eyebrowIn, zIndex: 20,
               transform: [{ translateY: eyebrowY }] }}>{eyebrowTxt}</Animated.Text>
             <Animated.Text style={{ position: 'absolute', top: sy(486), left: 0, right: 0, textAlign: 'center',
-              fontFamily: FONTS.anton, fontSize: 226 * s, lineHeight: 238 * s,
+              fontFamily: FONTS.anton, fontSize: 226 * s, lineHeight: 254 * s,
               color: isWin ? COLORS.lime : COLORS.cream, opacity: hlOp, zIndex: 20,
               textShadowColor: isWin ? 'rgba(215,248,74,0.35)' : 'rgba(255,90,72,0.4)',
               textShadowRadius: 40 * s, textShadowOffset: { width: 0, height: 8 * s },
@@ -760,7 +763,7 @@ export default function ResultsScreen({
             ))}
             <ConfettiBurst clock={clock} hit={E + HIT} s={s} />
             <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(756), left: 0, right: 0,
-              textAlign: 'center', fontFamily: FONTS.anton, fontSize: 190 * s, lineHeight: 200 * s,
+              textAlign: 'center', fontFamily: FONTS.anton, fontSize: 190 * s, lineHeight: 213 * s,
               color: COLORS.lime, opacity: heroOp, zIndex: 46,
               textShadowColor: 'rgba(212,242,60,0.75)', textShadowRadius: 30 * s,
               textShadowOffset: { width: 0, height: 0 },
@@ -799,7 +802,7 @@ export default function ResultsScreen({
         {isMiss ? (
           <>
             <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(760), left: 0, right: 0,
-              textAlign: 'center', fontFamily: FONTS.anton, fontSize: 230 * s, lineHeight: 242 * s,
+              textAlign: 'center', fontFamily: FONTS.anton, fontSize: 230 * s, lineHeight: 258 * s,
               color: RED, opacity: monOp, zIndex: 24,
               textShadowColor: 'rgba(255,90,72,0.65)', textShadowRadius: 40 * s,
               textShadowOffset: { width: 0, height: 6 * s },
@@ -829,7 +832,7 @@ export default function ResultsScreen({
               </Animated.View>
             ))}
             <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(1180), left: 0, right: 0,
-              textAlign: 'center', fontFamily: FONTS.anton, fontSize: 240 * s, lineHeight: 252 * s,
+              textAlign: 'center', fontFamily: FONTS.anton, fontSize: 240 * s, lineHeight: 269 * s,
               color: COLORS.cream, opacity: stampOp, zIndex: 24,
               textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 2 * s, textShadowOffset: { width: 0, height: 10 * s },
               transform: [{ rotate: '-8deg' }, { scale: stampScale }] }}>DRAW</Animated.Text>

@@ -81,7 +81,7 @@ export default function WaitingScreen({
 
       {/* YOU LOCKED + giant lime time */}
       <View style={{ position: 'absolute', top: 350 * s * vs, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 196 * s, lineHeight: 212 * s,
+        <Text style={{ fontFamily: FONTS.anton, fontSize: 196 * s, lineHeight: 220 * s,
           color: COLORS.cream, letterSpacing: -0.01 * 196 * s, includeFontPadding: false,
           textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 6 * s },
           textShadowRadius: 24 * s }}>YOU LOCKED</Text>

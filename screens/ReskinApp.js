@@ -197,8 +197,8 @@ export default function ReskinApp({ g }) {
 
   /* ── derived display values ── */
   const balanceTxt = fmtMoney(g.balance);
-  const streakVal = (serverStats && serverStats.current_streak != null)
-    ? serverStats.current_streak : streakFromLog(g.matchLog);
+  const serverStreak = serverStats ? Number(serverStats.current_streak) : NaN;
+  const streakVal = Number.isFinite(serverStreak) ? serverStreak : streakFromLog(g.matchLog);
   const handle = g.displayName || g.myName();
   const signedIn = !!g.authEmail;
   const pendingCount = Object.keys(g.pending || {}).length;

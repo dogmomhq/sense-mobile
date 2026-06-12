@@ -66,10 +66,15 @@ export default function HomeScreen({
       {/* wordmark + tagline (clamps upward on short viewports) */}
       <View style={{ position: 'absolute', top: wmTop, left: 0, right: 0,
         alignItems: 'center', paddingHorizontal: 32 * s, zIndex: 10 }}>
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 340 * s, lineHeight: 0.86 * 340 * s,
-          color: COLORS.wordmark, letterSpacing: -0.045 * 340 * s, marginBottom: 16 * s,
-          textShadowColor: 'rgba(0,0,0,0.78)', textShadowOffset: { width: 0, height: 8 * s }, textShadowRadius: 36 * s,
-          includeFontPadding: false }}>SENSE</Text>
+        {/* iOS clips Anton when lineHeight < ~1.12em — the tight 0.86em box was
+            layout anchoring only, so the wrapper keeps that box height and the
+            Text itself gets a safe line (overflows the wrapper, RN doesn't clip views). */}
+        <View style={{ height: 0.86 * 340 * s, marginBottom: 16 * s, justifyContent: 'center' }}>
+          <Text style={{ fontFamily: FONTS.anton, fontSize: 340 * s, lineHeight: 1.12 * 340 * s,
+            color: COLORS.wordmark, letterSpacing: -0.045 * 340 * s,
+            textShadowColor: 'rgba(0,0,0,0.78)', textShadowOffset: { width: 0, height: 8 * s }, textShadowRadius: 36 * s,
+            includeFontPadding: false }}>SENSE</Text>
+        </View>
         <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s, color: COLORS.lime,
           letterSpacing: 0.22 * 32 * s,
           textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 * s }, textShadowRadius: 8 * s }}>

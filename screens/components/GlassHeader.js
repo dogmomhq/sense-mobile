@@ -53,13 +53,16 @@ function Flame({ s }) {
 
 export function StreakChip({ streak = 8 }) {
   const s = useScale();
+  // numeric guard: undefined/null/NaN/non-numeric -> 0, never letters
+  const n = Number(streak);
+  const streakTxt = String(Number.isFinite(n) ? n : 0);
   return (
     <View style={{ width: 180 * s, height: 114 * s, backgroundColor: COLORS.chipBg,
       borderWidth: 2.5 * s, borderColor: COLORS.lime, borderRadius: RADII.chip * s,
       alignItems: 'center', justifyContent: 'center', paddingTop: 14 * s, paddingBottom: 4 * s, gap: 2 * s }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 * s }}>
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 66 * s, lineHeight: 66 * s,
-          color: COLORS.lime, letterSpacing: -0.02 * 66 * s }}>{String(streak)}</Text>
+        <Text allowFontScaling={false} style={{ fontFamily: FONTS.anton, fontSize: 66 * s, lineHeight: 74 * s,
+          color: COLORS.lime, letterSpacing: -0.02 * 66 * s }}>{streakTxt}</Text>
         <Flame s={s} />
       </View>
       <Text style={{ fontFamily: FONTS.interBold, fontSize: 32 * s, lineHeight: 36 * s,
