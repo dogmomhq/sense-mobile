@@ -121,10 +121,13 @@ export default function ReskinApp({ g }) {
   // make sure the selected stake is on the canonical ladder (App default is 10)
   useEffect(() => { if (!TIER_CENTS.includes(g.stake)) g.setStake(TIER_CENTS[0]); }, []);
 
-  // COUNTDOWN CONTRACT: question timer starts at 2400ms (server COUNTDOWN_MS),
-  // not when the GO flash finishes (~3200ms). App.js starts its 50ms tick the
-  // moment `countdown` flips false — so flip it at exactly 2400ms and keep the
-  // CountdownScreen overlay rendered until its own fade-out completes.
+  // COUNTDOWN CONTRACT (rev2 2026-06-12): question timer starts at 2400ms
+  // (server COUNTDOWN_MS). App.js starts its 50ms tick the moment `countdown`
+  // flips false — flip it at exactly 2400ms. The CountdownScreen overlay goes
+  // TRANSPARENT + pointerEvents-none at its own 2400ms goPhase swap, so the
+  // question beneath (mounted throughout, zero mount jank) is visible and
+  // tappable from 2400.0ms; the <=180ms GO burst plays over it and onDone
+  // (~2600ms) just unmounts the empty overlay.
   useEffect(() => {
     if (g.countdown && g.mode === 'play') {
       setCdOverlay(true);
@@ -408,10 +411,12 @@ export default function ReskinApp({ g }) {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest }}>
       {body}
-      {/* countdown takeover (no header, CJ confirmed) — overlays the question
-          screen so the 2400ms handoff fade plays over the live question */}
+      {/* countdown takeover (no header, CJ confirmed) — opaque until exactly
+          2400ms, then a transparent <=180ms GO burst over the live question.
+          box-none + the overlay's own pointerEvents none let answer taps
+          (onPressIn stamps) reach QuestionScreen from 2400.0ms */}
       {cdOverlay && g.mode === 'play' && g.q ? (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 80 }}>
+        <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 80 }}>
           <CountdownScreen stakeLabel={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
             onDone={() => setCdOverlay(false)}
             onGoVisible={(ts) => {
