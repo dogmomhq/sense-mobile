@@ -262,7 +262,7 @@ export default function ResultsScreen({
   stake = 1.0, payout = 1.9,
   practice = false,                     // PRACTICE · FREE — no stake/payout text
   balanceBefore = 24.5,                 // post-stake balance (escrow display rule)
-  streak = 8, record = { w: 12, d: 1, l: 4 },
+  streak = 8,
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
   onPlayAgain, onHome, onCycleEnd, showClock = false,
@@ -513,7 +513,7 @@ export default function ResultsScreen({
   const stampOp = kf(clock, E + 650, 90, (q) => q, 3, 0);
   const refundIn = kf(clock, E + 1100, 300, (q) => q, 6, 0);
 
-  // result card / stats / mode line / buttons
+  // result card / mode line / buttons
   const cdT0 = E + inv(isLoss ? 1080 : isWin ? 820 : 580);
   const cardIn = kf(clock, cdT0, 400, (q) => q, 6, 0);
   const cardY = kf(clock, cdT0, 400, (q) => 60 * (1 - outCubic(q)) * s, 8, 60 * s);
@@ -540,7 +540,6 @@ export default function ResultsScreen({
     : isMiss ? 'PHOTO FINISH' : 'NEXT TIME';
   const headlineTxt = isWin ? 'YOU WIN' : isMiss ? 'SO CLOSE' : 'YOU LOST';
   const gapTxt = (youWins ? '+' : '+') + gapS.toFixed(2) + 's';
-  const statsTxt = `${record.w}W · ${record.d}D · ${record.l}L`;
   const balDelta = isWin ? payout : isDraw ? stake : 0;
   const balT0 = isWin ? E + HERO + 1380 : E + 1200;
   const mark = (c) => (c ? ' ✓' : ' ✗');
@@ -823,16 +822,13 @@ export default function ResultsScreen({
         {/* shockwave rings */}
         {rings.map((r, i) => <Ring key={i} p={r.scale} o={r.op} color={r.color} />)}
 
-        {/* result card + stats + mode line (not on draw — per locked mockup) */}
+        {/* result card + mode line (not on draw — per locked mockup) */}
         {!isDraw ? (
           <>
             <Animated.Text style={{ position: 'absolute', top: sy(1166), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.interExtra, fontSize: 25 * s, letterSpacing: 0.3 * 25 * s,
               color: COLORS.creamDim, opacity: cardIn, zIndex: 18 }}>
               {practice ? 'PRACTICE · FREE' : 'ONLINE MATCH · ' + fmt(stake) + ' STAKE'}</Animated.Text>
-            {/* card + record line share ONE flow container so the record can
-                never collide with the card's bottom border at compressed
-                heights (the card is content-sized; sy() is not) */}
             <Animated.View style={{ position: 'absolute', top: sy(1222), left: 60 * s, right: 60 * s,
               zIndex: 18, opacity: cardIn, transform: [{ translateY: cardY }] }}>
               <View style={{ backgroundColor: 'rgba(16,20,13,0.86)', borderWidth: 2.5 * s, borderColor: 'rgba(215,248,74,0.55)',
@@ -865,9 +861,6 @@ export default function ResultsScreen({
                 </View>
               ))}
               </View>
-              <Text allowFontScaling={false} style={{ marginTop: 40 * s * vg, textAlign: 'center',
-                fontFamily: FONTS.interExtra, fontSize: 34 * s, letterSpacing: 0.16 * 34 * s,
-                color: COLORS.creamDim }}>{statsTxt}</Text>
             </Animated.View>
           </>
         ) : null}
