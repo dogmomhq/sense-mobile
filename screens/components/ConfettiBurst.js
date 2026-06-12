@@ -6,9 +6,9 @@
 // Stage 2 (40): slow rain from the top, staggered after the burst.
 import React from 'react';
 import { Animated } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, REDUCED_FX } from '../theme';
 
-const N = 120, N1 = 80;
+const N = REDUCED_FX ? 60 : 120, N1 = REDUCED_FX ? 40 : 80;
 const PALETTE = [COLORS.lime, COLORS.cream, COLORS.flameOut, COLORS.flameIn, COLORS.lime, COLORS.cream];
 
 function mulberry32(a) {

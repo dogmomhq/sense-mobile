@@ -20,7 +20,7 @@
 // trails — one draw surface, ~zero per-frame allocation. This repo does NOT
 // ship @shopify/react-native-skia (checked package.json), and per the build
 // rules we don't add heavy deps for one effect. So the fuse mode here uses a
-// pool of MAX_P (=96) absolutely-positioned <Image> views (the 8 spark
+// pool of MAX_P (=72) absolutely-positioned <Image> views (the 8 spark
 // textures in assets/sparks/) repositioned by a JS sim tick at ~30fps via a
 // single setState per tick. That means:
 //   • ~6x fewer particles than the spec (96 vs 600) — density is lower.
@@ -42,7 +42,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Image } from 'react-native';
 import * as RNSvg from 'react-native-svg';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
-import { COLORS, FONTS, useScale } from '../theme';
+import { COLORS, FONTS, useScale, REDUCED_FX } from '../theme';
 
 const R = 396, CX = 420, CY = 420;
 const RING_OX = 92, RING_OY = 430;            // ring-wrap offset inside 1024x2224 screen
@@ -111,7 +111,7 @@ function GlowPath({ d, stroke, width, opacity = 1, glow }) {
 }
 
 // ── FUSE particle layer: pooled Image views + JS sim tick ──────────────────
-const MAX_P = 96;
+const MAX_P = REDUCED_FX ? 36 : 72;   // pooled views (REDUCED_FX halves it)
 const TICK_MS = 33;                    // ~30fps sim; render = one setState/tick
 function makePool() {
   const pool = [];
@@ -269,7 +269,7 @@ function FuseSparks({ tLeft }) {
     const w = p.size * stretch, h = Math.max(2, p.size * TEX_AR[p.tex]);
     const rot = `${Math.atan2(p.vy, p.vx)}rad`;
     const base = { position: 'absolute', width: w * s, height: h * s, resizeMode: 'stretch', tintColor: tint };
-    if (!p.glint && sp > 260)                              // 1 ghost copy = simplified trail
+    if (!REDUCED_FX && !p.glint && sp > 260)               // 1 ghost copy = simplified trail
       sparks.push(<Image key={`g${i}`} source={TEX[p.tex]} fadeDuration={0} style={{ ...base,
         left: (p.px - w / 2) * s, top: (p.py - h / 2) * s, opacity: bright * 0.3, transform: [{ rotate: rot }] }} />);
     sparks.push(<Image key={i} source={TEX[p.tex]} fadeDuration={0} style={{ ...base,

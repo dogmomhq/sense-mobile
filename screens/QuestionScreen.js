@@ -33,9 +33,12 @@ export default function QuestionScreen({
   useEffect(() => {
     if (secondsLeft != null) return;        // frozen mode
     const start = Date.now();
+    let last = 10.001;
     const tick = () => {
       const left = Math.max(0, 10 - (Date.now() - start) / 1000);
-      setT(left);
+      // 30Hz setState cap: the ring sweeps 36 deg/s, so 33ms steps are
+      // sub-pixel; halves the JS/SVG re-render cost of the live screen
+      if (left === 0 || last - left >= 1 / 30) { last = left; setT(left); }
       if (left > 0) raf.current = requestAnimationFrame(tick);
       else if (onTimeout) onTimeout();
     };

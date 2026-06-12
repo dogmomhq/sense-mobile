@@ -16,6 +16,7 @@ const fs = require('fs');
     ['countdown', 'http://localhost:8080/?reskin=countdown&beat=3'],
     ['waiting', 'http://localhost:8080/?reskin=waiting&t=0'],
     ['results_nearmiss', 'http://localhost:8080/?reskin=results&outcome=nearmiss&at=race'],
+    ['results_win_burst', 'http://localhost:8080/?reskin=results&outcome=win&at=burst'],
     ['history', 'http://localhost:8080/?reskin=history'],
     ['shell', 'http://localhost:8080/?reskin=shell'],
     ['profile_in', 'http://localhost:8080/?reskin=profile&auth=in'],

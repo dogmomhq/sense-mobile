@@ -15,9 +15,11 @@
 //   DRAW     lime vertical split, mirrored avatars + identical times, DRAW
 //            stamp, STAKE RETURNED pill (per ui_mockups_v2/batch6/draw.png)
 // Pure presentational: deterministic function of props + clock. One master
-// Animated clock (ms); all motion is interpolate() on transforms/opacity;
-// digits/odometer are tiny subscribed leaf Texts. `freezeAt` renders a
-// deterministic still for screenshots.
+// Animated clock (ms) driven by a single NATIVE Animated.timing — all motion
+// is interpolate() on transforms/opacity riding the UI thread (shake/rumble
+// pre-sampled onto the clock); digits/odometer are tiny subscribed leaf
+// Texts fed by a ~20Hz JS ticker. `freezeAt` renders a deterministic still
+// for screenshots.
 // DECISIONS 2026-06-11: RUN IT BACK renamed PLAY AGAIN (same-tier re-queue,
 // open pool); speed-pill thresholds from live code (<0.6s INSANE, <1.0s
 // LIGHTNING, <1.6s FAST, win-only); escrow display rule -> balanceBefore is
@@ -29,7 +31,7 @@ import Svg, { Path, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
 import ConfettiBurst from './components/ConfettiBurst';
-import { COLORS, FONTS, useScale, BASE_W, BASE_H } from './theme';
+import { COLORS, FONTS, useScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
 import PressBtn from './components/PressBtn';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
@@ -155,21 +157,37 @@ function BalanceOdometer({ subscribe, freezeAt, from, delta, t0, dur, style }) {
   return <Text style={style}>${v.toFixed(2)}</Text>;
 }
 
-// rival answer flip: '???' shimmer pulse -> rotateX flip to the answer at FLIP
-function OppFlip({ subscribe, freezeAt, TL, answer, s }) {
-  const t = useT(subscribe, freezeAt);
-  let rot = 0, showA = false;
-  if (t >= TL.FLIP) {
-    const f1 = win01(t, TL.FLIP, 150), f2 = win01(t, TL.FLIP + 150, 250);
-    if (f2 === 0) rot = f1 * 90; else { showA = true; rot = -90 + backOut(f2) * 90; }
+// rival answer flip: '???' shimmer pulse -> rotateX flip to the answer at
+// FLIP. Two stacked layers, ALL motion (shimmer alpha, both rotations) is
+// native interpolation on the master clock — no JS per-frame work here.
+function OppFlip({ clock, TL, answer, s }) {
+  const txt = { fontFamily: FONTS.anton, fontSize: 96 * s, lineHeight: 100 * s,
+    letterSpacing: 0.02 * 96 * s };
+  // shimmer pulse sampled onto the clock (40ms grid, ~same alpha curve)
+  const shimIn = [0, TL.REVEAL_OPP], shimOut = [1, 1];
+  for (let t = TL.REVEAL_OPP + 40; t < TL.FLIP; t += 40) {
+    shimIn.push(t); shimOut.push(0.55 + 0.45 * Math.abs(Math.sin(t / 220)));
   }
-  const shimmer = !showA && t >= TL.REVEAL_OPP ? 0.55 + 0.45 * Math.abs(Math.sin(t / 220)) : 1;
+  shimIn.push(TL.FLIP + 150, TL.FLIP + 151); shimOut.push(1, 0);
+  const qOp = clock.interpolate({ inputRange: shimIn, outputRange: shimOut, extrapolate: 'clamp' });
+  const qRot = clock.interpolate({ inputRange: [0, TL.FLIP, TL.FLIP + 150],
+    outputRange: ['0deg', '0deg', '90deg'], extrapolate: 'clamp' });
+  const aIn = [0, TL.FLIP + 150], aOut = ['-90deg', '-90deg'];
+  for (let i = 1; i <= 8; i++) {
+    aIn.push(TL.FLIP + 150 + (250 * i) / 8); aOut.push((-90 + backOut(i / 8) * 90) + 'deg');
+  }
+  const aRot = clock.interpolate({ inputRange: aIn, outputRange: aOut, extrapolate: 'clamp' });
+  const aOp = clock.interpolate({ inputRange: [TL.FLIP + 149, TL.FLIP + 150],
+    outputRange: [0, 1], extrapolate: 'clamp' });
   return (
-    <View style={{ transform: [{ perspective: 900 * s }, { rotateX: rot + 'deg' }] }}>
-      <Text style={{ fontFamily: FONTS.anton, fontSize: 96 * s, lineHeight: 100 * s,
-        letterSpacing: 0.02 * 96 * s, color: showA ? COLORS.cream : 'rgba(214,210,190,' + shimmer + ')' }}>
-        {showA ? answer : '???'}
-      </Text>
+    <View>
+      <Animated.View style={{ opacity: qOp, transform: [{ perspective: 900 * s }, { rotateX: qRot }] }}>
+        <Text style={[txt, { color: 'rgb(214,210,190)' }]}>???</Text>
+      </Animated.View>
+      <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, opacity: aOp,
+        transform: [{ perspective: 900 * s }, { rotateX: aRot }] }}>
+        <Text style={[txt, { color: COLORS.cream }]}>{answer}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -200,10 +218,9 @@ function EkgLine({ subscribe, freezeAt, TL, s }) {
   );
 }
 
-// loss crumble: 9 fragments of your bar fall with gravity (subscribed leaf —
-// quadratic fall is cheaper exact in JS than keyframed for 9 views)
-function CrumbleFrags({ subscribe, freezeAt, TL, s, youFrac }) {
-  const t = useT(subscribe, freezeAt);
+// loss crumble: 9 fragments of your bar fall with gravity — the quadratic
+// fall is pre-sampled onto the native clock (translate/rotate/opacity only)
+function CrumbleFrags({ clock, TL, s, youFrac }) {
   const frags = useMemo(() => {
     const rnd = mulberry32(7 * 97 + 1), arr = [];
     for (let i = 0; i < 9; i++) arr.push({
@@ -211,22 +228,25 @@ function CrumbleFrags({ subscribe, freezeAt, TL, s, youFrac }) {
       rot: (rnd() - 0.5) * 520, delay: i * 28 + rnd() * 40 });
     return arr;
   }, []);
-  const e = t - TL.EXPLODE;
-  if (e < 0) return null;
   const bw = (880 * youFrac) / 9;
   return (
     <>
       {frags.map((fr, i) => {
-        const ft = (e - 320 - fr.delay) / 1000;
-        if (ft <= 0 || ft > 1.3) return null;
+        const t0 = TL.EXPLODE + 320 + fr.delay, dur = 1300;   // ft = 0..1.3
+        const tx = seg(clock, t0, dur, 0, fr.vx * 1.3 * s);
+        const ty = kf(clock, t0, dur, (q) => {
+          const ft = q * 1.3; return (fr.vy * ft + 1600 * ft * ft) * s; }, 12, 0);
+        const rot = clock.interpolate({ inputRange: [t0, t0 + dur],
+          outputRange: ['0deg', fr.rot * 1.3 + 'deg'], extrapolate: 'clamp' });
+        const op = clock.interpolate({
+          inputRange: [t0 - 1, t0, t0 + dur * (0.9 / 1.3), t0 + dur],
+          outputRange: [0, 1, 1, 0], extrapolate: 'clamp' });
         return (
-          <View key={i} pointerEvents="none" style={{
+          <Animated.View key={i} pointerEvents="none" style={{
             position: 'absolute', width: (bw - 4) * s, height: 24 * s, borderRadius: 5 * s,
             backgroundColor: 'rgba(175,185,155,0.85)', zIndex: 16,
-            opacity: Math.min(1, (1.3 - ft) / 0.4),
-            left: (72 + i * bw + fr.vx * ft) * s,
-            top: (1424 + fr.vy * ft + 1600 * ft * ft) * s,
-            transform: [{ rotate: fr.rot * ft + 'deg' }] }} />
+            left: (72 + i * bw) * s, top: 1424 * s, opacity: op,
+            transform: [{ translateX: tx }, { translateY: ty }, { rotate: rot }] }} />
         );
       })}
     </>
@@ -278,16 +298,17 @@ export default function ResultsScreen({
   };
   const FT = freezeAt == null ? null : (typeof freezeAt === 'number' ? freezeAt : FREEZE_MAP[freezeAt] ?? null);
 
-  /* master clock + JS rumble channel */
+  /* master clock: ONE native Animated.timing sweeps 0 -> CYCLE on the UI
+     thread; every interpolate() below rides it for free. A ~20Hz JS ticker
+     feeds ONLY the text leafs (race digits, odometer, rival status, EKG
+     dash). The rumble/punch channel below is the same math as the old
+     per-frame renderShake, pre-sampled on its own 25ms hrand grid into
+     native interpolations of the clock. */
   const clock = useRef(new Animated.Value(FT != null ? FT : 0)).current;
-  const shakeX = useRef(new Animated.Value(0)).current;
-  const shakeY = useRef(new Animated.Value(0)).current;
-  const shakeR = useRef(new Animated.Value(0)).current;
-  const punch = useRef(new Animated.Value(1)).current;
   const subs = useRef(new Set());
   const subscribe = useMemo(() => (fn) => { subs.current.add(fn); return () => subs.current.delete(fn); }, []);
 
-  const renderShake = (t) => {
+  const shakeAt = (t) => {
     let sx = 0, sy = 0, sr = 0, sc = 1;
     const rs = TL.raceState(t), p = rs.s / TL.maxT;
     if (t >= TL.RACE_START && t < TL.RACE_END) {       // THE RUMBLE (softens w/ dilation)
@@ -314,21 +335,40 @@ export default function ResultsScreen({
       if (isMiss) sc += 0.012 * (spike(e, 650, 90, 220) + spike(e, 1100, 90, 220));
       if (isDraw) { sy += 10 * spike(e, 650 + 220, 40, 170); }  // stamp thud
     }
-    shakeX.setValue(sx * s); shakeY.setValue(sy * s); shakeR.setValue(sr); punch.setValue(sc);
+    return { sx, sy, sr, sc };
   };
+  const shakeI = useMemo(() => {
+    const ts = [], ch = [[], [], [], []];
+    for (let t = 0; t <= TL.CYCLE; t += 25) {
+      const v = shakeAt(t);
+      ts.push(t); ch[0].push(v.sx); ch[1].push(v.sy); ch[2].push(v.sr); ch[3].push(v.sc);
+    }
+    // run-length compress flat stretches so quiet spans cost nothing
+    const mk = (vals, scale) => {
+      const inR = [], outR = [];
+      for (let i = 0; i < ts.length; i++) {
+        if (i > 0 && i < ts.length - 1 && vals[i - 1] === vals[i] && vals[i] === vals[i + 1]) continue;
+        inR.push(ts[i]); outR.push(vals[i] * scale);
+      }
+      return clock.interpolate({ inputRange: inR, outputRange: outR, extrapolate: 'clamp' });
+    };
+    return { x: mk(ch[0], s), y: mk(ch[1], s), r: mk(ch[2], 1), c: mk(ch[3], 1) };
+  }, [TL, s, isWin, isLoss, isMiss, isDraw]);
 
   useEffect(() => {
-    if (FT != null) { clock.setValue(FT); renderShake(FT); subs.current.forEach((f) => f(FT)); return; }
-    let raf, start = null, done = false;
-    const loop = (now) => {
-      if (start == null) start = now;
-      const t = Math.min(now - start, TL.CYCLE);
-      clock.setValue(t); renderShake(t); subs.current.forEach((f) => f(t));
-      if (t >= TL.CYCLE) { if (!done) { done = true; if (onCycleEnd) onCycleEnd(); } return; }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    if (FT != null) { clock.setValue(FT); subs.current.forEach((f) => f(FT)); return; }
+    clock.setValue(0);
+    const anim = Animated.timing(clock, { toValue: TL.CYCLE, duration: TL.CYCLE,
+      easing: Easing.linear, useNativeDriver: true });
+    anim.start();
+    const start = Date.now();
+    let done = false;
+    const id = setInterval(() => {                 // ~20Hz text-leaf ticker
+      const t = Math.min(Date.now() - start, TL.CYCLE);
+      subs.current.forEach((f) => f(t));
+      if (t >= TL.CYCLE && !done) { done = true; clearInterval(id); if (onCycleEnd) onCycleEnd(); }
+    }, 50);
+    return () => { anim.stop(); clearInterval(id); };
   }, [TL, FT]);
 
   /* ── shared interpolations ── */
@@ -505,9 +545,9 @@ export default function ResultsScreen({
     <View style={{ flex: 1, backgroundColor: COLORS.forest, overflow: 'hidden' }}>
       <StatusBar barStyle="light-content" />
       <Animated.View style={{ flex: 1, transform: [
-        { translateX: shakeX }, { translateY: shakeY },
-        { rotate: shakeR.interpolate({ inputRange: [-1, 1], outputRange: ['-1deg', '1deg'] }) },
-        { scale: punch }] }}>
+        { translateX: shakeI.x }, { translateY: shakeI.y },
+        { rotate: shakeI.r.interpolate({ inputRange: [-1, 1], outputRange: ['-1deg', '1deg'] }) },
+        { scale: shakeI.c }] }}>
 
         {/* photo + (loss/miss) photo-only desat — chrome stays full color */}
         <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
@@ -584,7 +624,7 @@ export default function ResultsScreen({
           transform: [{ translateX: oppIn.interpolate({ inputRange: [0, 1], outputRange: [220 * s, 0] }) },
             { translateY: oppIn.interpolate({ inputRange: [0, 1], outputRange: [50 * s, 0] }) }] }]}>
           <Text style={lblSt}>RIVAL</Text>
-          <OppFlip subscribe={subscribe} freezeAt={FT} TL={TL} answer={opp.answer} s={s} />
+          <OppFlip clock={clock} TL={TL} answer={opp.answer} s={s} />
           <OppStat subscribe={subscribe} freezeAt={FT} TL={TL} correct={opp.correct} s={s} />
         </Animated.View>
 
@@ -644,7 +684,7 @@ export default function ResultsScreen({
           shadowColor: COLORS.lime, shadowOpacity: 0.8, shadowRadius: 24 * s, shadowOffset: { width: 0, height: 0 } }} />
         <Ring p={finShockP} o={finShockO} color={COLORS.lime} size={220} cx={952} cy={1519} bw={9} />
         {TL.CLOSE ? <EkgLine subscribe={subscribe} freezeAt={FT} TL={TL} s={s} /> : null}
-        {isLoss ? <CrumbleFrags subscribe={subscribe} freezeAt={FT} TL={TL} s={s} youFrac={you.time / TL.maxT} /> : null}
+        {isLoss ? <CrumbleFrags clock={clock} TL={TL} s={s} youFrac={you.time / TL.maxT} /> : null}
 
         {/* ── STEP 3: explode ── */}
         {!isDraw ? (
@@ -665,7 +705,7 @@ export default function ResultsScreen({
         {/* WIN: rays + payout hero + speed pill */}
         {isWin ? (
           <>
-            {Array.from({ length: 12 }).map((_, i) => (
+            {REDUCED_FX ? null : Array.from({ length: 12 }).map((_, i) => (
               <Animated.View key={i} pointerEvents="none" style={{ position: 'absolute',
                 left: (512 - 7) * s, top: 600 * s, width: 14 * s, height: 430 * s,
                 backgroundColor: COLORS.lime, opacity: rayOp, zIndex: 44,

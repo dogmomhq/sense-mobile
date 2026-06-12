@@ -8,6 +8,11 @@
 import { useWindowDimensions } from 'react-native';
 import { useFonts } from 'expo-font';
 
+// Global perf valve for older devices (flip to true to halve particle work:
+// fuse sparks 72 -> 36, win confetti 120 -> 60, win ray burst off). Default
+// false = full visuals; all paths are exercised either way.
+export const REDUCED_FX = false;
+
 export const BASE_W = 1024;
 export const BASE_H = 2224;
 
