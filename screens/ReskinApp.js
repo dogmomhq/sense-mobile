@@ -145,6 +145,7 @@ export default function ReskinApp({ g }) {
           if (d.dailyBonus && !dailyShown.current) {
             dailyShown.current = true;
             g.applyCredit(d.dailyBonus.amountCents, 'bonus', 'Daily check-in');
+            if (g.serverCredits) g.hydrateHistory(g.displayName || g.myName()); // server granted the bonus — applyCredit is a no-op in credits mode, pull the real balance
             g.showToast(`+${fmtMoney(d.dailyBonus.amountCents)} DAILY CHECK-IN`);
           }
         }

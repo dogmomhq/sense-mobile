@@ -22,6 +22,11 @@ import { supabase } from './supabaseClient';
 // false -> the original UI below renders exactly as on main.
 import ReskinApp from './screens/ReskinApp';
 const RESKIN = true;
+// RESKIN_CREDITS: flip online matches to SERVER-SIDE credits. The server escrows the stake at
+// queue time (append-only ledger 'entry' row), refunds on cancel/expiry, pays on settle. The
+// local applyCredit stub becomes a no-op so credits never move twice; the displayed balance is
+// the SERVER balance (hydrateHistory pulls /history balance after every credit-moving event).
+const RESKIN_CREDITS = RESKIN && true;
 const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 1000: 4 }; // canonical tier ladder (DECISIONS #1, mirrors server CREDIT_TIER_CENTS)
 
 const TIME_LIMIT = 10000;
@@ -489,7 +494,7 @@ export default function App() {
       }
       // ---- async matchmaking ----
       case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
-      case 'async-question': loadQuestion(msg.matchId, msg.question); break;
+      case 'async-question': loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // server escrowed the stake before sending the question — balance drops by countdown start
       case 'answer-ack': break;     // local time already frozen on tap — ignore the server echo
       case 'async-waiting': break;  // we answered first; waiting on opponent
       case 'async-result': {
@@ -500,6 +505,7 @@ export default function App() {
         // foreground only if this is the match currently on the Play screen — else a background banner
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
         else pushBanner(res, oppNm, msg.matchId);
+        refreshServerBalance();   // settle wrote win/refund/rake rows — sync balance + ledger feed
         break;
       }
       // ---- challenge ROOM engine ----
@@ -532,17 +538,23 @@ export default function App() {
       case 'ping': wsSend(pong(msg.nonce)); break;   // room latency probe (web replies pong)
       case 'rtt-result': break;
       case 'match-cancelled':  // a pending async game was cancelled — refund the escrowed stake, drop the card
-        if (msg.matchId) { const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
+        if (msg.matchId) { const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         break;
       case 'cancel-denied':  // server 2-min anti-abuse lockout (can't queue, peek the question, then bail)
         showToast(msg.message || 'Cannot cancel yet'); break;
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
-        if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
+        if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
         else showToast('A pending game expired');
         break;
       }
-      case 'queue-failed': bailHome(msg.error || 'Could not find a match'); break;
+      case 'queue-failed':
+        if (RESKIN_CREDITS && msg.error === 'insufficient_funds') {
+          // server is the source of truth on funds — sync balance so the HOME inline
+          // 'NOT ENOUGH BALANCE' state renders (client pre-check stays as the fast path)
+          refreshServerBalance(); bailHome(null); showToast('NOT ENOUGH BALANCE', 'error'); break;
+        }
+        bailHome(msg.error || 'Could not find a match'); break;
       case 'error':
         if (modeRef.current === 'joining' || modeRef.current === 'play') bailHome(msg.message || 'Server error');
         else showToast(msg.message || 'Server error');
@@ -558,7 +570,7 @@ export default function App() {
     // RESKIN: the tier selector queues into the matching server pool (1..4 per the
     // canonical ladder). With RESKIN=false this is the exact old line (tier 1).
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
@@ -571,8 +583,16 @@ export default function App() {
       else { pendingAfterReg.current = sendQueueMsg; wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
     });
   }
+  // RESKIN_CREDITS: pull the server-authoritative balance + ledger after any credit-moving event
+  // (escrow at question delivery, settle, cancel/expiry refund, insufficient-funds bounce).
+  function refreshServerBalance() {
+    if (!RESKIN_CREDITS) return;
+    const nm = (accountRef.current && accountRef.current.handle) || myNameRef.current;
+    if (nm) { try { hydrateHistory(nm); } catch (e) {} }
+  }
   // BALANCE ADAPTER (stub): the ONLY place credits move. Replace these two with server/processor calls for real money.
   function applyCredit(amount, type, label) {
+    if (RESKIN_CREDITS) return;   // server ledger is authoritative — never double-escrow/credit locally
     setBalance(prev => { const nb = Math.max(0, prev + amount); AsyncStorage.setItem('sense_balance', String(nb)).catch(()=>{}); return nb; });
     setLedger(prev => { const nl = [{ ts: Date.now(), type, amount, label }, ...prev].slice(0, 100); AsyncStorage.setItem('sense_ledger', JSON.stringify(nl)).catch(()=>{}); return nl; });
   }
@@ -624,7 +644,7 @@ export default function App() {
       setSigninEmail, setSigninCode, setSigninStep,
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
       startPractice, cancelOnline, sendCode, verifyCode, signOutAuth, doRename,
-      showToast, applyCredit, hydrateHistory,
+      showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
       cancelPendingMatch: (mid) => { try { wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
       // refs + env
       stakeRef, accountRef, supabaseTokenRef, httpsBase: HTTPS_BASE, myName,
