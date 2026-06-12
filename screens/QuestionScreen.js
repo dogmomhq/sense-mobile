@@ -4,7 +4,7 @@
 // `secondsLeft` prop freezes the ring (previews/tests); omit it and the
 // ring burns live 10.0 -> 0.0 at ~60fps via requestAnimationFrame.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, useWindowDimensions, StatusBar } from 'react-native';
+import { View, Text, useWindowDimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import StakePill from './components/StakePill';
@@ -15,8 +15,11 @@ import { useScale } from './theme';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
 
+const TIMEDEBUG = typeof window !== 'undefined' && window.location && /[?&]timedebug=1/.test(window.location.search || '');
+
 export default function QuestionScreen({
   secondsLeft = null,                       // freeze the ring at this time; null = run live
+  startTsRef = null,                        // ref holding the AUTHORITATIVE round-start t0 (App.js startRef — the same timestamp the scored clientTime subtracts from). When provided, the live ring derives secondsLeft = 10 - (Date.now()-t0)/1000 from it every frame, so display and score cannot diverge.
   answers = ['CHEETAH', 'LEOPARD', 'JAGUAR', 'COUGAR'],
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   stake = '$1.00 · WIN $1.90',
@@ -32,10 +35,14 @@ export default function QuestionScreen({
 
   useEffect(() => {
     if (secondsLeft != null) return;        // frozen mode
-    const start = Date.now();
+    const localStart = Date.now();          // fallback only (previews without a game clock)
     let last = 10.001;
     const tick = () => {
-      const left = Math.max(0, 10 - (Date.now() - start) / 1000);
+      // read the scoring t0 PER TICK (App.js sets startRef in an effect that
+      // runs after this child effect — raf fires after all effects, so the
+      // first frame already sees the fresh value)
+      const t0 = startTsRef && startTsRef.current ? startTsRef.current : localStart;
+      const left = Math.max(0, Math.min(10, 10 - (Date.now() - t0) / 1000));
       // 30Hz setState cap: the ring sweeps 36 deg/s, so 33ms steps are
       // sub-pixel; halves the JS/SVG re-render cost of the live screen
       if (left === 0 || last - left >= 1 / 30) { last = left; setT(left); }
@@ -73,6 +80,30 @@ export default function QuestionScreen({
       <TimerRing secondsLeft={tLeft} mode={ringMode} />
       <AnswerGrid answers={answers} lockedIndex={locked}
         onAnswer={(i, label) => { setLocked(i); if (onAnswer) onAnswer(i, label); }} />
+      {TIMEDEBUG && <TimeDebug startTsRef={startTsRef} secondsLeft={secondsLeft} tLeft={tLeft} />}
+    </View>
+  );
+}
+
+// ?timedebug=1 — overlays the t0 source, the scoring clock's elapsed, and the
+// ring's displayed remaining so display/score divergence is visible live.
+// Param-gated, renders nothing otherwise; safe to leave in.
+function TimeDebug({ startTsRef, secondsLeft, tLeft }) {
+  const [, force] = useState(0);
+  useEffect(() => { const i = setInterval(() => force(n => n + 1), 100); return () => clearInterval(i); }, []);
+  const t0 = startTsRef && startTsRef.current ? startTsRef.current : null;
+  const scoringElapsed = t0 ? Math.max(0, (Date.now() - t0) / 1000) : null;
+  const ringElapsed = 10 - tLeft;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 4, left: 4, zIndex: 99,
+      backgroundColor: 'rgba(0,0,0,0.75)', padding: 6, borderRadius: 4 }}>
+      <Text style={{ color: '#9eff57', fontSize: 11, fontFamily: 'monospace' }}>
+        {`t0: ${t0 ? 'startRef(scoring) ' + t0 : 'none (local fallback)'}\n`
+         + `scoring elapsed: ${scoringElapsed != null ? scoringElapsed.toFixed(2) + 's' : '—'}\n`
+         + `ring shows left: ${tLeft.toFixed(2)}s (elapsed ${ringElapsed.toFixed(2)}s)\n`
+         + `mode: ${secondsLeft != null ? 'FROZEN @' + secondsLeft : 'LIVE'}\n`
+         + `delta(score-ring): ${scoringElapsed != null ? (scoringElapsed - ringElapsed).toFixed(2) + 's' : '—'}`}
+      </Text>
     </View>
   );
 }

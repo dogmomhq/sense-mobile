@@ -290,12 +290,19 @@ export default function ReskinApp({ g }) {
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceTxt} ringMode={RING_MODE}
-          secondsLeft={g.countdown || cdOverlay ? 10 : (answered ? secLeft : null)}
+          secondsLeft={g.countdown ? 10 : (answered ? secLeft : null)}
+          startTsRef={g.startRef}
           onAnswer={(i) => g.submit(i)} />
       );
     }
-    // NOTE: timeout submit stays App.js's 50ms tick (submit(-1) at 10s) — the
-    // ring here is display-only and never feeds clientTime (gap analysis #9).
+    // NOTE: timeout submit stays App.js's 50ms tick on startRef (submit(-1) at
+    // 10s) — the ring here is display-only and never feeds clientTime (gap
+    // analysis #9). TIMING FIX (2026-06-11): the ring derives secondsLeft from
+    // g.startRef (the exact t0 the scored clientTime subtracts from), and runs
+    // from the 2400ms countdown flip even while the GO-fade overlay (cdOverlay)
+    // is still on top — previously it started ~800ms late at the overlay's
+    // onDone (~3200ms), which is why the ring read ~1s more remaining than the
+    // scored time.
   } else if (g.mode === 'results' && g.result && g.q && g.comp) {
     const myCorrect = g.picked === g.q.correctIdx;
     const youT = (g.comp.playerTime != null ? g.comp.playerTime : TIME_LIMIT) / 1000;

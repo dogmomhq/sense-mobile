@@ -647,7 +647,7 @@ export default function App() {
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
       cancelPendingMatch: (mid) => { try { wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
       // refs + env
-      stakeRef, accountRef, supabaseTokenRef, httpsBase: HTTPS_BASE, myName,
+      stakeRef, accountRef, supabaseTokenRef, startRef, httpsBase: HTTPS_BASE, myName,
     };
     const AW = PHProvider || React.Fragment;
     const ap = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
