@@ -66,11 +66,13 @@ export default function HomeScreen({
       {/* wordmark + tagline (clamps upward on short viewports) */}
       <View style={{ position: 'absolute', top: wmTop, left: 0, right: 0,
         alignItems: 'center', paddingHorizontal: 32 * s, zIndex: 10 }}>
-        {/* iOS clips Anton when lineHeight < ~1.12em — the tight 0.86em box was
-            layout anchoring only, so the wrapper keeps that box height and the
-            Text itself gets a safe line (overflows the wrapper, RN doesn't clip views). */}
-        <View style={{ height: 0.86 * 340 * s, marginBottom: 16 * s, justifyContent: 'center' }}>
-          <Text style={{ fontFamily: FONTS.anton, fontSize: 340 * s, lineHeight: 1.12 * 340 * s,
+        {/* iOS rasterizes Anton's glyph box at its NATURAL ascent/descent; any
+            lineHeight below ~1.3em clamps that box and slices the S/E tops & bottoms.
+            Fix: lineHeight 1.32em gives the glyph headroom, and the wrapper is
+            sized to fontSize*1.36 (taller than the line box) with center justify so
+            the wordmark is anchored by the CONTAINER, never by a tight text box. */}
+        <View style={{ height: 1.36 * 340 * s, marginBottom: 16 * s, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: FONTS.anton, fontSize: 340 * s, lineHeight: 1.32 * 340 * s,
             color: COLORS.wordmark, letterSpacing: -0.045 * 340 * s,
             textShadowColor: 'rgba(0,0,0,0.78)', textShadowOffset: { width: 0, height: 8 * s }, textShadowRadius: 36 * s,
             includeFontPadding: false }}>SENSE</Text>

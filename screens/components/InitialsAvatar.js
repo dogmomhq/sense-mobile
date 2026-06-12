@@ -22,7 +22,7 @@ export default function InitialsAvatar({ handle = '', size = 144, ring = 3, font
       alignItems: 'center', justifyContent: 'center',
       shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 },
       shadowRadius: 12 * s, shadowOpacity: 1 }, style]}>
-      <Text style={{ fontFamily: FONTS.anton, fontSize: fs * s, lineHeight: fs * 1.15 * s,
+      <Text style={{ fontFamily: FONTS.anton, fontSize: fs * s, lineHeight: fs * 1.32 * s,
         color: COLORS.lime, letterSpacing: 0.02 * fs * s, includeFontPadding: false }}>
         {initialsFor(handle)}
       </Text>

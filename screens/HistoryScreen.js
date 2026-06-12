@@ -168,7 +168,7 @@ function PracticeTab({ practice, onStartPractice }) {
               <Path d={`M18 ${p} L21.5 ${p}`} stroke={COLORS.lime} strokeWidth={1.8} strokeLinecap="round" />
             </React.Fragment>))}
         </Svg>
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 76 * s, lineHeight: 88 * s,
+        <Text style={{ fontFamily: FONTS.anton, fontSize: 76 * s, lineHeight: 1.32 * 76 * s,
           color: COLORS.cream, textAlign: 'center', marginTop: 24 * s,
           includeFontPadding: false }}>PRACTICE VS{'\n'}COMPUTER · FREE</Text>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: COLORS.creamDim,

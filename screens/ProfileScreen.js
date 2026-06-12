@@ -57,7 +57,7 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
   return (
     <View style={[CARD(s), { marginHorizontal: 45 * s, marginTop: 60 * s,
       paddingVertical: 70 * s, paddingHorizontal: 45 * s, alignItems: 'center' }]}>
-      <Text style={{ fontFamily: FONTS.anton, fontSize: 92 * s, lineHeight: 104 * s,
+      <Text style={{ fontFamily: FONTS.anton, fontSize: 92 * s, lineHeight: 1.32 * 92 * s,
         color: COLORS.cream, textAlign: 'center', includeFontPadding: false,
         marginBottom: 60 * s }}>SIGN IN TO SAVE{'\n'}YOUR STREAK</Text>
       <TextInput placeholder="EMAIL" placeholderTextColor={COLORS.creamDim}

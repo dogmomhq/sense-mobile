@@ -61,7 +61,7 @@ export function StreakChip({ streak = 8 }) {
       borderWidth: 2.5 * s, borderColor: COLORS.lime, borderRadius: RADII.chip * s,
       alignItems: 'center', justifyContent: 'center', paddingTop: 14 * s, paddingBottom: 4 * s, gap: 2 * s }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 * s }}>
-        <Text allowFontScaling={false} style={{ fontFamily: FONTS.anton, fontSize: 66 * s, lineHeight: 74 * s,
+        <Text allowFontScaling={false} style={{ fontFamily: FONTS.anton, fontSize: 66 * s, lineHeight: 1.32 * 66 * s,
           color: COLORS.lime, letterSpacing: -0.02 * 66 * s }}>{streakTxt}</Text>
         <Flame s={s} />
       </View>

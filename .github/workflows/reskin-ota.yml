@@ -1,0 +1,24 @@
+name: Reskin OTA (preview channel)
+
+# Ships the reskin-ui JS bundle over-the-air to the installed PREVIEW build in
+# seconds (no native rebuild). The preview EAS build listens on channel
+# "preview"; EAS Update maps channel -> branch, so we publish to branch
+# "preview". Always run this with the workflow ref set to reskin-ui so the
+# bundle is built from the reskin source, not main.
+on:
+  workflow_dispatch:
+    inputs:
+      message: { description: "Update message", required: false, default: "reskin OTA" }
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci || npm install
+      - name: Publish OTA update (channel/branch preview)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest update --branch preview --message "${{ github.event.inputs.message }}" --non-interactive

@@ -67,8 +67,18 @@ function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
 export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onHandoff, freezeBeat = null }) {
   const s = useScale();
   const { width: W, height: H } = useWindowDimensions();
-  const px = PUPIL_X * s, py = PUPIL_Y * s, ix = IRIS_X * s, iy = IRIS_Y * s;
+  // ── Eye-centering fix (2026-06-12) ──────────────────────────────────────
+  // The old code placed the pupil at PUPIL_X/Y * s, i.e. design-canvas pixels
+  // scaled by s = W/1024. That maps X correctly but multiplies the design
+  // HEIGHT (2224) by a WIDTH-derived scale, so on any real device whose aspect
+  // ratio isn't exactly 1024:2224 the pupil drifts vertically and the cover-
+  // cropped eye photo (whose zoom/translate is computed FROM the pupil) slides
+  // off to one side — exactly CJ's "pupil low, eye cropped right" screenshot.
+  // Fix: anchor the pupil (and therefore the numerals/glows) to the REAL screen
+  // centre, and keep the iris at its small design-space offset from the pupil.
   const cx = W / 2, cy = H / 2;
+  const px = cx, py = cy;
+  const ix = cx + (IRIS_X - PUPIL_X) * s, iy = cy + (IRIS_Y - PUPIL_Y) * s;
 
   // two alternating glyph wraps so an exit can overlap the next entry
   const wraps = useRef([0, 1].map(() => ({
@@ -224,9 +234,10 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     <View style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
       <StatusBar barStyle="light-content" />
       <Animated.View style={{ flex: 1, transform: [{ translateX: shake.x }, { translateY: shake.y }] }}>
-        {/* eye photo: cover crop, zoomed 1.35x about the pupil, brightness 0.32 */}
-        <View style={{ position: 'absolute', inset: 0, transform: [
-          { translateX: (px - cx) * (1 - ZOOM) }, { translateY: (py - cy) * (1 - ZOOM) }, { scale: ZOOM }] }}>
+        {/* eye photo: cover-crop CENTRED on the real screen, zoomed 1.35x about
+            the screen centre (pupil == screen centre now, so the old pupil-
+            anchored translate collapses to 0 and the crop can't slide off). */}
+        <View style={{ position: 'absolute', inset: 0, transform: [{ scale: ZOOM }] }}>
           {(() => {
             const k = Math.max(W / EYE_W, H / EYE_H);
             return <Animated.Image source={EYE} fadeDuration={0} style={{
