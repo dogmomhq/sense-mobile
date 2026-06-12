@@ -224,7 +224,7 @@ export default function ReskinApp({ g }) {
         const type = t.type === 'entry' ? 'stake' : t.type === 'win' ? 'payout'
           : (t.type === 'bonus' || t.type === 'signup_bonus' || t.type === 'daily_checkin' || t.type === 'deposit') ? 'deposit' : t.type;
         rows.push({ kind: 'ledger', ts: t.created_at ? new Date(t.created_at).getTime() : 0,
-          type, amount: fmtSigned(t.amount), balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
+          type, amount: fmtSigned(Number(t.amount)), balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
       });
     } else {
       // local ledger is newest-first; running balance walks back from the current balance
