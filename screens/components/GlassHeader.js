@@ -61,12 +61,12 @@ export function StreakChip({ streak = 8 }) {
       borderWidth: 2.5 * s, borderColor: COLORS.lime, borderRadius: RADII.chip * s,
       alignItems: 'center', justifyContent: 'center', paddingTop: 14 * s, paddingBottom: 4 * s, gap: 2 * s }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 * s }}>
-        <Text allowFontScaling={false} style={{ fontFamily: FONTS.anton, fontSize: 66 * s, lineHeight: 1.32 * 66 * s,
-          color: COLORS.lime, letterSpacing: -0.02 * 66 * s }}>{streakTxt}</Text>
+        <Text allowFontScaling={false} style={{ fontFamily: FONTS.anton, fontSize: 56 * s, lineHeight: 1.32 * 56 * s,
+          color: COLORS.lime, letterSpacing: -0.02 * 56 * s }}>{streakTxt}</Text>
         <Flame s={s} />
       </View>
-      <Text style={{ fontFamily: FONTS.interBold, fontSize: 32 * s, lineHeight: 36 * s,
-        letterSpacing: 0.08 * 32 * s, color: COLORS.cream }}>STREAK</Text>
+      <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, lineHeight: 36 * s,
+        letterSpacing: 0.08 * 27 * s, color: COLORS.cream }}>STREAK</Text>
     </View>
   );
 }
@@ -79,10 +79,10 @@ export function BalancePill({ balance = '$24.50', onPressAdd }) {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       paddingLeft: 38 * s, paddingRight: 37 * s }}>
       <View>
-        <Text style={{ fontFamily: FONTS.interBold, fontSize: 22 * s, lineHeight: 22 * s,
-          letterSpacing: 0.12 * 22 * s, color: COLORS.creamDim, marginBottom: 8 * s }}>BALANCE</Text>
-        <Text style={{ fontFamily: FONTS.interBlack, fontSize: 48 * s, lineHeight: 48 * s,
-          letterSpacing: -0.02 * 48 * s, color: COLORS.cream }}>{balance}</Text>
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, lineHeight: 26 * s,
+          letterSpacing: 0.12 * 19 * s, color: COLORS.creamDim, marginBottom: 6 * s }}>BALANCE</Text>
+        <Text style={{ fontFamily: FONTS.interBlack, fontSize: 40 * s, lineHeight: 54 * s,
+          letterSpacing: -0.02 * 40 * s, color: COLORS.cream }}>{balance}</Text>
       </View>
       <Pressable onPress={onPressAdd} hitSlop={14}
         style={{ width: 54 * s, height: 54 * s, borderRadius: 27 * s, borderWidth: 3 * s,
@@ -117,7 +117,7 @@ export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = D
   // push the whole header below it. safeTop is DEVICE px (added raw, never * s).
   // On web safeTop = 0 so the locked 94/121 design + mock status bar are exact.
   const safeTop = getSafeTop();
-  const slabTop = (safeTop > 0 ? safeTop + 12 : 94 * s);   // design 94 -> island + gap
+  const slabTop = (safeTop > 0 ? safeTop + 24 : 94 * s);   // design 94 -> island bottom edge + 24px breathing room
   const rowTop = slabTop + 27 * s;                         // float row sits 27px below slab top
   // The 9:41 mock status bar is preview/pixel-diff chrome only — never on native
   // (the OS draws its own). Keep it on web so the export still looks complete.
@@ -136,7 +136,7 @@ export default function GlassHeader({ streak = 8, balance = '$24.50', avatar = D
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 21 * s }}>
           {signedIn ? (
             (avatar === DEFAULT_AVATAR && handle) ? (
-              <InitialsAvatar handle={handle} size={144} ring={3} style={{ marginTop: -8 * s }} />
+              <InitialsAvatar handle={handle} size={144} ring={3} fontSize={46} style={{ marginTop: -8 * s }} />
             ) : (
             <Image source={avatar} fadeDuration={0}
               style={{ width: 144 * s, height: 144 * s, borderRadius: 72 * s, marginTop: -8 * s,
