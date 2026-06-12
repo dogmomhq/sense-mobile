@@ -1,0 +1,49 @@
+name: Reskin TestFlight (build + submit from reskin-ui)
+
+# Builds the reskin-ui branch as a signed iOS .ipa on EAS and submits it to TestFlight.
+# Workflow file lives on main (workflow_dispatch requirement) but checks out reskin-ui;
+# no app code on main is touched. Mirrors eas-build-ios.yml + eas-submit-ios.yml.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: reskin-testflight
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reskin-ui
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Restore iOS signing credentials (local)
+        run: |
+          mkdir -p ios_certs
+          printf '%s' "${{ secrets.IOS_DIST_P12_BASE64 }}" | base64 -d > ios_certs/dist.p12
+          printf '%s' "${{ secrets.IOS_PROVISION_BASE64 }}" | base64 -d > ios_certs/sense.mobileprovision
+          cat > credentials.json <<JSON
+          {
+            "ios": {
+              "provisioningProfilePath": "ios_certs/sense.mobileprovision",
+              "distributionCertificate": {
+                "path": "ios_certs/dist.p12",
+                "password": "${{ secrets.IOS_DIST_P12_PASSWORD }}"
+              }
+            }
+          }
+          JSON
+      - name: Build iOS (.ipa) on EAS (waits for completion)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive
+      - name: Restore ASC API key
+        run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
+      - name: Submit latest iOS build to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest submit -p ios --profile testflight --latest --non-interactive
