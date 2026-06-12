@@ -55,7 +55,7 @@ export default function WaitingScreen({
   // Height-aware anchors (theme.useVScale): buttons + stake pill stack up from
   // the bottom with compressible gaps (g); upper content compresses by vs. On
   // the 1024x2224 canvas these resolve to the exact design-Y values.
-  const { vs, g, safeB } = useVScale();
+  const { vs, g, safeB, headerOff } = useVScale();
   const ghostB = 119 * s + safeB;                       // ghost row (design top 1955, h150)
   const playB = ghostB + (150 + 45 * g) * s;            // PLAY AGAIN (design top 1700, h210)
   const pillB = playB + (210 + 64 * g) * s;             // stake pill (design top 1565)
@@ -80,7 +80,7 @@ export default function WaitingScreen({
         signedIn={signedIn} showClock={showClock} />
 
       {/* YOU LOCKED + giant lime time */}
-      <View style={{ position: 'absolute', top: 350 * s * vs, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+      <View style={{ position: 'absolute', top: 350 * s * vs + headerOff, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <Text style={{ fontFamily: FONTS.anton, fontSize: 196 * s, lineHeight: 1.32 * 196 * s,
           color: COLORS.cream, letterSpacing: -0.01 * 196 * s, includeFontPadding: false,
           textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 6 * s },
@@ -98,7 +98,7 @@ export default function WaitingScreen({
       </View>
 
       {/* mystery-opponent chip (#7: pre-reveal treatment, opponent unknown) */}
-      <View style={{ position: 'absolute', top: 1040 * s * vs, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+      <View style={{ position: 'absolute', top: 1040 * s * vs + headerOff, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: 'rgba(16,20,13,0.72)', borderWidth: 1.5 * s,
           borderColor: 'rgba(245,241,230,0.25)', borderRadius: RADII.stake * s,
           paddingVertical: 18 * s, paddingHorizontal: 42 * s }}>

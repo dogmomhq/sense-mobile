@@ -199,14 +199,14 @@ function OppFlip({ clock, TL, answer, s }) {
 // EKG heartbeat line — draws on with the time dilation (CLOSE races only)
 const EKG_D = 'M0 70 H190 L222 26 L254 112 L280 70 H350 L382 32 L414 106 L440 70 H880';
 const EKG_LEN = 1290; // measured path length of EKG_D
-function EkgLine({ subscribe, freezeAt, TL, s, vsC = 1 }) {
+function EkgLine({ subscribe, freezeAt, TL, s, vsC = 1, headerOff = 0 }) {
   const t = useT(subscribe, freezeAt);
   const dil = win01(t, TL.DIL_START, TL.DIL_DUR);
   const op = win01(t, TL.DIL_START, 300) * (1 - win01(t, TL.EXPLODE, 250));
   if (op <= 0) return null;
   const b1 = spike(dil, 0.30, 0.07, 0.18), b2 = spike(dil, 0.62, 0.07, 0.18);
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: 72 * s, top: 1884 * s * vsC,
+    <View pointerEvents="none" style={{ position: 'absolute', left: 72 * s, top: 1884 * s * vsC + headerOff,
       width: 880 * s, height: 130 * s, opacity: op, zIndex: 16 }}>
       <Svg width={880 * s} height={130 * s} viewBox="0 0 880 130">
         <Path d={EKG_D} stroke={COLORS.lime} strokeWidth={6} fill="none"
@@ -224,7 +224,7 @@ function EkgLine({ subscribe, freezeAt, TL, s, vsC = 1 }) {
 
 // loss crumble: 9 fragments of your bar fall with gravity — the quadratic
 // fall is pre-sampled onto the native clock (translate/rotate/opacity only)
-function CrumbleFrags({ clock, TL, s, youFrac, vsC = 1 }) {
+function CrumbleFrags({ clock, TL, s, youFrac, vsC = 1, headerOff = 0 }) {
   const frags = useMemo(() => {
     const rnd = mulberry32(7 * 97 + 1), arr = [];
     for (let i = 0; i < 9; i++) arr.push({
@@ -249,7 +249,7 @@ function CrumbleFrags({ clock, TL, s, youFrac, vsC = 1 }) {
           <Animated.View key={i} pointerEvents="none" style={{
             position: 'absolute', width: (bw - 4) * s, height: 24 * s, borderRadius: 5 * s,
             backgroundColor: 'rgba(175,185,155,0.85)', zIndex: 16,
-            left: (72 + i * bw) * s, top: 1424 * s * vsC, opacity: op,
+            left: (72 + i * bw) * s, top: 1424 * s * vsC + headerOff, opacity: op,
             transform: [{ translateX: tx }, { translateY: ty }, { rotate: rot }] }} />
         );
       })}
@@ -277,14 +277,15 @@ export default function ResultsScreen({
   // bottom-anchored (safe-area aware) and the content above compresses by
   // vsC so nothing ever underlaps the buttons or the viewport. On the
   // 1024x2224 canvas vsC = 1 and everything sits at the exact design-Y.
-  const { g: vg, safeB, safeT } = useVScale();
+  const { g: vg, safeB, safeT, headerOff } = useVScale();
   // header (and its balance pill) shift down by this on device; the win-absorb
-  // glow that frames the pill must track the same offset. 0 on web.
-  const headerShift = safeT > 0 ? (safeT + 12 - 94 * s) : 0;
+  // glow that frames the pill must track the same offset. 0 on web. Equals the
+  // header's real downshift = (safeT + 24) - 94*s (theme.headerOffset).
+  const headerShift = headerOff;
   const homeB = 74 * s + safeB;                          // HOME (design top 2038, h112)
   const playB = homeB + (112 + 38 * vg) * s;             // PLAY AGAIN (design top 1848, h152)
   const vsC = Math.min(1, (height - playB - 152 * s) / (1848 * s));
-  const sy = (y) => y * s * vsC;
+  const sy = (y) => y * s * vsC + headerOff;
 
   /* outcome derivation (deterministic from props; override for previews) */
   let kind = outcome;
@@ -733,8 +734,8 @@ export default function ResultsScreen({
           opacity: finOp, zIndex: 16, transform: [{ scaleY: finScaleY }],
           shadowColor: COLORS.lime, shadowOpacity: 0.8, shadowRadius: 24 * s, shadowOffset: { width: 0, height: 0 } }} />
         <Ring p={finShockP} o={finShockO} color={COLORS.lime} size={220} cx={952} cy={1519} bw={9} />
-        {TL.CLOSE ? <EkgLine subscribe={subscribe} freezeAt={FT} TL={TL} s={s} vsC={vsC} /> : null}
-        {isLoss ? <CrumbleFrags clock={clock} TL={TL} s={s} youFrac={you.time / TL.maxT} vsC={vsC} /> : null}
+        {TL.CLOSE ? <EkgLine subscribe={subscribe} freezeAt={FT} TL={TL} s={s} vsC={vsC} headerOff={headerOff} /> : null}
+        {isLoss ? <CrumbleFrags clock={clock} TL={TL} s={s} youFrac={you.time / TL.maxT} vsC={vsC} headerOff={headerOff} /> : null}
 
         {/* ── STEP 3: explode ── */}
         {!isDraw ? (

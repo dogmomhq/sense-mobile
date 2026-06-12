@@ -163,11 +163,23 @@ export function getSafeTop() {
   return _safeTop;
 }
 
+// ── Header content offset (2026-06-12 B15 fix) ──────────────────────────────
+// GlassHeader's slab top is `safeTop + 24` on device (vs `94 * s` on the locked
+// web canvas). Every TOP-ANCHORED element below the header is positioned in
+// design-canvas Y from 0, so on device it must shift DOWN by exactly how far
+// the header moved from its design home: (safeTop + 24) - 94*s. On web safeTop
+// is 0 -> offset 0 and the locked design renders unchanged. Returned in DEVICE
+// px (added raw, never * s). Bottom-anchored content must NOT add this.
+export function headerOffset(s) {
+  const top = getSafeTop();
+  return top > 0 ? Math.max(0, top + 24 - 94 * s) : 0;
+}
+
 export function useVScale() {
   const { width, height } = useWindowDimensions();
   const s = width / BASE_W;
   const designH = BASE_H * s;
   const vs = Math.min(1, height / designH);
   const g = vs >= 1 ? 1 : Math.max(0.3, 1 - (1 - vs) * 1.6);
-  return { s, vs, g, width, height, safeB: getSafeBottom(), safeT: getSafeTop() };
+  return { s, vs, g, width, height, safeB: getSafeBottom(), safeT: getSafeTop(), headerOff: headerOffset(s) };
 }
