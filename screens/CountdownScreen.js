@@ -53,7 +53,11 @@ function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
   );
 }
 
-export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, freezeBeat = null }) {
+// onGoVisible(ts): fires on the first RENDERED frame of the GO beat (rAF after
+// the GO slam starts) — the integration uses it to anchor the scoring t0 to
+// the GO the player actually SEES instead of the scheduled 2400ms timer
+// (TIMING FIX 2, 2026-06-12). The scheduled flip stays as the fallback t0.
+export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onGoVisible, freezeBeat = null }) {
   const s = useScale();
   const { width: W, height: H } = useWindowDimensions();
   const px = PUPIL_X * s, py = PUPIL_Y * s, ix = IRIS_X * s, iy = IRIS_Y * s;
@@ -74,6 +78,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
   const wipe = useRef(new Animated.Value(0)).current;
   const cur = useRef(0);
   const timers = useRef([]);
+  const goRaf = useRef(null);
 
   const landFX = useCallback((isGo) => {
     // 2px / 90ms micro-shake
@@ -138,11 +143,16 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     beat(3);
     timers.current.push(setTimeout(() => beat(2), BEAT_MS));
     timers.current.push(setTimeout(() => beat(1), BEAT_MS * 2));
-    timers.current.push(setTimeout(() => beat('go'), BEAT_MS * 3));
+    timers.current.push(setTimeout(() => {
+      beat('go');
+      // anchor on the first frame where GO is actually on screen: beat() has
+      // queued the slam-in, rAF fires after that frame paints
+      goRaf.current = requestAnimationFrame(() => { if (onGoVisible) onGoVisible(Date.now()); });
+    }, BEAT_MS * 3));
     timers.current.push(setTimeout(() =>
       Animated.timing(wipe, { toValue: 1, duration: 300, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(), 2900));
     timers.current.push(setTimeout(() => onDone && onDone(), 3200));
-    return () => timers.current.forEach(clearTimeout);
+    return () => { timers.current.forEach(clearTimeout); if (goRaf.current) cancelAnimationFrame(goRaf.current); };
   }, []);
 
   const glyphWrap = (i) => {

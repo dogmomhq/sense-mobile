@@ -293,6 +293,14 @@ export default function App() {
   const [nameInput, setNameInput] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
   const history = useRef([]); const startRef = useRef(0); const timerRef = useRef(null); const answered = useRef(false);
+  // TIMING FIX 2 (2026-06-12): t0 anchored to the RENDERED GO frame. The reskin
+  // countdown reports the timestamp of the frame where GO actually paints
+  // (CountdownScreen onGoVisible) into this override; the round-start effect
+  // consumes it (fresh within 1s) instead of its own Date.now(). Fallback: if
+  // GO never reports (old UI / edge), the scheduled flip's Date.now() is t0,
+  // exactly as before. Server contract unaffected: clientTime is still ms
+  // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
+  const startOverrideRef = useRef(null);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
@@ -326,7 +334,8 @@ export default function App() {
 
   useEffect(() => {
     if (mode !== 'play' || !q || countdown) return;
-    answered.current = false; startRef.current = Date.now(); setElapsed(0);
+    const ov = startOverrideRef.current; startOverrideRef.current = null;
+    answered.current = false; startRef.current = (ov && Math.abs(Date.now() - ov) < 1000) ? ov : Date.now(); setElapsed(0);
     timerRef.current = setInterval(() => { const e = Date.now()-startRef.current; setElapsed(e); if (e>=TIME_LIMIT){ clearInterval(timerRef.current); submit(-1); } }, 50);
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
@@ -348,9 +357,16 @@ export default function App() {
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
   function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { track('practice_start'); const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
-  function submit(idx) {
+  // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
+  // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
+  // the finger made contact, not from when the press gesture completed —
+  // removes the ~50-120ms touch-up latency from the scored time. Sanity-gated:
+  // pressTs must sit inside [t0, now] or we fall back to Date.now() (old path,
+  // also what practice/old-UI callers without pressTs get).
+  function submit(idx, pressTs) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
-    const playerTime = idx === -1 ? TIME_LIMIT : Math.min(Date.now()-startRef.current, TIME_LIMIT);
+    const tAns = (pressTs && pressTs >= startRef.current && pressTs <= Date.now()) ? pressTs : Date.now();
+    const playerTime = idx === -1 ? TIME_LIMIT : Math.max(0, Math.min(tAns-startRef.current, TIME_LIMIT));
     setPicked(idx); setMyTime(playerTime); playSfx('tap');
     if (onlineRef.current) {
       // Online: the server decides the result. Send our LOCAL time; wait for the result message.
@@ -647,7 +663,7 @@ export default function App() {
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
       cancelPendingMatch: (mid) => { try { wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
       // refs + env
-      stakeRef, accountRef, supabaseTokenRef, startRef, httpsBase: HTTPS_BASE, myName,
+      stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
     };
     const AW = PHProvider || React.Fragment;
     const ap = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};

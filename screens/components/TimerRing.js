@@ -292,7 +292,9 @@ function FuseSparks({ tLeft }) {
 }
 
 // ── main component ──────────────────────────────────────────────────────────
-export default function TimerRing({ secondsLeft = 10, mode = 'fuse' }) {
+// precision: decimals on the centered readout — 1 live (tenths), 2 when the
+// ring is frozen on the answered time so it equals the scored hundredths
+export default function TimerRing({ secondsLeft = 10, mode = 'fuse', precision = 1 }) {
   const s = useScale();
   const { vs } = useVScale();   // compresses the ring's design-Y on short viewports
   const tLeft = Math.max(0, Math.min(10, secondsLeft));
@@ -403,7 +405,7 @@ export default function TimerRing({ secondsLeft = 10, mode = 'fuse' }) {
           <Circle cx={CX} cy={CY} r={86} fill="rgba(11,15,10,0.55)" />
           <SvgText x={CX} y={CY + 1} textAnchor="middle" alignmentBaseline="central"
             fontFamily={FONTS.mono} fontSize={64} fill={COLORS.lime} opacity={0.95}>
-            {tLeft.toFixed(1)}
+            {tLeft.toFixed(precision)}
           </SvgText>
         </Svg>
       </View>

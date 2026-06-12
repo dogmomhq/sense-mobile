@@ -26,6 +26,7 @@ export default function QuestionScreen({
   streak = 8, balance = '$24.50',
   onAnswer, onTimeout, showClock = false,
   ringMode = 'fuse',                        // 'fuse' | 'laser' — which timer-ring engine
+  timingDbgRef = null,                      // ?timedebug=1: { flipTs, goTs } from ReskinApp (goAnchor delta) + last press latency written here
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
@@ -77,10 +78,15 @@ export default function QuestionScreen({
 
       <GlassHeader streak={streak} balance={balance} showClock={showClock} />
       <StakePill text={stake} />
-      <TimerRing secondsLeft={tLeft} mode={ringMode} />
+      {/* frozen (answered) readout shows hundredths so it equals the scored
+          time exactly; live readout stays tenths */}
+      <TimerRing secondsLeft={tLeft} mode={ringMode} precision={secondsLeft != null ? 2 : 1} />
       <AnswerGrid answers={answers} lockedIndex={locked}
-        onAnswer={(i, label) => { setLocked(i); if (onAnswer) onAnswer(i, label); }} />
-      {TIMEDEBUG && <TimeDebug startTsRef={startTsRef} secondsLeft={secondsLeft} tLeft={tLeft} />}
+        onAnswer={(i, label, pressTs) => {
+          if (timingDbgRef && timingDbgRef.current) timingDbgRef.current.press = { pressTs, submitTs: Date.now() };
+          setLocked(i); if (onAnswer) onAnswer(i, label, pressTs);
+        }} />
+      {TIMEDEBUG && <TimeDebug startTsRef={startTsRef} secondsLeft={secondsLeft} tLeft={tLeft} timingDbgRef={timingDbgRef} />}
     </View>
   );
 }
@@ -88,12 +94,15 @@ export default function QuestionScreen({
 // ?timedebug=1 — overlays the t0 source, the scoring clock's elapsed, and the
 // ring's displayed remaining so display/score divergence is visible live.
 // Param-gated, renders nothing otherwise; safe to leave in.
-function TimeDebug({ startTsRef, secondsLeft, tLeft }) {
+function TimeDebug({ startTsRef, secondsLeft, tLeft, timingDbgRef }) {
   const [, force] = useState(0);
   useEffect(() => { const i = setInterval(() => force(n => n + 1), 100); return () => clearInterval(i); }, []);
   const t0 = startTsRef && startTsRef.current ? startTsRef.current : null;
   const scoringElapsed = t0 ? Math.max(0, (Date.now() - t0) / 1000) : null;
   const ringElapsed = 10 - tLeft;
+  const dbg = (timingDbgRef && timingDbgRef.current) || {};
+  const goDelta = dbg.flipTs && dbg.goTs ? dbg.goTs - dbg.flipTs : null;         // rendered GO vs scheduled flip
+  const pressLat = dbg.press && dbg.press.pressTs ? dbg.press.submitTs - dbg.press.pressTs : null;
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: 4, left: 4, zIndex: 99,
       backgroundColor: 'rgba(0,0,0,0.75)', padding: 6, borderRadius: 4 }}>
@@ -102,7 +111,9 @@ function TimeDebug({ startTsRef, secondsLeft, tLeft }) {
          + `scoring elapsed: ${scoringElapsed != null ? scoringElapsed.toFixed(2) + 's' : '—'}\n`
          + `ring shows left: ${tLeft.toFixed(2)}s (elapsed ${ringElapsed.toFixed(2)}s)\n`
          + `mode: ${secondsLeft != null ? 'FROZEN @' + secondsLeft : 'LIVE'}\n`
-         + `delta(score-ring): ${scoringElapsed != null ? (scoringElapsed - ringElapsed).toFixed(2) + 's' : '—'}`}
+         + `delta(score-ring): ${scoringElapsed != null ? (scoringElapsed - ringElapsed).toFixed(2) + 's' : '—'}\n`
+         + `goAnchor (rendered-scheduled): ${goDelta != null ? '+' + goDelta + 'ms' : '—'}\n`
+         + `last press→submit: ${pressLat != null ? pressLat + 'ms' : '—'}`}
       </Text>
     </View>
   );

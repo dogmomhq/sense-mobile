@@ -116,6 +116,7 @@ export default function ReskinApp({ g }) {
   const [lb, setLb] = useState({ rows: [], you: null });
   const [now, setNow] = useState(Date.now());            // 1s tick for pending lockout rings
   const dailyShown = useRef(false);
+  const timingDbg = useRef({});            // ?timedebug=1: { flipTs, goTs, press } per round
 
   // make sure the selected stake is on the canonical ladder (App default is 10)
   useEffect(() => { if (!TIER_CENTS.includes(g.stake)) g.setStake(TIER_CENTS[0]); }, []);
@@ -127,7 +128,8 @@ export default function ReskinApp({ g }) {
   useEffect(() => {
     if (g.countdown && g.mode === 'play') {
       setCdOverlay(true);
-      const t = setTimeout(() => g.setCountdown(false), 2400);
+      timingDbg.current = {};
+      const t = setTimeout(() => { timingDbg.current.flipTs = Date.now(); g.setCountdown(false); }, 2400);
       return () => clearTimeout(t);
     }
   }, [g.countdown, g.mode]);
@@ -291,8 +293,8 @@ export default function ReskinApp({ g }) {
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceTxt} ringMode={RING_MODE}
           secondsLeft={g.countdown ? 10 : (answered ? secLeft : null)}
-          startTsRef={g.startRef}
-          onAnswer={(i) => g.submit(i)} />
+          startTsRef={g.startRef} timingDbgRef={timingDbg}
+          onAnswer={(i, _label, pressTs) => g.submit(i, pressTs)} />
       );
     }
     // NOTE: timeout submit stays App.js's 50ms tick on startRef (submit(-1) at
@@ -411,7 +413,18 @@ export default function ReskinApp({ g }) {
       {cdOverlay && g.mode === 'play' && g.q ? (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 80 }}>
           <CountdownScreen stakeLabel={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
-            onDone={() => setCdOverlay(false)} />
+            onDone={() => setCdOverlay(false)}
+            onGoVisible={(ts) => {
+              // TIMING FIX 2 (2026-06-12): anchor t0 to the GO frame the player
+              // actually SEES. If App.js's round-start effect hasn't consumed
+              // its t0 yet, the override feeds it; if it already started off
+              // the scheduled flip (≤ a frame ago), re-anchor startRef in
+              // place — every consumer reads the ref per tick. Guard: if this
+              // never fires, the scheduled 2400ms flip remains t0 (old path).
+              timingDbg.current.goTs = ts;
+              if (g.startOverrideRef) g.startOverrideRef.current = ts;
+              if (g.startRef && g.startRef.current && Math.abs(ts - g.startRef.current) < 500) g.startRef.current = ts;
+            }} />
         </View>
       ) : null}
       {/* background-result banners (never during the countdown/question takeover) */}

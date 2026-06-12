@@ -3,12 +3,17 @@
 // Anton 52px uppercase, letter-spacing 0.04em).
 // States: pressed (finger down) = lime border + lime wash;
 //         locked (answer submitted) = solid lime cell, others dimmed.
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { COLORS, FONTS, RADII, useScale, getSafeBottom } from '../theme';
 
+// TIMING FIX 2 (2026-06-12): the answer timestamp is captured at TOUCH-DOWN
+// (onPressIn = finger contact) and handed to onAnswer(i, label, pressTs) when
+// the press completes. If the finger slides off (onPressIn without onPress)
+// the stamp is discarded on the next press-in / never consumed.
 export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null, disabled = false }) {
   const s = useScale();
+  const pressStamp = useRef(null);   // { i, ts } from the last onPressIn
   const cellW = (1024 - 45 * 2 - 24) / 2; // 455 prototype px
   return (
     <View style={{ position: 'absolute', left: 45 * s, right: 45 * s, bottom: 120 * s + getSafeBottom(),
@@ -17,7 +22,13 @@ export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null,
         const locked = lockedIndex != null;
         const isLocked = lockedIndex === i;
         return (
-          <Pressable key={i} disabled={disabled || locked} onPress={() => onAnswer && onAnswer(i, label)}
+          <Pressable key={i} disabled={disabled || locked}
+            onPressIn={() => { pressStamp.current = { i, ts: Date.now() }; }}
+            onPress={() => {
+              const st = pressStamp.current; pressStamp.current = null;
+              const ts = st && st.i === i ? st.ts : Date.now();
+              if (onAnswer) onAnswer(i, label, ts);
+            }}
             style={({ pressed }) => ({
               width: cellW * s,
               backgroundColor: isLocked ? COLORS.lime : pressed ? COLORS.ansPressedBg : COLORS.ansBg,
