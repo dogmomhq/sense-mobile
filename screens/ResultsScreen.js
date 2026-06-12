@@ -260,6 +260,7 @@ export default function ResultsScreen({
   opp = { answer: 'CHEETAH', time: 1.76, correct: true },
   correctAnswer = 'CHEETAH',
   stake = 1.0, payout = 1.9,
+  practice = false,                     // PRACTICE · FREE — no stake/payout text
   balanceBefore = 24.5,                 // post-stake balance (escrow display rule)
   streak = 8, record = { w: 12, d: 1, l: 4 },
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
@@ -526,7 +527,15 @@ export default function ResultsScreen({
 
   /* strings */
   const fmt = (n) => '$' + n.toFixed(2);
+  // banner pools (RESULTS_CONTENT.md §1): a win because the rival answered
+  // wrong/timed out keys off the opponent-wrong pools, NOT the speed pools
+  const bannerRoll = useMemo(() => Math.random(), []);
+  const pickPool = (pool) => pool[Math.floor(bannerRoll * pool.length) % pool.length];
+  const oppTimedOut = String(opp.answer || '').toUpperCase() === 'TIMED OUT';
   const eyebrowTxt = isDraw ? 'DEAD HEAT'
+    : isWin && !opp.correct
+      ? pickPool(oppTimedOut ? ['FREE MONEY', 'THEY GHOSTED', 'EASY W']
+                             : ['BUILT DIFFERENT', 'KNOWLEDGE', 'BRAIN > SPEED'])
     : isWin ? (TL.CLOSE ? 'PHOTO FINISH' : 'TOO FAST')
     : isMiss ? 'PHOTO FINISH' : 'NEXT TIME';
   const headlineTxt = isWin ? 'YOU WIN' : isMiss ? 'SO CLOSE' : 'YOU LOST';
@@ -607,7 +616,7 @@ export default function ResultsScreen({
           <View style={{ backgroundColor: COLORS.stakeBg, borderWidth: 1.5 * s, borderColor: COLORS.stakeBorder,
             borderRadius: 40 * s, paddingVertical: 14 * s, paddingHorizontal: 44 * s }}>
             <Text style={{ color: COLORS.lime, fontFamily: FONTS.interExtra, fontSize: 34 * s,
-              letterSpacing: 0.06 * 34 * s }}>{fmt(stake)} · WIN {fmt(payout)}</Text>
+              letterSpacing: 0.06 * 34 * s }}>{practice ? 'PRACTICE · FREE' : fmt(stake) + ' · WIN ' + fmt(payout)}</Text>
           </View>
         </Animated.View>
 
@@ -730,8 +739,8 @@ export default function ResultsScreen({
               textShadowColor: 'rgba(212,242,60,0.75)', textShadowRadius: 30 * s,
               textShadowOffset: { width: 0, height: 0 },
               transform: [{ translateX: heroX }, { translateY: heroY }, { scale: heroScale }] }}>
-              +{fmt(payout)}</Animated.Text>
-            <Ring p={heroShockP} o={heroShockO} color="#FFFFFF" cx={512} cy={851} />
+              {practice ? '' : '+' + fmt(payout)}</Animated.Text>
+            {practice ? null : <Ring p={heroShockP} o={heroShockO} color="#FFFFFF" cx={512} cy={851} />}
             {pillLabel ? (
               <Animated.View style={{ position: 'absolute', top: sy(742), left: 0, right: 0,
                 alignItems: 'center', opacity: pillIn, zIndex: 22,
@@ -820,16 +829,24 @@ export default function ResultsScreen({
             <Animated.Text style={{ position: 'absolute', top: sy(1166), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.interExtra, fontSize: 25 * s, letterSpacing: 0.3 * 25 * s,
               color: COLORS.creamDim, opacity: cardIn, zIndex: 18 }}>
-              ONLINE MATCH · {fmt(stake)} STAKE</Animated.Text>
+              {practice ? 'PRACTICE · FREE' : 'ONLINE MATCH · ' + fmt(stake) + ' STAKE'}</Animated.Text>
+            {/* card + record line share ONE flow container so the record can
+                never collide with the card's bottom border at compressed
+                heights (the card is content-sized; sy() is not) */}
             <Animated.View style={{ position: 'absolute', top: sy(1222), left: 60 * s, right: 60 * s,
-              backgroundColor: 'rgba(16,20,13,0.86)', borderWidth: 2.5 * s, borderColor: 'rgba(215,248,74,0.55)',
-              borderRadius: 28 * s, paddingVertical: 36 * s * vg, paddingHorizontal: 52 * s, zIndex: 18,
-              opacity: cardIn, transform: [{ translateY: cardY }] }}>
-              <View style={{ flexDirection: 'row', paddingBottom: 22 * s * vg, paddingTop: 10 * s * vg }}>
+              zIndex: 18, opacity: cardIn, transform: [{ translateY: cardY }] }}>
+              <View style={{ backgroundColor: 'rgba(16,20,13,0.86)', borderWidth: 2.5 * s, borderColor: 'rgba(215,248,74,0.55)',
+                borderRadius: 28 * s, paddingVertical: 36 * s * vg, paddingHorizontal: 52 * s }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 22 * s * vg, paddingTop: 10 * s * vg }}>
+                {/* header cells use the EXACT column basis of the data rows */}
                 {['RESULT', 'ANSWER', 'TIME'].map((h, i) => (
-                  <Text key={h} style={{ width: i === 0 ? 190 * s : i === 2 ? 250 * s : undefined, flex: i === 1 ? 1 : 0,
-                    textAlign: i === 2 ? 'right' : 'left', fontFamily: FONTS.interExtra, fontSize: 26 * s,
-                    letterSpacing: 0.2 * 26 * s, color: COLORS.creamDim }}>{h}</Text>
+                  <Text key={h} numberOfLines={1} allowFontScaling={false}
+                    style={i === 0 ? { width: 190 * s, fontFamily: FONTS.interExtra, fontSize: 26 * s,
+                      letterSpacing: 0.2 * 26 * s, color: COLORS.creamDim }
+                    : i === 1 ? { flex: 1, paddingRight: 12 * s, fontFamily: FONTS.interExtra, fontSize: 26 * s,
+                      letterSpacing: 0.2 * 26 * s, color: COLORS.creamDim }
+                    : { width: 250 * s, textAlign: 'right', fontFamily: FONTS.interExtra, fontSize: 26 * s,
+                      letterSpacing: 0.2 * 26 * s, color: COLORS.creamDim }}>{h}</Text>
                 ))}
               </View>
               {[{ who: 'YOU', ans: you.answer + mark(you.correct), time: you.time.toFixed(2) + 's', me: true },
@@ -847,10 +864,11 @@ export default function ResultsScreen({
                     color: r.me ? COLORS.lime : COLORS.creamDim }}>{r.time}</Text>
                 </View>
               ))}
+              </View>
+              <Text allowFontScaling={false} style={{ marginTop: 40 * s * vg, textAlign: 'center',
+                fontFamily: FONTS.interExtra, fontSize: 34 * s, letterSpacing: 0.16 * 34 * s,
+                color: COLORS.creamDim }}>{statsTxt}</Text>
             </Animated.View>
-            <Animated.Text style={{ position: 'absolute', top: sy(1768), left: 0, right: 0, textAlign: 'center',
-              fontFamily: FONTS.interExtra, fontSize: 34 * s, letterSpacing: 0.16 * 34 * s,
-              color: COLORS.creamDim, opacity: cardIn, zIndex: 18 }}>{statsTxt}</Animated.Text>
           </>
         ) : null}
 

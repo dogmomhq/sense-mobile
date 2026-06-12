@@ -318,6 +318,7 @@ export default function ReskinApp({ g }) {
           time: oppT, correct: g.comp.isCorrect }}
         correctAnswer={correctTxt}
         stake={stkC / 100} payout={payC / 100} balanceBefore={Math.max(0, balBefore) / 100}
+        practice={!g.online}
         streak={streakVal}
         record={g.online
           ? { w: g.onlineRec.wins, d: g.onlineRec.draws, l: g.onlineRec.losses }

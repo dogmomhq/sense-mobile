@@ -58,12 +58,12 @@ const RESULTS_DEMO = {
 };
 
 // results loops in preview: remount on each cycle end
-function ResultsLoop({ outcome, at }) {
+function ResultsLoop({ outcome, at, practice }) {
   const [k, setK] = React.useState(0);
   const d = RESULTS_DEMO[outcome] || RESULTS_DEMO.win;
   return (
-    <ResultsScreen key={k} outcome={outcome} you={d.you} opp={d.opp} record={d.record}
-      correctAnswer="CHEETAH" stake={1.0} payout={1.9} balanceBefore={24.5} streak={8}
+    <ResultsScreen key={k} outcome={outcome} you={d.you} opp={d.opp} record={d.record} practice={!!practice}
+      correctAnswer="CHEETAH" stake={practice ? 0 : 1.0} payout={practice ? 0 : 1.9} balanceBefore={24.5} streak={8}
       freezeAt={at || null} showClock onCycleEnd={at ? undefined : () => setK((x) => x + 1)} />
   );
 }
@@ -128,7 +128,8 @@ export default function PreviewApp() {
   );
   if (which === 'question-live') return <QuestionScreen showClock ringMode={ring} />;
   if (which === 'countdown') return <CountdownLoop freezeBeat={beat} />;
-  if (which === 'results') return <ResultsLoop outcome={typeof outcome !== 'undefined' ? outcome : 'win'} at={typeof at !== 'undefined' ? at : null} />;
+  if (which === 'results') return <ResultsLoop outcome={typeof outcome !== 'undefined' ? outcome : 'win'} at={typeof at !== 'undefined' ? at : null}
+    practice={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('practice') === '1'} />;
   if (which === 'waiting') return <WaitingScreen showClock handle="NIGHTOWL88" freeze={qhas(t)} />;
   if (which === 'history') return (
     <AppShell activeTab="history" handle="NIGHTOWL88" pendingCount={1} showClock>
