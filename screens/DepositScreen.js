@@ -5,8 +5,8 @@
 // collects contact AND awards free coins), waitlist caption. No payment
 // wiring whatsoever — `onNotify` fires the existing requestDepositNotify.
 // Pure presentational; renders inside AppShell.
-import React from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 import PressBtn from './components/PressBtn';
@@ -22,8 +22,17 @@ function Lock({ size }) {
 
 export default function DepositScreen({
   amounts = ['$5', '$10', '$25', '$50'], balance = '$24.50', onNotify,
+  signedInEmail = '',   // signed-in users notify with one tap (their auth email)
+  busy = false,
 }) {
   const s = useScale();
+  // Phase 6: notify captures a CONTACT server-side (POST /api/notify-deposit)
+  // and pays a one-time +$0.50 signup-to-notify bonus. Signed-out users type
+  // an email; signed-in users just tap (auth email used).
+  const [email, setEmail] = useState('');
+  const contact = signedInEmail || email.trim();
+  const emailOk = /.+@.+\..+/.test(contact);
+  const fire = () => { if (!busy && emailOk && onNotify) onNotify(contact); };
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 * s }}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 150 * s, color: COLORS.wordmark,
@@ -61,13 +70,26 @@ export default function DepositScreen({
         <Text style={{ fontFamily: FONTS.interBlack, fontSize: 44 * s, color: COLORS.lime }}>{balance}</Text>
       </View>
 
+      {/* notify contact (only when not signed in — signed-in uses auth email) */}
+      {!signedInEmail ? (
+        <TextInput placeholder="YOUR EMAIL" placeholderTextColor={COLORS.creamDim}
+          value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false}
+          keyboardType="email-address"
+          style={{ marginHorizontal: 45 * s, marginBottom: 28 * s, borderWidth: 2 * s,
+            borderColor: 'rgba(215,248,74,0.5)', borderRadius: 16 * s, paddingVertical: 28 * s,
+            paddingHorizontal: 32 * s, color: COLORS.cream, fontFamily: FONTS.interBold,
+            fontSize: 34 * s, letterSpacing: 0.08 * 34 * s }} />
+      ) : null}
+
       {/* notify CTA */}
-      <PressBtn onPress={onNotify} style={{ marginHorizontal: 45 * s, backgroundColor: COLORS.lime,
+      <PressBtn onPress={fire} disabled={busy || !emailOk}
+        style={{ opacity: busy ? 0.7 : emailOk ? 1 : 0.5,
+        marginHorizontal: 45 * s, backgroundColor: COLORS.lime,
         borderRadius: RADII.cta * s, paddingVertical: 46 * s, alignItems: 'center',
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
         shadowOpacity: 0.55, elevation: 10 }}>
         <Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
-          letterSpacing: 0.03 * 60 * s, includeFontPadding: false }}>NOTIFY ME · EARN FREE COINS</Text>
+          letterSpacing: 0.03 * 60 * s, includeFontPadding: false }}>{busy ? 'SAVING…' : 'NOTIFY ME · EARN FREE COINS'}</Text>
       </PressBtn>
       <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.creamDim,
         textAlign: 'center', letterSpacing: 0.1 * 26 * s, marginTop: 30 * s }}>

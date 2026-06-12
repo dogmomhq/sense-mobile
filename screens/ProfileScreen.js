@@ -8,7 +8,7 @@
 //   WITHDRAW disabled), settings rows, version.
 // Badges grid CUT from MVP (Q10) — slot reserved below, do not delete.
 // Pure presentational; renders inside AppShell.
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, Switch, Animated } from 'react-native';
 import InitialsAvatar from './components/InitialsAvatar';
 import PressBtn from './components/PressBtn';
@@ -141,16 +141,57 @@ function SettingsRow({ label, right = null, danger = false, onPress }) {
 }
 
 function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
-  onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version }) {
+  onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version,
+  onRename }) {
   const s = useScale();
   const netPos = !String(netLifetime).startsWith('-');
+  // Phase 6 (gap leftover): tap name → inline edit. 3-16 chars [a-zA-Z0-9_]
+  // (mirrors App.js doRename's validation — the server is the final word and
+  // rename-result drives the toast + displayName update).
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const draftOk = /^[a-zA-Z0-9_]{3,16}$/.test(draft.trim());
+  const startEdit = () => { if (onRename) { setDraft(String(handle)); setEditing(true); } };
+  const save = () => { if (draftOk && onRename) { onRename(draft.trim()); setEditing(false); } };
   return (
     <View style={{ paddingHorizontal: 45 * s }}>
-      {/* hero: initials avatar + handle + member-since */}
+      {/* hero: initials avatar + handle (tap to rename) + member-since */}
       <View style={{ alignItems: 'center', marginBottom: 36 * s }}>
         <InitialsAvatar handle={handle} size={260} ring={4} fontSize={104} />
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 96 * s, color: COLORS.wordmark,
-          includeFontPadding: false, marginTop: 28 * s }}>{String(handle).toUpperCase()}</Text>
+        {editing ? (
+          <View style={{ alignItems: 'center', marginTop: 28 * s, alignSelf: 'stretch' }}>
+            <TextInput value={draft} onChangeText={(t) => setDraft(t.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16))}
+              autoFocus autoCapitalize="none" autoCorrect={false} maxLength={16}
+              onSubmitEditing={save}
+              style={{ alignSelf: 'stretch', borderWidth: 2 * s, borderColor: 'rgba(215,248,74,0.6)',
+                borderRadius: 16 * s, paddingVertical: 18 * s, paddingHorizontal: 28 * s,
+                color: COLORS.cream, fontFamily: FONTS.anton, fontSize: 72 * s,
+                textAlign: 'center' }} />
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
+              letterSpacing: 0.08 * 24 * s, marginTop: 12 * s }}>3-16 CHARS · LETTERS, NUMBERS, _</Text>
+            <View style={{ flexDirection: 'row', gap: 18 * s, marginTop: 18 * s }}>
+              <Pressable onPress={save} disabled={!draftOk}
+                style={{ backgroundColor: COLORS.lime, opacity: draftOk ? 1 : 0.4, borderRadius: 18 * s,
+                  paddingVertical: 18 * s, paddingHorizontal: 54 * s }}>
+                <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s, color: '#10140C',
+                  letterSpacing: 0.06 * 32 * s }}>SAVE</Text>
+              </Pressable>
+              <Pressable onPress={() => setEditing(false)}
+                style={{ borderWidth: 2 * s, borderColor: 'rgba(245,241,230,0.35)', borderRadius: 18 * s,
+                  paddingVertical: 18 * s, paddingHorizontal: 44 * s }}>
+                <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s, color: COLORS.creamDim,
+                  letterSpacing: 0.06 * 32 * s }}>CANCEL</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable onPress={startEdit} style={{ alignItems: 'center' }}>
+            <Text style={{ fontFamily: FONTS.anton, fontSize: 96 * s, color: COLORS.wordmark,
+              includeFontPadding: false, marginTop: 28 * s }}>{String(handle).toUpperCase()}</Text>
+            {onRename ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s,
+              color: COLORS.creamDim, letterSpacing: 0.1 * 24 * s, marginTop: 6 * s }}>TAP TO EDIT ✎</Text> : null}
+          </Pressable>
+        )}
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: COLORS.creamDim,
           letterSpacing: 0.12 * 28 * s, marginTop: 10 * s }}>
           MEMBER SINCE {String(memberSince).toUpperCase()}</Text>
@@ -212,7 +253,7 @@ export default function ProfileScreen({
   stats = { played: 56, w: 41, l: 12, d: 3, winPct: 73, streak: 8 },
   netLifetime = '+$212.40', balance = '$24.50', soundsOn = true, version = 'v0.9.0',
   email = '', code = undefined,
-  onSignIn, onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount,
+  onSignIn, onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onRename,
   // live OTP wiring (ReskinApp)
   onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onSignOut,
 }) {
@@ -223,7 +264,8 @@ export default function ProfileScreen({
         <LoggedIn handle={handle} memberSince={memberSince} stats={stats}
           netLifetime={netLifetime} balance={balance} soundsOn={soundsOn} version={version}
           onDeposit={onDeposit} onToggleSounds={onToggleSounds} onPrivacy={onPrivacy}
-          onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} onSignOut={onSignOut} />
+          onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} onSignOut={onSignOut}
+          onRename={onRename} />
       ) : (
         <SignInCard email={email} {...(code ? { code } : {})} onSignIn={onSignIn}
           onChangeEmail={onChangeEmail} codeStr={codeStr} onChangeCode={onChangeCode}

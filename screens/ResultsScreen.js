@@ -32,6 +32,7 @@ import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
 import ConfettiBurst from './components/ConfettiBurst';
 import { COLORS, FONTS, useScale, useVScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
+import { sfx, hapTap, hapHeartbeat } from './sfx';
 import PressBtn from './components/PressBtn';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
@@ -379,6 +380,32 @@ export default function ResultsScreen({
       if (t >= TL.CYCLE && !done) { done = true; clearInterval(id); if (onCycleEnd) onCycleEnd(); }
     }, 50);
     return () => { anim.stop(); clearInterval(id); };
+  }, [TL, FT]);
+
+  /* ── Phase 6: sound + haptic beats riding the SAME timeline (display-only —
+        nothing here touches timing/scoring). Gated by the Sound toggle inside
+        sfx(); haptics native-only. Skipped in frozen previews (FT). ── */
+  useEffect(() => {
+    if (FT != null) return;
+    const ts = [];
+    const at = (t, fn) => ts.push(setTimeout(fn, Math.max(0, t)));
+    // your answer reveal (~250ms): bright pop on correct, dull thud on wrong
+    at(250, () => { sfx(you.correct ? 'correct' : 'wrong'); hapTap(you.correct ? 'light' : 'rigid'); });
+    // close-race heartbeats (the slow-mo crawl) — double thump x2
+    if (TL.CLOSE) {
+      at(TL.DIL_START + 0.30 * TL.DIL_DUR, () => { sfx('heartbeat'); hapHeartbeat(); });
+      at(TL.DIL_START + 0.62 * TL.DIL_DUR, () => { sfx('heartbeat'); hapHeartbeat(); });
+    }
+    // race lock / smash
+    at(TL.RACE_END, () => { sfx('race_finish'); hapTap('heavy'); });
+    // explode per outcome
+    if (isWin) at(E, () => { sfx('win'); hapTap('heavy'); });
+    else if (isMiss) at(E + 140, () => { sfx('heartbeat'); hapHeartbeat(); });   // heartbreaker
+    else if (isLoss) at(E + 680, () => hapTap('rigid'));                          // YOU LOST thud
+    else at(E + 650, () => hapTap('medium'));                                     // draw stamp
+    // payout odometer start (win, real stake only)
+    if (isWin && !practice) at(E + HERO + 1380, () => sfx('payout'));
+    return () => ts.forEach(clearTimeout);
   }, [TL, FT]);
 
   /* ── shared interpolations ── */

@@ -20,6 +20,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, Animated, Easing, useWindowDimensions, StatusBar } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { COLORS, FONTS, useScale } from './theme';
+import { sfx, hapTap } from './sfx';
 
 const EYE = require('../assets/countdown/eye_base.jpeg');
 const EYE_W = 1536, EYE_H = 2752;
@@ -115,6 +116,12 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
   }, [s]);
 
   const beat = useCallback((b) => {
+    // Phase 6 sound/haptic beats: low tom + medium tap on 3/2/1, whipcrack +
+    // heavy on the GO beat. Gated by the Sound toggle inside sfx(); haptics
+    // are native-only no-ops on web. Never fires in freezeBeat previews
+    // (beat() isn't called there).
+    if (b === 'go') { sfx('go'); hapTap('heavy'); }
+    else { sfx('countdown_beat'); hapTap('medium'); }
     const prev = wraps[cur.current];
     cur.current = 1 - cur.current;
     const next = wraps[cur.current];

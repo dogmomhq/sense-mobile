@@ -21,6 +21,7 @@ import { supabase } from './supabaseClient';
 //          this file stays byte-identical; ReskinApp is a pure render layer.
 // false -> the original UI below renders exactly as on main.
 import ReskinApp from './screens/ReskinApp';
+import { setSfxEnabled } from './screens/sfx';
 const RESKIN = true;
 // RESKIN_CREDITS: flip online matches to SERVER-SIDE credits. The server escrows the stake at
 // queue time (append-only ledger 'entry' row), refunds on cancel/expiry, pays on settle. The
@@ -319,7 +320,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
   useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
-  useEffect(() => { soundOn = sound; AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]);
+  useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX module rides the same toggle
   useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
   useEffect(() => {
     let sub;
