@@ -25,6 +25,16 @@ const RING_MODE = 'laser';                 // 'laser' | 'fuse' — CJ lean (lase
 const TIER_CENTS = [50, 100, 500, 1000];   // canonical ladder (DECISIONS #1) — mirrors server CREDIT_TIER_CENTS
 const RAKE = 0.05;                          // shared rake constant (DECISIONS #2)
 const TIME_LIMIT = 10000;
+// WAITING-SCREEN GRACE (bug fix 2026-06-13): after answering a paid online match
+// DON'T jump straight to the WaitingScreen takeover. Hold this long on the frozen
+// question ("locked / revealing") first. In the common ghost-join case the
+// `async-result` lands within this window → App.js flips mode to 'results' and we
+// route to ResultsScreen, so the misleading "AN OPPONENT IS OUT THERE / PLAY AGAIN"
+// takeover never appears. Only if NO result arrives in this window (true pending /
+// no opponent yet) does the WaitingScreen show. ~matches the original UI, which
+// stayed on the question and only surfaced actions at +4s. Purely a render gate —
+// the scored clientTime (App.js submit) is untouched.
+const WAIT_GRACE_MS = 3000;
 
 export const fmtMoney = (cents) => '$' + (Math.abs(cents || 0) / 100).toFixed(2);
 const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
@@ -126,6 +136,7 @@ export default function ReskinApp({ g }) {
   const dailyShown = useRef(false);
   const [notifyBusy, setNotifyBusy] = useState(false);
   const timingDbg = useRef({});            // ?timedebug=1: { flipTs, goTs, press } per round
+  const [graceElapsed, setGraceElapsed] = useState(false); // WAIT_GRACE_MS after answering a paid online match has passed with no result yet
 
   // make sure the selected stake is on the canonical ladder (App default is 10)
   useEffect(() => { if (!TIER_CENTS.includes(g.stake)) g.setStake(TIER_CENTS[0]); }, []);
@@ -146,6 +157,21 @@ export default function ReskinApp({ g }) {
       return () => clearTimeout(t);
     }
   }, [g.countdown, g.mode]);
+
+  // WAITING-SCREEN GRACE TIMER (bug fix 2026-06-13). The instant the player answers
+  // a paid online match (g.picked set, still mode 'play'), arm a WAIT_GRACE_MS timer.
+  // While it's pending we stay on the frozen question; when it fires (no async-result
+  // yet) graceElapsed flips true and the WaitingScreen takeover is allowed to show.
+  // If async-result lands first, g.mode flips to 'results' here → the condition drops,
+  // the timer is cleared, and graceElapsed resets to false for the next round. Keyed
+  // on g.matchId so a brand-new round always restarts the grace.
+  const answeredOnlineWaiting = g.mode === 'play' && g.picked !== null && g.online && !g.isChallenge;
+  useEffect(() => {
+    if (!answeredOnlineWaiting) { setGraceElapsed(false); return; }
+    setGraceElapsed(false);
+    const t = setTimeout(() => setGraceElapsed(true), WAIT_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [answeredOnlineWaiting, g.matchId]);
 
   // server hydration on open: daily bonus + profile fields (additive server pass 5a)
   useEffect(() => {
@@ -299,8 +325,12 @@ export default function ReskinApp({ g }) {
     body = <FindingFlash onCancel={g.cancelOnline} />;
   } else if (g.mode === 'play' && g.q) {
     const answered = g.picked !== null;
-    if (answered && g.online && !g.isChallenge) {
-      // ghost play: dedicated waiting takeover (DECISIONS Q6 FINAL)
+    if (answered && g.online && !g.isChallenge && graceElapsed) {
+      // ghost play, grace window elapsed with no result (true pending / no opponent
+      // yet): NOW show the dedicated waiting takeover (DECISIONS Q6 FINAL). If the
+      // async-result had arrived within WAIT_GRACE_MS, g.mode would already be
+      // 'results' and we'd never reach this branch — so a fast/instant result skips
+      // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
         <WaitingScreen streak={streakVal} balance={balanceTxt} handle={handle} signedIn={signedIn}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
