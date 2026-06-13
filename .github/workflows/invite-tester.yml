@@ -1,0 +1,40 @@
+name: Invite TestFlight Tester
+on:
+  workflow_dispatch:
+    inputs:
+      email: { description: tester email, required: true }
+      first_name: { description: first name, required: false, default: "Tester" }
+      last_name: { description: last name, required: false, default: "" }
+jobs:
+  invite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add external TestFlight tester via ASC API
+        env:
+          ASC_KEY_B64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          EMAIL: ${{ github.event.inputs.email }}
+          FN: ${{ github.event.inputs.first_name }}
+          LN: ${{ github.event.inputs.last_name }}
+        run: |
+          python3 -m pip install --quiet pyjwt cryptography requests
+          python3 - <<'PY'
+          import os, time, json, base64, requests, jwt
+          KID="47N638GLZG"; ISS="b26d5075-81df-418d-93b6-a3dd7be13e0c"; APP="6775628110"
+          key=base64.b64decode(os.environ["ASC_KEY_B64"]).decode()
+          tok=jwt.encode({"iss":ISS,"iat":int(time.time()),"exp":int(time.time())+1000,"aud":"appstoreconnect-v1"},
+                         key, algorithm="ES256", headers={"kid":KID,"typ":"JWT"})
+          h={"Authorization":f"Bearer {tok}","Content-Type":"application/json"}
+          B="https://api.appstoreconnect.apple.com/v1"
+          groups=requests.get(f"{B}/apps/{APP}/betaGroups",headers=h).json().get("data",[])
+          print("groups:",[(g['id'],g['attributes'].get('name'),g['attributes'].get('isInternalGroup')) for g in groups])
+          ext=[g for g in groups if not g['attributes'].get('isInternalGroup')]
+          if not ext:
+              print("No external group exists — create one in App Store Connect first."); raise SystemExit(1)
+          gid=ext[0]['id']; print("using group",gid,ext[0]['attributes'].get('name'))
+          body={"data":{"type":"betaTesters","attributes":{"firstName":os.environ["FN"],"lastName":os.environ["LN"],"email":os.environ["EMAIL"]},
+                "relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":gid}]}}}}
+          r=requests.post(f"{B}/betaTesters",headers=h,data=json.dumps(body))
+          print("status",r.status_code); print(r.text[:600])
+          if r.status_code not in (200,201): raise SystemExit(1)
+          print("INVITE SENT — Apple emails the tester a tappable invite link.")
+          PY
