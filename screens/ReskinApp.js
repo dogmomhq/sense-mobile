@@ -264,10 +264,22 @@ export default function ReskinApp({ g }) {
     return rows.sort((a, b) => b.ts - a.ts).slice(0, 250);
   }, [g.matchLog, g.ledger, g.serverLedger, g.balance, g.pending, cancelledRows]);
 
+  // SERVER-AUTHORITATIVE pending timers (fix 2026-06-13): anchor the 2-min
+  // cancel-lockout AND the 30-min expiry to the server's created_at (d.createdAt,
+  // epoch ms) so neither resets when the app is reopened. `now` ticks every 1s
+  // while History is visible. EXPIRY_MS mirrors the server's open-wager window —
+  // bump together if the server constant changes.
+  const LOCKOUT_MS = 120000;          // 2-min anti-abuse cancel lockout
+  const EXPIRY_MS = 30 * 60 * 1000;   // open-wager expiry window (server: queueExpireOld)
   const pendingRows = useMemo(() => Object.entries(g.pending || {}).map(([mid, d]) => {
-    const left = d.ts ? Math.ceil((120000 - (now - d.ts)) / 1000) : 0;
+    const anchor = (d.createdAt != null) ? d.createdAt : d.ts; // server clock first, legacy ts fallback
+    const lockLeft = anchor ? Math.ceil((LOCKOUT_MS - (now - anchor)) / 1000) : 0;
+    const expLeft  = anchor ? Math.max(0, Math.ceil((EXPIRY_MS - (now - anchor)) / 1000)) : null;
     return { mid, yourTime: d.myTime != null ? fmtSecs(d.myTime) : '—',
-      stake: fmtMoney(d.stake || 0), lockoutSec: left > 0 ? left : null };
+      stake: fmtMoney(d.stake || 0),
+      createdAt: anchor || null,
+      lockoutSec: lockLeft > 0 ? lockLeft : null,
+      expirySec: expLeft };
   }), [g.pending, now]);
 
   if (!fontsReady) return <View style={{ flex: 1, backgroundColor: COLORS.forest }} />;

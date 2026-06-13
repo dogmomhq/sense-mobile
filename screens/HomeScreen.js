@@ -16,7 +16,7 @@ const CHEETAH = require('../assets/cheetah.jpeg');
 const CHEETAH_W = 768, CHEETAH_H = 1376;
 const TIERS = ['$0.50', '$1.00', '$5.00', '$10.00'];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-const BUILD_TAG = 'B15';
+const BUILD_TAG = 'B16';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',

@@ -22,6 +22,21 @@ import { COLORS, FONTS, RADII, useScale } from './theme';
 const RED = '#FF5A48';
 const GREY = 'rgba(245,241,230,0.45)';
 
+/* ── date+time stamp per row (owner request 2026-06-13): explicit calendar
+      date AND clock time, e.g. "JUN 12 · 10:43 PM". Replaces the relative
+      "age stamps" that were removed earlier. ── */
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function fmtDateTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${MONTHS[d.getMonth()]} ${d.getDate()} · ${h}:${mm} ${ap}`;
+}
+
+
 /* ── badge palette per row type ── */
 const BADGE = {
   win:       { label: 'WIN',       bg: COLORS.lime, border: COLORS.lime, text: '#10140C' },
@@ -103,6 +118,11 @@ function PendingRow({ row, onCancel }) {
             YOU LOCKED {row.yourTime} · WAITING
           </Text>
           <Text style={{ fontFamily: FONTS.interBlack, fontSize: 44 * s, color: COLORS.cream }}>{row.stake}</Text>
+          {row.createdAt ? (
+            <Text style={{ fontFamily: FONTS.mono, fontSize: 22 * s, color: GREY }}>
+              {fmtDateTime(row.createdAt)}{row.expirySec != null ? `  ·  EXPIRES IN ${Math.floor(row.expirySec / 60)}:${String(row.expirySec % 60).padStart(2, '0')}` : ''}
+            </Text>
+          ) : null}
         </View>
         <CancelControl lockoutSec={row.lockoutSec} onCancel={() => onCancel && onCancel(row)} />
       </View>
@@ -137,6 +157,10 @@ function FeedRow({ row }) {
           {row.balance ? (
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: COLORS.creamDim,
               marginTop: 8 * s }}>BAL {row.balance}</Text>
+          ) : null}
+          {row.ts ? (
+            <Text style={{ fontFamily: FONTS.mono, fontSize: 22 * s, color: GREY,
+              marginTop: 8 * s }}>{fmtDateTime(row.ts)}</Text>
           ) : null}
         </View>
       </View>

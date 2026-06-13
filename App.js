@@ -377,7 +377,7 @@ export default function App() {
       } else {
         wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));  // async matchmaking
         const mid = matchIdRef.current;
-        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), stake: stakeRef.current } }));
+        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current } }));
         if (pendTimer.current) clearTimeout(pendTimer.current);
         pendTimer.current = setTimeout(() => { if (onlineRef.current) setShowActions(true); }, 4000); // web: actions appear at +4s
       }
@@ -468,7 +468,7 @@ export default function App() {
       const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}${tok ? '?token=' + encodeURIComponent(tok) : ''}`);
       const d = await r.json();
       if (d && Array.isArray(d.open) && d.open.length) {
-        setPending(prev => { const next = { ...prev }; d.open.forEach(g => { if (g.match_id && !next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: g.created_at ? new Date(g.created_at).getTime() : Date.now(), stake: 0, myTime: null }; }); return next; });
+        setPending(prev => { const next = { ...prev }; const seen = new Set(); d.open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null }; else if (cAt) next[g.match_id] = { ...next[g.match_id], createdAt: cAt }; }); Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null) { delete next[mid]; setTimeout(() => { try { showToast('MATCH EXPIRED — STAKE REFUNDED'); } catch (e) {} refreshServerBalance(); }, 0); } }); return next; });
       }
     } catch (e) {}
   }
@@ -562,7 +562,7 @@ export default function App() {
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
         if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
-        else showToast('A pending game expired');
+        else showToast('MATCH EXPIRED — STAKE REFUNDED');
         break;
       }
       case 'queue-failed':
