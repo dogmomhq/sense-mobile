@@ -31,6 +31,14 @@ const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
 const winCents = (stakeCents) => Math.round(stakeCents * 2 * (1 - RAKE));
 const fmtSecs = (ms) => (ms == null ? '—' : (Math.min(ms, TIME_LIMIT) / 1000).toFixed(2) + 's');
 const stakeLabel = (stakeCents) => `${fmtMoney(stakeCents)} · WIN ${fmtMoney(winCents(stakeCents))}`;
+// BUG 1 FIX (2026-06-13): the PENDING card must show the TRUE staked tier, not the raw
+// client `stakeRef.current`, which can drift OFF the ladder — e.g. the PostHog
+// `default-stake=test` flag sets it to 25, so the card rendered fmtMoney(25)=$0.25 for a
+// real $0.50 (tier 1) stake. The server maps any off-ladder value to tier 1
+// (`RESKIN_TIER_BY_CENTS[..] || 1`) and escrows THAT, so mirror it: known ladder value
+// passes through, any other non-zero value snaps to tier 1. 0 = 'stake unknown'
+// (server-hydrated open game the client never saw the tier for) — leave it untouched.
+const snapStakeCents = (c) => (!c ? 0 : TIER_CENTS.includes(c) ? c : TIER_CENTS[0]);
 const monthYear = (d) => { try { return new Date(d).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }); } catch (e) { return '—'; } };
 
 function authToken(g) {
@@ -276,7 +284,7 @@ export default function ReskinApp({ g }) {
     const lockLeft = anchor ? Math.ceil((LOCKOUT_MS - (now - anchor)) / 1000) : 0;
     const expLeft  = anchor ? Math.max(0, Math.ceil((EXPIRY_MS - (now - anchor)) / 1000)) : null;
     return { mid, yourTime: d.myTime != null ? fmtSecs(d.myTime) : '—',
-      stake: fmtMoney(d.stake || 0),
+      stake: fmtMoney(snapStakeCents(d.stake || 0)),
       createdAt: anchor || null,
       lockoutSec: lockLeft > 0 ? lockLeft : null,
       expirySec: expLeft };

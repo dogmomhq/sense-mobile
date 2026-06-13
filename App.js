@@ -399,13 +399,14 @@ export default function App() {
   function goHome() {
     if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }
     onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setShowActions(false); closeChallenge();
+    activeMatchRef.current = null; matchIdRef.current = null; // BUG 2 FIX: drop the foreground match so late dup events for a left match can't re-foreground/bounce
     fadeTo(() => { setMode(null); setTab('home'); });
   }
 
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
   function showToast(m, kind) { setToast(m); setToastKind(kind === 'error' ? 'error' : 'info'); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
-  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; setOnline(false); matchIdRef.current = null; fadeTo(() => { setMode(null); setTab('home'); }); }
+  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; setOnline(false); matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { setMode(null); setTab('home'); }); }
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
     const img = HTTPS_BASE + '/img/' + question.imageToken;
@@ -443,7 +444,11 @@ export default function App() {
   }
   function pushBanner(res, oppNm, mid) {
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
-    setBanners(prev => [...prev, { id, result:res, text:`${word} vs ${oppNm}`, mid }]);
+    // BUG 2 FIX (2026-06-13): a backlog of background results used to stack one full-width
+    // banner PER match with no cap/dedup, covering the screen and blocking the Home/nav
+    // taps underneath. Collapse to ONE banner per match (replace any existing one for the
+    // same mid) and keep at most the 3 most recent so the UI under them stays reachable.
+    setBanners(prev => [...prev.filter(b => b.mid !== mid), { id, result:res, text:`${word} vs ${oppNm}`, mid }].slice(-3));
     setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 4000);
   }
   async function hydrateHistory(name) {
@@ -468,7 +473,7 @@ export default function App() {
       const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}${tok ? '?token=' + encodeURIComponent(tok) : ''}`);
       const d = await r.json();
       if (d && Array.isArray(d.open) && d.open.length) {
-        setPending(prev => { const next = { ...prev }; const seen = new Set(); d.open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null }; else if (cAt) next[g.match_id] = { ...next[g.match_id], createdAt: cAt }; }); Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null) { delete next[mid]; setTimeout(() => { try { showToast('MATCH EXPIRED — STAKE REFUNDED'); } catch (e) {} refreshServerBalance(); }, 0); } }); return next; });
+        setPending(prev => { const next = { ...prev }; const seen = new Set(); d.open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null }; else if (cAt) next[g.match_id] = { ...next[g.match_id], createdAt: cAt }; }); let dropped = false; Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null) { delete next[mid]; dropped = true; } }); /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'. The authoritative toast/banner now comes only from the game-expired / async-result WS handlers. */ if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0); return next; });
       }
     } catch (e) {}
   }
