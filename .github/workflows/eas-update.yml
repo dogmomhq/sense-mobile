@@ -1,7 +1,10 @@
 name: EAS Update (OTA)
 
 # Ships JS-only changes over-the-air to installed builds in seconds (no native rebuild).
-# The preview EAS build is on channel "preview"; this publishes to the matching branch.
+# The preview EAS build is on channel "preview".
+# SAFETY: checkout is PINNED to reskin-ui. main has NONE of the reskin code, so building
+# OTA from main publishes the OLD monolithic UI to the preview channel and reverts every
+# device. This pin makes that impossible. Do NOT remove the ref. (Incident 2026-06-13.)
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: reskin-ui
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci || npm install
