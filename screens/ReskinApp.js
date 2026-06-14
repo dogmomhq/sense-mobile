@@ -134,7 +134,6 @@ export default function ReskinApp({ g }) {
   const [lb, setLb] = useState({ rows: [], you: null });
   const [now, setNow] = useState(Date.now());            // 1s tick for pending lockout rings
   const dailyShown = useRef(false);
-  const [notifyBusy, setNotifyBusy] = useState(false);
   const timingDbg = useRef({});            // ?timedebug=1: { flipTs, goTs, press } per round
   const [graceElapsed, setGraceElapsed] = useState(false); // WAIT_GRACE_MS after answering a paid online match has passed with no result yet
 
@@ -397,30 +396,14 @@ export default function ReskinApp({ g }) {
         pendingCount={pendingCount} onPendingPress={() => { setRoute('tabs'); g.setTab('history'); }}
         activeTab="profile" onTab={(t) => { setRoute('tabs'); g.setTab(t); }}
         onAddFunds={() => setRoute('deposit')}>
-        <DepositScreen balance={balanceTxt} signedInEmail={g.authEmail || ''} busy={notifyBusy}
-          onNotify={async (contact) => {
-            // Phase 6: server-side capture + one-time +$0.50 bonus (idempotent
-            // per account — POST /api/notify-deposit, additive endpoint)
-            if (notifyBusy) return;
-            setNotifyBusy(true);
-            try {
-              const r = await fetch(`${g.httpsBase}/api/notify-deposit`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: contact, handle: g.displayName || g.myName(),
-                  token: authToken(g) }) });
-              const d = await r.json();
-              if (d && d.ok && d.bonusCents) {
-                g.showToast(`YOU EARNED ${fmtMoney(d.bonusCents)}`);
-                g.hydrateHistory(g.displayName || g.myName());   // pull the new balance + ledger row
-              } else if (d && d.ok) {
-                g.showToast("YOU'RE ON THE LIST — FREE COINS AT LAUNCH");
-              } else {
-                g.showToast((d && d.error) || 'Could not save — try again', 'error');
-              }
-            } catch (e) { g.showToast('Could not save — try again', 'error'); }
-            setNotifyBusy(false);
-            setRoute('tabs'); g.setTab('home');
-          }} />
+        <DepositScreen
+          httpsBase={g.httpsBase}
+          supabaseToken={authToken(g)}
+          signedInEmail={g.authEmail || ''}
+          balance={balanceTxt}
+          onToast={(t, kind) => g.showToast(t, kind)}
+          onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
+          onDone={() => { setRoute('tabs'); g.setTab('home'); }} />
       </AppShell>
     );
   } else if (g.tab === 'home') {
