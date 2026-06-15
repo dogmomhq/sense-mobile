@@ -28,7 +28,7 @@ const RESKIN = true;
 // local applyCredit stub becomes a no-op so credits never move twice; the displayed balance is
 // the SERVER balance (hydrateHistory pulls /history balance after every credit-moving event).
 const RESKIN_CREDITS = RESKIN && true;
-const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 1000: 4 }; // canonical tier ladder (DECISIONS #1, mirrors server CREDIT_TIER_CENTS)
+const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4 }; // canonical tier ladder (DECISIONS #1, mirrors server CREDIT_TIER_CENTS) — tier4 $10->$100 2026-06-14
 
 const TIME_LIMIT = 10000;
 const SERVER_WS = PREVIEW_SERVER_WS;

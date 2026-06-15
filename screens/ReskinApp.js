@@ -22,7 +22,7 @@ import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
 
 // ── constants ────────────────────────────────────────────────────────────────
 const RING_MODE = 'laser';                 // 'laser' | 'fuse' — CJ lean (laser); one const to flip
-const TIER_CENTS = [50, 100, 500, 1000];   // canonical ladder (DECISIONS #1) — mirrors server CREDIT_TIER_CENTS
+const TIER_CENTS = [50, 100, 500, 10000];   // canonical ladder (DECISIONS #1) — mirrors server CREDIT_TIER_CENTS (tier4 $10->$100 2026-06-14)
 const RAKE = 0.05;                          // shared rake constant (DECISIONS #2)
 const TIME_LIMIT = 10000;
 // WAITING-SCREEN GRACE (bug fix 2026-06-13): after answering a paid online match
