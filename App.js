@@ -321,7 +321,11 @@ export default function App() {
   useEffect(() => onChallengeChange(setChallenge), []);
   useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX module rides the same toggle
-  useEffect(() => { if (tab === 'history') hydrateHistory(myName()); }, [tab]);
+  // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
+  // against the server's open list, so a stale 'WAITING' card for an already-settled match
+  // (async-result missed while disconnected) drops live without a manual refresh, and the
+  // '1 MATCH PENDING' strip reflects the true server open-game count.
+  useEffect(() => { if (tab === 'history' || tab === 'home') { hydrateHistory(myName()); hydrateOpenGames(myName()); } }, [tab]);
   useEffect(() => {
     let sub;
     (async () => {
@@ -472,8 +476,15 @@ export default function App() {
       const tok = (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || '';
       const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}${tok ? '?token=' + encodeURIComponent(tok) : ''}`);
       const d = await r.json();
-      if (d && Array.isArray(d.open) && d.open.length) {
-        setPending(prev => { const next = { ...prev }; const seen = new Set(); d.open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null }; else if (cAt) next[g.match_id] = { ...next[g.match_id], createdAt: cAt }; }); let dropped = false; Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null) { delete next[mid]; dropped = true; } }); /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'. The authoritative toast/banner now comes only from the game-expired / async-result WS handlers. */ if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0); return next; });
+      // BUG 2 FIX (2026-06-16): reconcile pending to EXACTLY the server's open list.
+      // Was gated on `d.open.length` so an EMPTY open list (everything settled — the
+      // stale-PENDING-card case) skipped the drop pass entirely and the card lingered.
+      // Now runs whenever `d.open` is an array (incl. []), so a settled match that the
+      // app missed the async-result for (creator was offline when the opponent matched)
+      // is dropped the moment we hydrate. Server /api/open-games returns only status='open'.
+      if (d && Array.isArray(d.open)) {
+        const open = d.open;
+        setPending(prev => { const next = { ...prev }; const seen = new Set(); open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null }; else if (cAt) next[g.match_id] = { ...next[g.match_id], createdAt: cAt }; }); const DROP_GRACE_MS = 6000; let dropped = false; const nowTs = Date.now(); Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null && (nowTs - next[mid].createdAt) > DROP_GRACE_MS) { delete next[mid]; dropped = true; } }); /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'. The authoritative toast/banner now comes only from the game-expired / async-result WS handlers. */ if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0); return next; });
       }
     } catch (e) {}
   }
@@ -528,6 +539,7 @@ export default function App() {
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
         else pushBanner(res, oppNm, msg.matchId);
         refreshServerBalance();   // settle wrote win/refund/rake rows — sync balance + ledger feed
+        reconcilePending();       // drop the now-settled card from PENDING / fix the strip count
         break;
       }
       // ---- challenge ROOM engine ----
@@ -607,6 +619,14 @@ export default function App() {
   }
   // RESKIN_CREDITS: pull the server-authoritative balance + ledger after any credit-moving event
   // (escrow at question delivery, settle, cancel/expiry refund, insufficient-funds bounce).
+  // BUG 2 FIX (2026-06-16): reconcile the pending map against the server's open list for the
+  // current account. Called after any settlement/expiry event so the '1 MATCH PENDING'
+  // strip + History cards stay server-authoritative even when the matching async-result
+  // was missed (socket was down when the opponent matched). hydrateOpenGames is silent.
+  function reconcilePending() {
+    const nm = (accountRef.current && accountRef.current.handle) || myNameRef.current;
+    if (nm) { try { hydrateOpenGames(nm); } catch (e) {} }
+  }
   function refreshServerBalance() {
     if (!RESKIN_CREDITS) return;
     const nm = (accountRef.current && accountRef.current.handle) || myNameRef.current;
