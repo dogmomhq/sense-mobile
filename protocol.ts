@@ -95,7 +95,7 @@ export const SERVER_MSG = {
 } as const;
 export type ServerMsgType = typeof SERVER_MSG[keyof typeof SERVER_MSG];
 
-export interface AsyncQuestion { matchId: string; question: { text: string; imageToken: string; options: string[] }; }
+export interface AsyncQuestion { matchId: string; question: { text: string; imageToken: string; options: string[]; questionIdx?: number }; }
 export interface AsyncSide { answer: number; answerText: string; time: number; serverTime: number; result: ResultKind; name?: string; }
 export interface AsyncResult { matchId: string; tier: number; you: AsyncSide; opponent: AsyncSide; correctIdx: number; correctAnswer: string; options: string[]; reason: ResultReason; }
 export interface AnswerAck { matchId: string; serverTime: number; }
