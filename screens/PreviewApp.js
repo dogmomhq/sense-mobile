@@ -71,16 +71,18 @@ function ResultsLoop({ outcome, at, practice }) {
 /* ── demo data for the static screens (preview parity with batch5/6 mockups;
       the real app passes live props) ── */
 const HISTORY_DEMO = {
-  pending: [{ yourTime: '1.42s', stake: '$1.00', lockoutSec: 103 }],
-  // RUNNING LEDGER (CJ spec 2026-06-11): one unified row per credit movement
+  // questionIdx demos the per-card question-image thumbnail (owner 2026-06-16).
+  pending: [{ yourTime: '1.42s', stake: '$1.00', lockoutSec: 103, questionIdx: 3 }],
+  // RUNNING LEDGER (CJ spec 2026-06-11): one unified row per credit movement.
+  // Match-derived rows carry questionIdx (thumbnail); deposit/bonus do not.
   feed: [
-    { badge: 'stake', title: 'STAKED · VS ???', sub: 'PENDING — WAITING FOR OPPONENT', amount: '-$1.00', balance: '$24.50' },
-    { badge: 'win', label: 'PAYOUT', title: 'WON VS ALEX_R', sub: '1.42s VS 1.60s', amount: '+$0.95', balance: '$25.50' },
-    { badge: 'stake', title: 'STAKED · VS ALEX_R', sub: 'WON — SEE PAYOUT', amount: '-$0.50', balance: '$24.55' },
+    { badge: 'stake', title: 'STAKED · VS ???', sub: 'PENDING — WAITING FOR OPPONENT', amount: '-$1.00', balance: '$24.50', questionIdx: 3 },
+    { badge: 'win', label: 'PAYOUT', title: 'WON VS ALEX_R', sub: '1.42s VS 1.60s', amount: '+$0.95', balance: '$25.50', questionIdx: 11 },
+    { badge: 'stake', title: 'STAKED · VS ALEX_R', sub: 'WON — SEE PAYOUT', amount: '-$0.50', balance: '$24.55', questionIdx: 11 },
     { badge: 'deposit', title: 'DEPOSIT', sub: 'CARD DEPOSIT', amount: '+$5.00', balance: '$25.05' },
-    { badge: 'loss', label: 'STAKE', title: 'STAKED · VS SPEEDY_TOM', sub: 'LOST · 1.75s VS 1.55s', amount: '-$1.00', balance: '$20.05' },
-    { badge: 'draw', title: 'DRAW VS JUNGLE_CAT', sub: 'STAKE RETURNED', amount: '+$1.00', balance: '$21.05' },
-    { badge: 'refund', title: 'REFUNDED', sub: 'MATCH CANCELLED / EXPIRED', amount: '+$0.50', balance: '$20.05' },
+    { badge: 'loss', label: 'STAKE', title: 'STAKED · VS SPEEDY_TOM', sub: 'LOST · 1.75s VS 1.55s', amount: '-$1.00', balance: '$20.05', questionIdx: 30 },
+    { badge: 'draw', title: 'DRAW VS JUNGLE_CAT', sub: 'STAKE RETURNED', amount: '+$1.00', balance: '$21.05', questionIdx: 6 },
+    { badge: 'refund', title: 'REFUNDED', sub: 'MATCH CANCELLED / EXPIRED', amount: '+$0.50', balance: '$20.05', questionIdx: 18 },
     { badge: 'bonus', title: 'BONUS', sub: 'DAILY CHECK-IN', amount: '+$0.25', balance: '$19.55' },
   ],
   practice: { w: 12, l: 5, d: 1, log: [
