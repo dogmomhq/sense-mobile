@@ -15,12 +15,54 @@
 //   CTA + recent practice log rows.
 // Pure presentational: everything arrives via props; renders inside AppShell.
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
+import { PRACTICE_QUESTIONS } from '../questions.js';
 
 const RED = '#FF5A48';
 const GREY = 'rgba(245,241,230,0.45)';
+
+/* ── question-image thumbnail (owner request 2026-06-16): "show a small image
+      of the one that was in that question on each card, even pending." Each
+      match/pending row carries questionIdx; the bundled question bank
+      (questions.js, index-aligned + byte-identical to the server's image bank)
+      resolves it to a stable hosted image. No questionIdx (older rows) → a dim
+      paw-glyph placeholder, never a broken image. ── */
+function questionImage(questionIdx) {
+  if (questionIdx == null) return null;
+  const q = PRACTICE_QUESTIONS[questionIdx];
+  return (q && q.image) ? q.image : null;
+}
+function QThumb({ questionIdx, size = 140 }) {
+  // base 140 in the 1024-wide design space ≈ a 52px thumbnail on a phone, and
+  // scales proportionally with the rest of the card via useScale().
+  const s = useScale();
+  const uri = questionImage(questionIdx);
+  const box = {
+    width: size * s, height: size * s, borderRadius: 22 * s,
+    borderWidth: 2.5 * s, borderColor: COLORS.lime, overflow: 'hidden',
+    backgroundColor: 'rgba(16,20,13,0.9)', alignItems: 'center', justifyContent: 'center',
+  };
+  if (!uri) {
+    // subtle paw-glyph placeholder (4 toes + pad) in dim cream
+    return (
+      <View style={[box, { borderColor: 'rgba(215,248,74,0.30)' }]}>
+        <Svg width={size * 0.52 * s} height={size * 0.52 * s} viewBox="0 0 24 24">
+          {[[6.5, 8.5], [10, 6.2], [14, 6.2], [17.5, 8.5]].map(([cx, cy], i) => (
+            <Circle key={i} cx={cx} cy={cy} r={1.9} fill={GREY} />
+          ))}
+          <Path d="M12 11.5c2.7 0 5 1.9 5 4.2 0 1.9-2.2 2.8-5 2.8s-5-0.9-5-2.8c0-2.3 2.3-4.2 5-4.2z" fill={GREY} />
+        </Svg>
+      </View>
+    );
+  }
+  return (
+    <View style={box}>
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+    </View>
+  );
+}
 
 /* ── date+time stamp per row (owner request 2026-06-13): explicit calendar
       date AND clock time, e.g. "JUN 12 · 10:43 PM". Replaces the relative
@@ -109,7 +151,8 @@ function PendingRow({ row, onCancel }) {
   return (
     <RowCard borderColor={COLORS.lime}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flex: 1, gap: 12 * s }}>
+        <QThumb questionIdx={row.questionIdx} />
+        <View style={{ flex: 1, gap: 12 * s, marginLeft: 28 * s }}>
           <Badge kind="pending" />
           <Text style={{ fontFamily: FONTS.anton, fontSize: 56 * s, color: COLORS.cream,
             includeFontPadding: false }}>VS ???</Text>
@@ -141,6 +184,9 @@ function FeedRow({ row }) {
     <RowCard borderColor={border}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 * s, flex: 1 }}>
+          {/* thumbnail only on match-derived rows (those carry questionIdx);
+              deposit/bonus rows have none and stay image-free */}
+          {row.questionIdx != null ? <QThumb questionIdx={row.questionIdx} size={104} /> : null}
           <Badge kind={row.badge} label={row.label} />
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s,
