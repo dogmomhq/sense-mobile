@@ -304,6 +304,12 @@ export default function App() {
   const startOverrideRef = useRef(null);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const questionIdxRef = useRef(null); // bank index of the active online question (additive 2026-06-16, for history thumbnails)
+  // CANCEL pass (2026-06-16): matchIds this client has locally cancelled. Used to SUPPRESS a
+  // stray late async-result/banner for a match the player believes is cancelled (symptom F),
+  // and to ignore any re-hydrate that would re-add a just-cancelled card before the server's
+  // status flip has propagated. Capped so it can't grow unbounded.
+  const cancelledIdsRef = useRef(new Set());
+  function markCancelledId(mid) { if (!mid) return; const s = cancelledIdsRef.current; s.add(mid); if (s.size > 50) { const it = s.values(); s.delete(it.next().value); } }
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
@@ -494,7 +500,46 @@ export default function App() {
       // is dropped the moment we hydrate. Server /api/open-games returns only status='open'.
       if (d && Array.isArray(d.open)) {
         const open = d.open;
-        setPending(prev => { const next = { ...prev }; const seen = new Set(); open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; const qIdx = (g.question_idx != null ? g.question_idx : null); if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null, questionIdx: qIdx }; else next[g.match_id] = { ...next[g.match_id], ...(cAt ? { createdAt: cAt } : {}), questionIdx: (next[g.match_id].questionIdx != null ? next[g.match_id].questionIdx : qIdx) }; }); const DROP_GRACE_MS = 6000; let dropped = false; const nowTs = Date.now(); Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null && (nowTs - next[mid].createdAt) > DROP_GRACE_MS) { delete next[mid]; dropped = true; } }); /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'. The authoritative toast/banner now comes only from the game-expired / async-result WS handlers. */ if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0); return next; });
+        setPending(prev => {
+          const next = { ...prev };
+          const seen = new Set();
+          open.forEach(g => {
+            if (!g.match_id) return;
+            // CANCEL pass: never re-add a card the player just cancelled (status flip may still be
+            // propagating so the server can briefly still list it as open). cancelledIdsRef guards it.
+            if (cancelledIdsRef.current.has(g.match_id)) return;
+            seen.add(g.match_id);
+            const cAt = g.created_at ? new Date(g.created_at).getTime() : null;
+            const qIdx = (g.question_idx != null ? g.question_idx : null);
+            // CANCEL pass (symptom 2 FIX): the server now returns the REAL stake (cents) and the
+            // player's locked answer time on each open game, so a card REBUILT after an app reopen
+            // shows "$0.50 / YOU LOCKED 1.18s" instead of the old "$0.00 / YOU LOCKED \u2014" placeholder.
+            const stk = (g.stake_cents != null ? g.stake_cents : 0);
+            const myT = (g.display_time_a != null ? g.display_time_a : (g.time_a != null ? g.time_a : null));
+            if (!next[g.match_id]) {
+              next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: stk, myTime: myT, questionIdx: qIdx };
+            } else {
+              // heal an already-rendered card in place: fill stake/myTime/questionIdx if missing.
+              const cur = next[g.match_id];
+              next[g.match_id] = {
+                ...cur,
+                ...(cAt ? { createdAt: cAt } : {}),
+                stake: (cur.stake ? cur.stake : stk),
+                myTime: (cur.myTime != null ? cur.myTime : myT),
+                questionIdx: (cur.questionIdx != null ? cur.questionIdx : qIdx),
+              };
+            }
+          });
+          const DROP_GRACE_MS = 6000; let dropped = false; const nowTs = Date.now();
+          Object.keys(next).forEach(mid => {
+            if (!seen.has(mid) && next[mid] && next[mid].createdAt != null && (nowTs - next[mid].createdAt) > DROP_GRACE_MS) { delete next[mid]; dropped = true; }
+          });
+          /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per
+             disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'.
+             The authoritative toast/banner now comes only from game-expired / async-result handlers. */
+          if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0);
+          return next;
+        });
       }
     } catch (e) {}
   }
@@ -548,6 +593,7 @@ export default function App() {
         // ref may point at a different game by now) still records the right thumbnail.
         const qI = (pending[msg.matchId] && pending[msg.matchId].questionIdx != null) ? pending[msg.matchId].questionIdx : questionIdxRef.current;
         logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm, (pending[msg.matchId] && pending[msg.matchId].stake) || stakeRef.current, qI);
+        cancelledIdsRef.current.delete(msg.matchId); // it settled (race-loss: A was already told it went live) — stop suppressing
         // foreground only if this is the match currently on the Play screen — else a background banner
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
         else pushBanner(res, oppNm, msg.matchId);
@@ -585,10 +631,44 @@ export default function App() {
       case 'ping': wsSend(pong(msg.nonce)); break;   // room latency probe (web replies pong)
       case 'rtt-result': break;
       case 'match-cancelled':  // a pending async game was cancelled — refund the escrowed stake, drop the card
-        if (msg.matchId) { const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
+        if (msg.matchId) {
+          const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0);
+          setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
+          // keep the id in cancelledIdsRef so a near-simultaneous /api/open-games hydrate (status
+          // flip still propagating) can't re-add this card before the server reports it closed.
+          markCancelledId(msg.matchId);
+          // if A cancelled the match it's currently sitting on (in-game cancel), drop the foreground too
+          if (activeMatchRef.current === msg.matchId) { activeMatchRef.current = null; matchIdRef.current = null; }
+          refreshServerBalance();
+        }
         break;
-      case 'cancel-denied':  // server 2-min anti-abuse lockout (can't queue, peek the question, then bail)
-        showToast(msg.message || 'Cannot cancel yet'); break;
+      case 'cancel-denied':  // 2-min anti-abuse lockout OR (matchStarted) the opponent joined first
+        if (msg.matchStarted) {
+          // The cancel lost the race — the match is now LIVE with an opponent. Stop suppressing its
+          // result; it will arrive via async-result (foreground result if we're still on it, else a
+          // banner). Leave the pending card; it clears when the match settles. No scary boot.
+          cancelledIdsRef.current.delete(msg.matchId);
+          showToast(msg.message || 'Opponent just joined — match is live');
+        } else {
+          cancelledIdsRef.current.delete(msg.matchId); // cancel refused (lockout) — card stays, allow future result/cancel
+          showToast(msg.message || 'Cannot cancel yet');
+        }
+        break;
+      case 'match-unavailable': {  // CANCEL pass: we were answering a match that's gone (cancelled/reverted)
+        // Clean experience: drop the dead card, and if it's the foreground match, re-queue into a
+        // FRESH game instead of the old raw "Not in this match" boot to Home.
+        if (msg.matchId) { markCancelledId(msg.matchId); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); }
+        const wasForeground = (activeMatchRef.current === msg.matchId) && (modeRef.current === 'play' || modeRef.current === 'joining');
+        activeMatchRef.current = null; matchIdRef.current = null;
+        refreshServerBalance(); // any escrow for the dead match was refunded server-side
+        if (wasForeground && onlineRef.current && !isChallengeRef.current) {
+          showToast('That match ended — finding you a new one');
+          requeueOnline();   // auto re-queue: re-escrows + queues a new game (no boot)
+        } else {
+          showToast('That match is no longer available');
+        }
+        break;
+      }
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
         if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
@@ -603,6 +683,16 @@ export default function App() {
         }
         bailHome(msg.error || 'Could not find a match'); break;
       case 'error':
+        // CANCEL pass: defensively swallow a stale "Not in this match" (server now sends the clean
+        // 'match-unavailable' instead, but an in-flight old message must never boot the player with
+        // a scary "NOT IN THIS MATCH" banner — symptoms 4 & 5). Treat it as a soft re-queue.
+        if (/not in this match/i.test(msg.message || '')) {
+          const fg = (modeRef.current === 'joining' || modeRef.current === 'play');
+          activeMatchRef.current = null; matchIdRef.current = null;
+          if (fg && onlineRef.current && !isChallengeRef.current) { showToast('That match ended — finding you a new one'); requeueOnline(); }
+          else showToast('That match is no longer available');
+          break;
+        }
         if (modeRef.current === 'joining' || modeRef.current === 'play') bailHome(msg.message || 'Server error');
         else showToast(msg.message || 'Server error');
         break;
@@ -666,7 +756,7 @@ export default function App() {
     if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
     setNotice(null); setOppName('Rival'); setMode('joining'); startQueue();
   }
-  function cancelOnline() { try { if (matchIdRef.current) wsSend(cancelMatch(matchIdRef.current)); } catch (e) {} bailHome(null); }
+  function cancelOnline() { try { if (matchIdRef.current) { markCancelledId(matchIdRef.current); wsSend(cancelMatch(matchIdRef.current)); } } catch (e) {} bailHome(null); }
   // ---- challenge (friend room) ----
   function doCreateChallenge() { setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => createChallenge({ tier:1, playerName: myName(), paymentMode:'none' })); }
   function doJoinChallenge() { const code = (joinCode||'').trim(); if (!code) return; setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => acceptChallenge({ gameId: code, playerName: myName() })); }
@@ -700,7 +790,7 @@ export default function App() {
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
       startPractice, cancelOnline, sendCode, verifyCode, signOutAuth, doRename,
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
-      cancelPendingMatch: (mid) => { try { wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
+      cancelPendingMatch: (mid) => { try { markCancelledId(mid); wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
       // refs + env
       stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
     };
@@ -810,7 +900,7 @@ export default function App() {
     } else if (tab === 'leaderboard') {
       screen = <LeaderboardScreen httpsBase={HTTPS_BASE} />;
     } else if (tab === 'history') {
-      screen = <HistoryScreen matchLog={matchLog} pending={pending} ledger={ledger} onCancel={(mid)=>{ try{ wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
+      screen = <HistoryScreen matchLog={matchLog} pending={pending} ledger={ledger} onCancel={(mid)=>{ try{ markCancelledId(mid); wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
     } else {
       const authUI = !supabase ? null : (authEmail ? (
         <View style={st.authBox}>

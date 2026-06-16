@@ -70,6 +70,7 @@ export const SERVER_MSG = {
   QUEUE_FAILED: 'queue-failed',
   MATCH_CANCELLED: 'match-cancelled',
   CANCEL_DENIED: 'cancel-denied',
+  MATCH_UNAVAILABLE: 'match-unavailable',  // CANCEL pass: answered a match that's gone (cancelled/reverted) -> client re-queues cleanly
   RTT_PING: 'rtt-ping',
   RTT_RESULT: 'rtt-result',
   PING: 'ping',
@@ -99,14 +100,19 @@ export interface AsyncQuestion { matchId: string; question: { text: string; imag
 export interface AsyncSide { answer: number; answerText: string; time: number; serverTime: number; result: ResultKind; name?: string; }
 export interface AsyncResult { matchId: string; tier: number; you: AsyncSide; opponent: AsyncSide; correctIdx: number; correctAnswer: string; options: string[]; reason: ResultReason; }
 export interface AnswerAck { matchId: string; serverTime: number; }
-export interface MatchCancelled { matchId: string; wager: number; txSignature: string | null; }
-export interface CancelDenied { matchId: string; message: string; remainingMs: number; }
+export interface MatchCancelled { matchId: string; wager: number; txSignature: string | null; alreadyGone?: boolean; }
+// matchStarted=true => the cancel lost the race to an opponent join; the match is now live and will
+// resolve via async-result (so the client should stop suppressing it, not boot). Otherwise it's the
+// 2-min anti-abuse lockout.
+export interface CancelDenied { matchId: string; message: string; remainingMs: number; matchStarted?: boolean; }
+export interface MatchUnavailable { matchId: string; message: string; }
 
 // Types the mobile FREE/ONLINE client handles (everything else is web/solana):
 export const MOBILE_ONLINE_INBOUND: ServerMsgType[] = [
   SERVER_MSG.ASYNC_OPPONENT_FOUND, SERVER_MSG.ASYNC_QUESTION, SERVER_MSG.ASYNC_WAITING,
   SERVER_MSG.ANSWER_ACK, SERVER_MSG.ASYNC_RESULT, SERVER_MSG.GAME_EXPIRED,
   SERVER_MSG.QUEUE_FAILED, SERVER_MSG.MATCH_CANCELLED, SERVER_MSG.CANCEL_DENIED,
+  SERVER_MSG.MATCH_UNAVAILABLE,
   SERVER_MSG.RTT_PING, SERVER_MSG.RTT_RESULT,
 ];
 
