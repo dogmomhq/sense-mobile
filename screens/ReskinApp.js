@@ -273,12 +273,17 @@ export default function ReskinApp({ g }) {
       // unknown / legacy types render honestly with their raw type
       return { badge: 'other', title: String(type || 'credit').toUpperCase().replace(/_/g, ' '), sub: '' };
     };
+    // questionIdx (owner 2026-06-16): the matched-match record carries which
+    // question this game used; surfaced per row so FeedRow can show the
+    // question-image thumbnail. null on non-match rows (deposit/bonus).
+    const qIdxOf = (matchId) => { const m = matchId ? byId[matchId] : null; return (m && m.questionIdx != null) ? m.questionIdx : null; };
     const rows = [];
     if (g.serverLedger && g.serverLedger.length) {
       // server ledger = source of truth: balance_after per row, survives devices
       g.serverLedger.forEach((t) => {
         rows.push({ ts: t.created_at ? new Date(t.created_at).getTime() : 0,
           ...enrich(t.type, t.match_id),
+          questionIdx: qIdxOf(t.match_id),
           amount: fmtSigned(Number(t.amount)),
           balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
       });
@@ -290,6 +295,7 @@ export default function ReskinApp({ g }) {
       (g.ledger || []).forEach((t) => {
         const r = enrich(t.type, t.matchId);
         rows.push({ ts: t.ts || 0, ...r, sub: r.sub || String(t.label || '').toUpperCase(),
+          questionIdx: qIdxOf(t.matchId),
           amount: fmtSigned(t.amount || 0), balance: fmtMoney(run) });
         run -= (t.amount || 0);
       });
@@ -311,6 +317,7 @@ export default function ReskinApp({ g }) {
     return { mid, yourTime: d.myTime != null ? fmtSecs(d.myTime) : '—',
       stake: fmtMoney(snapStakeCents(d.stake || 0)),
       createdAt: anchor || null,
+      questionIdx: (d.questionIdx != null ? d.questionIdx : null), // owner 2026-06-16: thumbnail on pending cards
       lockoutSec: lockLeft > 0 ? lockLeft : null,
       expirySec: expLeft };
   }), [g.pending, now]);
