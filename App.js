@@ -303,6 +303,7 @@ export default function App() {
   // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
   const startOverrideRef = useRef(null);
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
+  const questionIdxRef = useRef(null); // bank index of the active online question (additive 2026-06-16, for history thumbnails)
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
@@ -381,7 +382,8 @@ export default function App() {
       } else {
         wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));  // async matchmaking
         const mid = matchIdRef.current;
-        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current } }));
+        // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
+        setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
         if (pendTimer.current) clearTimeout(pendTimer.current);
         pendTimer.current = setTimeout(() => { if (onlineRef.current) setShowActions(true); }, 4000); // web: actions appear at +4s
       }
@@ -417,15 +419,23 @@ export default function App() {
     try { Image.prefetch(img); } catch (e) {}
     activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
     setMatchId(mid);
-    setQ({ text: question.text, image: img, options: question.options, correctIdx: null });
+    // questionIdx (additive 2026-06-16): the server now sends the bank index with
+    // the question; we keep it so the pending + settled history cards can resolve
+    // a stable question-image thumbnail from the bundled questions bank.
+    questionIdxRef.current = (question.questionIdx != null ? question.questionIdx : null);
+    setQ({ text: question.text, image: img, options: question.options, correctIdx: null, questionIdx: questionIdxRef.current });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
     setCountdown(true); fadeTo(() => setMode('play'));
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
-  function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk) {
+  function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk, qIdx) {
     track('match_result', { result: res, stake: stk || 0, reason });
     setOnlineRec(p => ({ wins:p.wins+(res==='win'), losses:p.losses+(res==='loss'), draws:p.draws+(res==='draw') }));
-    setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, stake:stk||0, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
+    // qIdx (additive 2026-06-16): the question's bank index, so the settled history
+    // card resolves a thumbnail. Caller passes the pending entry's value; falls back
+    // to the active question's ref for the foreground match.
+    const questionIdx = (qIdx != null ? qIdx : questionIdxRef.current);
+    setMatchLog(prev => [{ matchId:mid, opponent:oppNm, result:res, myTime:myT, oppTime:oppT, correctIdx, reason, stake:stk||0, questionIdx, timestamp:new Date().toISOString() }, ...prev].slice(0,50));
     // credit settlement (stake was escrowed at entry): win => pot*(1-5% rake); draw => refund; loss => already paid
     const sV = stk || 0;
     if (sV > 0) {
@@ -462,7 +472,7 @@ export default function App() {
       const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=200${tok ? '&token=' + encodeURIComponent(tok) : ''}`);
       const d = await r.json();
       if (d && Array.isArray(d.matches)) {
-        const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
+        const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, questionIdx: (m.question_idx != null ? m.question_idx : null), reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
         setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,200); });
         if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
         if (Array.isArray(d.ledger)) setServerLedger(d.ledger);            // server-authoritative tx feed
@@ -484,7 +494,7 @@ export default function App() {
       // is dropped the moment we hydrate. Server /api/open-games returns only status='open'.
       if (d && Array.isArray(d.open)) {
         const open = d.open;
-        setPending(prev => { const next = { ...prev }; const seen = new Set(); open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null }; else if (cAt) next[g.match_id] = { ...next[g.match_id], createdAt: cAt }; }); const DROP_GRACE_MS = 6000; let dropped = false; const nowTs = Date.now(); Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null && (nowTs - next[mid].createdAt) > DROP_GRACE_MS) { delete next[mid]; dropped = true; } }); /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'. The authoritative toast/banner now comes only from the game-expired / async-result WS handlers. */ if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0); return next; });
+        setPending(prev => { const next = { ...prev }; const seen = new Set(); open.forEach(g => { if (!g.match_id) return; seen.add(g.match_id); const cAt = g.created_at ? new Date(g.created_at).getTime() : null; const qIdx = (g.question_idx != null ? g.question_idx : null); if (!next[g.match_id]) next[g.match_id] = { opponent: 'Searching\u2026', ts: cAt || Date.now(), createdAt: cAt, stake: 0, myTime: null, questionIdx: qIdx }; else next[g.match_id] = { ...next[g.match_id], ...(cAt ? { createdAt: cAt } : {}), questionIdx: (next[g.match_id].questionIdx != null ? next[g.match_id].questionIdx : qIdx) }; }); const DROP_GRACE_MS = 6000; let dropped = false; const nowTs = Date.now(); Object.keys(next).forEach(mid => { if (!seen.has(mid) && next[mid] && next[mid].createdAt != null && (nowTs - next[mid].createdAt) > DROP_GRACE_MS) { delete next[mid]; dropped = true; } }); /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'. The authoritative toast/banner now comes only from the game-expired / async-result WS handlers. */ if (dropped) setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 0); return next; });
       }
     } catch (e) {}
   }
@@ -534,7 +544,10 @@ export default function App() {
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
         const oppNm = (msg.opponent && msg.opponent.name) || (pending[msg.matchId] && pending[msg.matchId].opponent) || oppName || 'Opponent';
         const myT = (pending[msg.matchId] && pending[msg.matchId].myTime != null) ? pending[msg.matchId].myTime : myTimeRef.current;
-        logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm, (pending[msg.matchId] && pending[msg.matchId].stake) || stakeRef.current);
+        // questionIdx from the pending entry so a BACKGROUND settlement (the active
+        // ref may point at a different game by now) still records the right thumbnail.
+        const qI = (pending[msg.matchId] && pending[msg.matchId].questionIdx != null) ? pending[msg.matchId].questionIdx : questionIdxRef.current;
+        logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm, (pending[msg.matchId] && pending[msg.matchId].stake) || stakeRef.current, qI);
         // foreground only if this is the match currently on the Play screen — else a background banner
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
         else pushBanner(res, oppNm, msg.matchId);
@@ -562,7 +575,7 @@ export default function App() {
         const res = msg.you.result, oppT = msg.opponent.time;
         const cs = getChallenge();
         const oppNm = (cs && (cs.role==='host' ? cs.joinerName : cs.hostName)) || oppName || 'Opponent';
-        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm, 0);
+        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm, 0, questionIdxRef.current);
         setRematchReq(false);
         showResultsFor(msg, oppT);
         break;
