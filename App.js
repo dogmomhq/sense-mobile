@@ -752,7 +752,15 @@ export default function App() {
     setSigninBusy(false);
   }
   async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message || 'Invalid code', 'error'); else if (data && data.session) { await afterSupabaseLogin(data.session); track('login'); } else { showToast('Sign-in failed — try again', 'error'); } } catch (e) { showToast((e && e.message) || 'Invalid code', 'error'); } setSigninBusy(false); }
-  async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
+  async function signOutAuth() {
+    try { await supabase.auth.signOut(); } catch (e) {}
+    supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null);
+    // SECURITY (B26): wipe the signed-in user's financial + history view on sign-out so a
+    // signed-out screen can NEVER show the prior session's balance / deposits / history.
+    setBalance(0); setLedger([]); setServerLedger([]); setMatchLog([]); setPending({});
+    setOnlineRec({ wins: 0, losses: 0, draws: 0 }); history.current = [];
+    try { await AsyncStorage.multiRemove(['sense_balance','sense_ledger','sense_hist','sense_orec']); } catch (e) {}
+  }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
     ensureConn(() => {
