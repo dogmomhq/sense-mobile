@@ -310,6 +310,10 @@ export default function App() {
   // status flip has propagated. Capped so it can't grow unbounded.
   const cancelledIdsRef = useRef(new Set());
   function markCancelledId(mid) { if (!mid) return; const s = cancelledIdsRef.current; s.add(mid); if (s.size > 50) { const it = s.values(); s.delete(it.next().value); } }
+  // HIGH-1 GUARD: cap AUTO requeues so the server replying 'match-unavailable' repeatedly (a
+  // transient orphan) can never trap the player in an endless re-queue/replay loop. Manual
+  // replays (RUN IT BACK / swipe-up) are intentionally NOT guarded. Resets on a real question.
+  const autoRequeueRef = useRef({ n: 0, t: 0 });
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
@@ -532,7 +536,11 @@ export default function App() {
           });
           const DROP_GRACE_MS = 6000; let dropped = false; const nowTs = Date.now();
           Object.keys(next).forEach(mid => {
-            if (!seen.has(mid) && next[mid] && next[mid].createdAt != null && (nowTs - next[mid].createdAt) > DROP_GRACE_MS) { delete next[mid]; dropped = true; }
+            // FIX(cancel-hang): fall back to `ts` when createdAt is missing. The old guard
+            // (createdAt != null) made any card without createdAt IMMORTAL — it never dropped
+            // even on refresh, so a missed terminal message left a pending card stuck forever.
+            const _age = next[mid] ? (nowTs - (next[mid].createdAt != null ? next[mid].createdAt : (next[mid].ts || 0))) : Infinity;
+            if (!seen.has(mid) && next[mid] && _age > DROP_GRACE_MS) { delete next[mid]; dropped = true; }
           });
           /* BUG 2 FIX (2026-06-13): reconcile SILENTLY. This poll fired one 'MATCH EXPIRED' toast per
              disappeared open game (spam with a backlog) and mis-labelled SETTLED games as 'expired'.
@@ -582,7 +590,7 @@ export default function App() {
       }
       // ---- async matchmaking ----
       case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
-      case 'async-question': loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // server escrowed the stake before sending the question — balance drops by countdown start
+      case 'async-question': autoRequeueRef.current.n = 0; loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // a real question = we matched; clear the auto-requeue guard. server escrowed the stake before sending the question.
       case 'answer-ack': break;     // local time already frozen on tap — ignore the server echo
       case 'async-waiting': break;  // we answered first; waiting on opponent
       case 'async-result': {
@@ -663,7 +671,7 @@ export default function App() {
         refreshServerBalance(); // any escrow for the dead match was refunded server-side
         if (wasForeground && onlineRef.current && !isChallengeRef.current) {
           showToast('That match ended — finding you a new one');
-          requeueOnline();   // auto re-queue: re-escrows + queues a new game (no boot)
+          autoRequeue();   // GUARDED auto re-queue: re-escrows + queues a new game (no boot, no infinite loop)
         } else {
           showToast('That match is no longer available');
         }
@@ -689,7 +697,7 @@ export default function App() {
         if (/not in this match/i.test(msg.message || '')) {
           const fg = (modeRef.current === 'joining' || modeRef.current === 'play');
           activeMatchRef.current = null; matchIdRef.current = null;
-          if (fg && onlineRef.current && !isChallengeRef.current) { showToast('That match ended — finding you a new one'); requeueOnline(); }
+          if (fg && onlineRef.current && !isChallengeRef.current) { showToast('That match ended — finding you a new one'); autoRequeue(); }
           else showToast('That match is no longer available');
           break;
         }
@@ -750,6 +758,19 @@ export default function App() {
     playOnline();
   }
   function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue(); }
+  // Guarded wrapper for the AUTO re-queue paths (match-unavailable / stale "not in this match").
+  function autoRequeue() {
+    const now = Date.now(); const grd = autoRequeueRef.current;
+    if (now - grd.t > 60000) grd.n = 0;   // a minute of calm resets the window
+    grd.t = now; grd.n += 1;
+    if (grd.n > 3) {                        // tried enough — stop hammering, hand control back
+      showToast('Couldn\u2019t find a match — tap Play to try again');
+      activeMatchRef.current = null; matchIdRef.current = null;
+      fadeTo(() => { setMode(null); setTab('home'); });
+      return;
+    }
+    requeueOnline();
+  }
   function requeueOnline() {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
@@ -790,7 +811,7 @@ export default function App() {
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
       startPractice, cancelOnline, sendCode, verifyCode, signOutAuth, doRename,
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
-      cancelPendingMatch: (mid) => { try { markCancelledId(mid); wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); },
+      cancelPendingMatch: (mid) => { try { markCancelledId(mid); wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
       // refs + env
       stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
     };
@@ -900,7 +921,7 @@ export default function App() {
     } else if (tab === 'leaderboard') {
       screen = <LeaderboardScreen httpsBase={HTTPS_BASE} />;
     } else if (tab === 'history') {
-      screen = <HistoryScreen matchLog={matchLog} pending={pending} ledger={ledger} onCancel={(mid)=>{ try{ markCancelledId(mid); wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); }} />;
+      screen = <HistoryScreen matchLog={matchLog} pending={pending} ledger={ledger} onCancel={(mid)=>{ try{ markCancelledId(mid); wsSend(cancelMatch(mid)); }catch(e){} showToast('Cancelling…'); setTimeout(()=>{ try{ hydrateOpenGames(myName()); }catch(e){} }, 4000); }} />;
     } else {
       const authUI = !supabase ? null : (authEmail ? (
         <View style={st.authBox}>
