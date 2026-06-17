@@ -9,10 +9,13 @@
 // Badges grid CUT from MVP (Q10) — slot reserved below, do not delete.
 // Pure presentational; renders inside AppShell.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, Switch, Animated } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Switch, Animated, Platform } from 'react-native';
 import InitialsAvatar from './components/InitialsAvatar';
 import PressBtn from './components/PressBtn';
 import { COLORS, FONTS, RADII, useScale } from './theme';
+// Apple sign-in native module — guarded require so web / Expo Go (no native module) never crash.
+let AppleAuth = null;
+try { if (Platform.OS === 'ios') AppleAuth = require('expo-apple-authentication'); } catch (e) {}
 
 const CARD = (s, extra = {}) => ({ backgroundColor: 'rgba(16,20,13,0.82)', borderWidth: 1.5 * s,
   borderColor: 'rgba(215,248,74,0.35)', borderRadius: RADII.glass * s, ...extra });
@@ -25,7 +28,7 @@ const OTP_LEN = 6;      // expected Supabase email OTP length (boxes shown by de
 const OTP_MAX = 10;     // hard cap — Supabase may send 6 OR 8 digit codes; accept up to 10
 
 function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], onSignIn,
-  onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify }) {
+  onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onApple }) {
   const s = useScale();
   const live = !!(onSendCode || onVerify);
   // boxes expand past OTP_LEN if the user types/pastes a longer code (max OTP_MAX)
@@ -100,6 +103,18 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
         <Animated.Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
           letterSpacing: 0.06 * 60 * s, includeFontPadding: false, opacity: pulse }}>{ctaLabel}</Animated.Text>
       </PressBtn>
+      {live && onApple && AppleAuth && AppleAuth.AppleAuthenticationButton && step !== 'code' ? (
+        <>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
+            letterSpacing: 0.1 * 24 * s, marginTop: 40 * s, marginBottom: 24 * s }}>OR</Text>
+          <AppleAuth.AppleAuthenticationButton
+            buttonType={AppleAuth.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuth.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={24 * s}
+            style={{ alignSelf: 'stretch', height: 104 * s }}
+            onPress={onApple} />
+        </>
+      ) : null}
     </View>);
 }
 
@@ -255,7 +270,7 @@ export default function ProfileScreen({
   email = '', code = undefined,
   onSignIn, onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onRename,
   // live OTP wiring (ReskinApp)
-  onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onSignOut,
+  onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onApple, onSignOut,
 }) {
   const s = useScale();
   return (
@@ -269,7 +284,7 @@ export default function ProfileScreen({
       ) : (
         <SignInCard email={email} {...(code ? { code } : {})} onSignIn={onSignIn}
           onChangeEmail={onChangeEmail} codeStr={codeStr} onChangeCode={onChangeCode}
-          step={step} busy={busy} onSendCode={onSendCode} onVerify={onVerify} />
+          step={step} busy={busy} onSendCode={onSendCode} onVerify={onVerify} onApple={onApple} />
       )}
     </ScrollView>
   );

@@ -719,7 +719,39 @@ export default function App() {
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
-  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message || 'Invalid code', 'error'); else if (data && data.session) { supabaseTokenRef.current = data.session.access_token; setAuthEmail(data.session.user.email); setAuthSince(data.session.user.created_at); setSigninStep('email'); setSigninCode(''); showToast('Signed in'); track('login'); identify(data.session.user.id, { email: data.session.user.email }); syncAccount(); } else { showToast('Sign-in failed — try again', 'error'); } } catch (e) { showToast((e && e.message) || 'Invalid code', 'error'); } setSigninBusy(false); }
+  // Shared post-login (email OTP + Apple both land here) so they behave identically.
+  async function afterSupabaseLogin(session) {
+    supabaseTokenRef.current = session.access_token;
+    setAuthEmail(session.user.email); setAuthSince(session.user.created_at);
+    setSigninStep('email'); setSigninCode('');
+    showToast('Signed in'); identify(session.user.id, { email: session.user.email }); syncAccount();
+  }
+  // Native Sign in with Apple (iOS). One tap = signup OR signin; inherits the email account path.
+  async function signInWithApple() {
+    if (!supabase) { showToast('Sign-in unavailable in this build', 'error'); return; }
+    let AppleAuthentication, Crypto;
+    try { AppleAuthentication = require('expo-apple-authentication'); Crypto = require('expo-crypto'); }
+    catch (e) { showToast('Apple sign-in not available here', 'error'); return; }
+    setSigninBusy(true);
+    try {
+      const rawNonce = `${Date.now()}.${Math.random().toString(36).slice(2)}.${Math.random().toString(36).slice(2)}`;
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+        nonce: hashedNonce,
+      });
+      if (!cred.identityToken) throw new Error('No identity token from Apple');
+      const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token: cred.identityToken, nonce: rawNonce });
+      if (error) throw error;
+      if (data && data.session) { await afterSupabaseLogin(data.session); track('login_apple'); }
+      else throw new Error('Sign-in failed — try again');
+    } catch (e) {
+      if (e && (e.code === 'ERR_REQUEST_CANCELED' || /cancel/i.test(String(e && e.message)))) { /* user cancelled — silent */ }
+      else showToast((e && e.message) || 'Apple sign-in failed', 'error');
+    }
+    setSigninBusy(false);
+  }
+  async function verifyCode() { const em = (signinEmail || '').trim(), code = (signinCode || '').trim(); if (!em || !code) return; if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { data, error } = await supabase.auth.verifyOtp({ email: em, token: code, type: 'email' }); if (error) showToast(error.message || 'Invalid code', 'error'); else if (data && data.session) { await afterSupabaseLogin(data.session); track('login'); } else { showToast('Sign-in failed — try again', 'error'); } } catch (e) { showToast((e && e.message) || 'Invalid code', 'error'); } setSigninBusy(false); }
   async function signOutAuth() { try { await supabase.auth.signOut(); } catch (e) {} supabaseTokenRef.current = null; setAuthEmail(null); setAuthSince(null); }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
@@ -809,7 +841,7 @@ export default function App() {
       setTab, setStake, setCountdown, setBanners, setShowActions, setSound,
       setSigninEmail, setSigninCode, setSigninStep,
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
-      startPractice, cancelOnline, sendCode, verifyCode, signOutAuth, doRename,
+      startPractice, cancelOnline, sendCode, verifyCode, signInWithApple, signOutAuth, doRename,
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
       cancelPendingMatch: (mid) => { try { markCancelledId(mid); wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
       // refs + env

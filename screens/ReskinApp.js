@@ -457,7 +457,7 @@ export default function ReskinApp({ g }) {
           email={g.signinEmail} onChangeEmail={g.setSigninEmail}
           codeStr={g.signinCode} onChangeCode={g.setSigninCode}
           step={g.signinStep} busy={g.signinBusy}
-          onSendCode={g.sendCode} onVerify={g.verifyCode} onSignOut={g.signOutAuth}
+          onSendCode={g.sendCode} onVerify={g.verifyCode} onApple={g.signInWithApple} onSignOut={g.signOutAuth}
           onRename={g.doRename} />
       );
     }

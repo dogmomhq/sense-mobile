@@ -21,11 +21,13 @@
         "./assets/fonts/Inter_700Bold.ttf",
         "./assets/fonts/Inter_800ExtraBold.ttf",
         "./assets/fonts/Inter_900Black.ttf"
-      ]}]
+      ]}],
+      "expo-apple-authentication"
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dogmomhq.sensemobile",
+      "usesAppleSignIn": true,
       "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
     },
     "android": {
