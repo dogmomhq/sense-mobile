@@ -18,7 +18,7 @@
 // Keeps the batch6/depositstub.png aesthetic (ADD FUNDS headline, Anton, lime
 // accents) but functional. Renders inside AppShell.
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, InputAccessoryView, Keyboard, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 import PressBtn from './components/PressBtn';
@@ -210,7 +210,7 @@ export default function DepositScreen({
       {/* optional custom amount */}
       <View style={{ marginHorizontal: 45 * s, marginBottom: 36 * s }}>
         <TextInput placeholder="OR CUSTOM AMOUNT ($0.50–$500)" placeholderTextColor={COLORS.creamDim}
-          value={custom ? '$' + custom : ''} onChangeText={onCustom} keyboardType="decimal-pad"
+          value={custom ? '$' + custom : ''} onChangeText={onCustom} keyboardType="decimal-pad" inputAccessoryViewID="depDone"
           style={[fieldStyle, custom ? { borderColor: COLORS.lime } : null]} />
       </View>
 
@@ -218,7 +218,7 @@ export default function DepositScreen({
       <Text style={[labelStyle, { marginHorizontal: 45 * s }]}>CARD NUMBER</Text>
       <View style={{ marginHorizontal: 45 * s, marginBottom: 26 * s }}>
         <TextInput placeholder="4242 4242 4242 4242" placeholderTextColor={COLORS.creamDim}
-          value={number} onChangeText={onNumber} keyboardType="number-pad" maxLength={19}
+          value={number} onChangeText={onNumber} keyboardType="number-pad" maxLength={19} inputAccessoryViewID="depDone"
           style={fieldStyle} />
       </View>
 
@@ -226,16 +226,29 @@ export default function DepositScreen({
         <View style={{ flex: 1 }}>
           <Text style={labelStyle}>EXPIRY</Text>
           <TextInput placeholder="MM/YY" placeholderTextColor={COLORS.creamDim}
-            value={expiry} onChangeText={onExpiry} keyboardType="number-pad" maxLength={5}
+            value={expiry} onChangeText={onExpiry} keyboardType="number-pad" maxLength={5} inputAccessoryViewID="depDone"
             style={fieldStyle} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={labelStyle}>CVV</Text>
           <TextInput placeholder="100" placeholderTextColor={COLORS.creamDim}
-            value={cvv} onChangeText={onCvv} keyboardType="number-pad" maxLength={4} secureTextEntry
+            value={cvv} onChangeText={onCvv} keyboardType="number-pad" maxLength={4} secureTextEntry inputAccessoryViewID="depDone"
             style={fieldStyle} />
         </View>
       </View>
+
+      {/* keyboard Done toolbar (iOS number-pad has no return key) */}
+      {Platform.OS === 'ios' ? (
+        <InputAccessoryView nativeID="depDone">
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: '#1a1d14',
+            paddingVertical: 10 * s, paddingHorizontal: 18 * s, borderTopWidth: 1, borderTopColor: 'rgba(215,248,74,0.25)' }}>
+            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={12}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime,
+                paddingHorizontal: 14 * s, paddingVertical: 4 * s }}>Done</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
 
       {/* SANDBOX hint */}
       <View style={{ marginHorizontal: 45 * s, marginBottom: 30 * s, backgroundColor: 'rgba(212,242,60,0.10)',
