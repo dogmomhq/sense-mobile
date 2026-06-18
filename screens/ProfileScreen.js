@@ -31,6 +31,10 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
   onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onApple }) {
   const s = useScale();
   const live = !!(onSendCode || onVerify);
+  // Only show the Apple option when the NATIVE module is actually present (false on the
+  // OTA-only build that lacks build 13's native code -> no stray 'OR' with a blank button).
+  const [appleOk, setAppleOk] = useState(false);
+  useEffect(() => { let m = true; try { if (AppleAuth && AppleAuth.isAvailableAsync) AppleAuth.isAvailableAsync().then(v => { if (m) setAppleOk(!!v); }).catch(() => {}); } catch (e) {} return () => { m = false; }; }, []);
   // boxes expand past OTP_LEN if the user types/pastes a longer code (max OTP_MAX)
   const N = live ? Math.min(OTP_MAX, Math.max(OTP_LEN, codeStr.length)) : code.length;
   const boxes = live
@@ -103,7 +107,7 @@ function SignInCard({ email = '', code = ['4', '8', '2', '', '', '', '', ''], on
         <Animated.Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C',
           letterSpacing: 0.06 * 60 * s, includeFontPadding: false, opacity: pulse }}>{ctaLabel}</Animated.Text>
       </PressBtn>
-      {live && onApple && AppleAuth && AppleAuth.AppleAuthenticationButton && step !== 'code' ? (
+      {live && onApple && appleOk && step !== 'code' ? (
         <>
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
             letterSpacing: 0.1 * 24 * s, marginTop: 40 * s, marginBottom: 24 * s }}>OR</Text>
