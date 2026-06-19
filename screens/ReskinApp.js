@@ -20,6 +20,20 @@ import DepositScreen from './DepositScreen';
 import AppShell from './AppShell';
 import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
 
+// AUTH GATE (2026-06-19, CJ strict model): not signed in -> gated tabs show this
+// prompt instead of personal data. Practice stays open; balance/tiers/Play/history gated.
+function SignInGate({ onSignIn, label }) {
+  const s = useScale();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 64 * s }}>
+      <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, lineHeight: 44 * s, color: COLORS.cream, textAlign: 'center', marginBottom: 36 * s }}>{label}</Text>
+      <Pressable onPress={onSignIn} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 28 * s, paddingHorizontal: 64 * s }}>
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>SIGN IN</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ── constants ────────────────────────────────────────────────────────────────
 const RING_MODE = 'laser';                 // 'laser' | 'fuse' — CJ lean (laser); one const to flip
 const TIER_CENTS = [50, 100, 500, 10000];   // canonical ladder (DECISIONS #1) — mirrors server CREDIT_TIER_CENTS (tier4 $10->$100 2026-06-14)
@@ -234,6 +248,7 @@ export default function ReskinApp({ g }) {
   const streakVal = Number.isFinite(serverStreak) ? serverStreak : streakFromLog(g.matchLog);
   const handle = g.displayName || g.myName();
   const signedIn = !!g.authEmail;
+  const balanceShown = signedIn ? balanceTxt : '—';
   const pendingCount = Object.keys(g.pending || {}).length;
   const tierIdx = Math.max(0, TIER_CENTS.indexOf(g.stake));
   const stakeCents = TIER_CENTS[tierIdx];
@@ -338,7 +353,7 @@ export default function ReskinApp({ g }) {
       // 'results' and we'd never reach this branch — so a fast/instant result skips
       // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
-        <WaitingScreen streak={streakVal} balance={balanceTxt} handle={handle} signedIn={signedIn}
+        <WaitingScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
           onPlayAgain={() => { g.setShowActions(false); g.requeueOnline(); }}
@@ -352,7 +367,7 @@ export default function ReskinApp({ g }) {
         <QuestionScreen key={String(g.matchId || '') + (g.q.text || '')}
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
-          streak={streakVal} balance={balanceTxt} ringMode={RING_MODE}
+          streak={streakVal} balance={balanceShown} ringMode={RING_MODE}
           secondsLeft={g.countdown ? 10 : (answered ? secLeft : null)}
           startTsRef={g.startRef} timingDbgRef={timingDbg}
           onAnswer={(i, _label, pressTs) => g.submit(i, pressTs)} />
@@ -398,7 +413,7 @@ export default function ReskinApp({ g }) {
     );
   } else if (route === 'deposit') {
     body = (
-      <AppShell streak={streakVal} balance={balanceTxt} handle={handle} signedIn={signedIn}
+      <AppShell streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
         onSignIn={() => { setRoute('tabs'); g.setTab('profile'); }}
         pendingCount={pendingCount} onPendingPress={() => { setRoute('tabs'); g.setTab('history'); }}
         activeTab="profile" onTab={(t) => { setRoute('tabs'); g.setTab(t); }}
@@ -407,7 +422,7 @@ export default function ReskinApp({ g }) {
           httpsBase={g.httpsBase}
           supabaseToken={authToken(g)}
           signedInEmail={g.authEmail || ''}
-          balance={balanceTxt}
+          balance={balanceShown}
           onToast={(t, kind) => g.showToast(t, kind)}
           onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
           onDone={() => { setRoute('tabs'); g.setTab('home'); }} />
@@ -415,13 +430,13 @@ export default function ReskinApp({ g }) {
     );
   } else if (g.tab === 'home') {
     body = (
-      <HomeScreen streak={streakVal} balance={balanceTxt} handle={handle} signedIn={signedIn}
+      <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
         onSignIn={() => g.setTab('profile')}
         tiers={TIER_CENTS.map(fmtMoney)} selectedTier={tierIdx}
         winAmount={'WIN ' + fmtMoney(winCents(stakeCents))}
-        onSelectTier={(i) => g.setStake(TIER_CENTS[i])}
-        playDisabled={insufficient} insufficientLabel="NOT ENOUGH BALANCE — TAP + TO ADD FUNDS"
-        onPlay={() => { if (!insufficient) g.startPaidOnline(); }}
+        onSelectTier={signedIn ? ((i) => g.setStake(TIER_CENTS[i])) : (() => g.setTab('profile'))}
+        playDisabled={signedIn && insufficient} insufficientLabel="NOT ENOUGH BALANCE — TAP + TO ADD FUNDS"
+        onPlay={signedIn ? (() => { if (!insufficient) g.startPaidOnline(); }) : (() => g.setTab('profile'))}
         onPractice={g.startPractice}
         pendingCount={pendingCount} onPendingPress={() => g.setTab('history')}
         onAddFunds={() => setRoute('deposit')}
@@ -430,11 +445,13 @@ export default function ReskinApp({ g }) {
   } else {
     let screen = null;
     if (g.tab === 'history') {
-      screen = (
+      screen = signedIn ? (
         <HistoryScreen pending={pendingRows} feed={feed}
           practice={{ w: g.rec.wins, l: g.rec.losses, d: g.rec.draws, log: [] }}
           onCancelPending={(row) => row && row.mid && g.cancelPendingMatch(row.mid)}
           onStartPractice={g.startPractice} />
+      ) : (
+        <SignInGate onSignIn={() => g.setTab('profile')} label="Sign in to view your match history" />
       );
     } else if (g.tab === 'leaderboard') {
       screen = <LeaderboardScreen rows={lb.rows} yourName={g.myName()} />;
@@ -451,7 +468,7 @@ export default function ReskinApp({ g }) {
           netLifetime={fmtSigned(serverInfo && serverInfo.net_lifetime_cents != null
             ? serverInfo.net_lifetime_cents
             : (g.ledger || []).reduce((a, t) => a + (t.amount || 0), 0))}
-          balance={balanceTxt} soundsOn={g.sound} version="v1.0.0 · reskin"
+          balance={balanceShown} soundsOn={g.sound} version="v1.0.0 · reskin"
           onToggleSounds={() => g.setSound((x) => !x)}
           onDeposit={() => setRoute('deposit')}
           email={g.signinEmail} onChangeEmail={g.setSigninEmail}
@@ -462,7 +479,7 @@ export default function ReskinApp({ g }) {
       );
     }
     body = (
-      <AppShell streak={streakVal} balance={balanceTxt} handle={handle} signedIn={signedIn}
+      <AppShell streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
         onSignIn={() => g.setTab('profile')}
         pendingCount={pendingCount} onPendingPress={() => g.setTab('history')}
         activeTab={g.tab === 'home' ? 'home' : g.tab} onTab={(t) => g.setTab(t)}
