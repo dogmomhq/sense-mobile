@@ -369,7 +369,7 @@ export default function ReskinApp({ g }) {
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE}
           secondsLeft={g.countdown ? 10 : (answered ? secLeft : null)}
-          startTsRef={g.startRef} timingDbgRef={timingDbg}
+          startTsRef={g.startRef} timingDbgRef={timingDbg} concealed={!!g.countdown}
           onAnswer={(i, _label, pressTs) => g.submit(i, pressTs)} />
       );
     }
@@ -498,7 +498,10 @@ export default function ReskinApp({ g }) {
           flash over the live question. box-none + the overlay's own
           pointerEvents none let answer taps (onPressIn stamps) reach
           QuestionScreen from 2400.0ms */}
-      {cdOverlay && g.mode === 'play' && g.q ? (
+      {/* render-synchronous mount (2026-07-02 flash fix): g.countdown is true on the FIRST
+          paint, before the effect sets cdOverlay — previously the question painted 1+ frames
+          uncovered (visible flash on cold start) */}
+      {(cdOverlay || g.countdown) && g.mode === 'play' && g.q ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 80 }}>
           <CountdownScreen stakeLabel={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
             onDone={() => setCdOverlay(false)}
