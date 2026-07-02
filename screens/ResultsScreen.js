@@ -267,6 +267,7 @@ export default function ResultsScreen({
   practice = false,                     // PRACTICE · FREE — no stake/payout text
   balanceBefore = 24.5,                 // post-stake balance (escrow display rule)
   streak = 8,
+  record = null,                        // AUDIT MED #8 (2026-07-02): {w,d,l} — was passed by ReskinApp but never accepted
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
   onPlayAgain, onHome, onCycleEnd, showClock = false,
@@ -651,6 +652,11 @@ export default function ResultsScreen({
             <Text style={{ color: COLORS.lime, fontFamily: FONTS.interExtra, fontSize: 34 * s,
               letterSpacing: 0.06 * 34 * s }}>{practice ? 'PRACTICE · FREE' : fmt(stake) + ' · WIN ' + fmt(payout)}</Text>
           </View>
+          {record ? (
+            <Text style={{ marginTop: 10 * s, color: COLORS.cream, opacity: 0.55,
+              fontFamily: FONTS.interBold, fontSize: 22 * s, letterSpacing: 0.08 * 22 * s }}>
+              {`${record.w || 0}W · ${record.d || 0}D · ${record.l || 0}L`}</Text>
+          ) : null}
         </Animated.View>
 
         {/* ── STEP 1: reveal cards ── */}

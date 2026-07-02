@@ -28,6 +28,7 @@ const RESKIN = true;
 // local applyCredit stub becomes a no-op so credits never move twice; the displayed balance is
 // the SERVER balance (hydrateHistory pulls /history balance after every credit-moving event).
 const RESKIN_CREDITS = RESKIN && true;
+const CHALLENGE_ENABLED = false; // 2026-07-02 CJ: friend-room/challenge mode hidden (no UI entry anyway) — may return later; flip to restore
 const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4 }; // canonical tier ladder (DECISIONS #1, mirrors server CREDIT_TIER_CENTS) — tier4 $10->$100 2026-06-14
 
 const TIME_LIMIT = 10000;
@@ -273,6 +274,13 @@ export default function App() {
   const [joinCode, setJoinCode] = useState('');
   // ===== credits / stakes (stubbed local balance adapter — swap for server+processor to go real-money) =====
   const [balance, setBalance] = useState(500);   // free starting credits
+  const balanceRef = useRef(500);                 // mirror for WS handlers (closures can't read state fresh)
+  useEffect(() => { balanceRef.current = balance; }, [balance]);
+  // AUDIT #4 (2026-07-02): snapshot of the balance at the instant a result arrives —
+  // taken BEFORE the settle's hydrateHistory can apply the payout. The results odometer
+  // animates from this frozen number instead of live-math against g.balance (which races
+  // the async balance fetch and could show a wrong before/after).
+  const resultBalBeforeRef = useRef(null);
   const [stake, setStake] = useState(10);         // selected entry credits
   const [ledger, setLedger] = useState([]);       // [{ts,type,amount,label}]
   const [serverLedger, setServerLedger] = useState([]); // server credit_ledger rows (source of truth when signed in)
@@ -458,6 +466,7 @@ export default function App() {
   }
   // shared: map a server result into the practice-shaped state and show the Results screen
   function showResultsFor(msg, oppT) {
+    resultBalBeforeRef.current = onlineRef.current ? balanceRef.current : null; // AUDIT #4: freeze pre-payout balance
     const yt = myTimeRef.current;
     // Free online sends R_official as you.serverTime (the number that DECIDED the game) — show that
     // so the results card can't contradict the outcome. Practice/room have no serverTime -> local time.
@@ -608,17 +617,21 @@ export default function App() {
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
         else pushBanner(res, oppNm, msg.matchId);
         refreshServerBalance();   // settle wrote win/refund/rake rows — sync balance + ledger feed
+        setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 4000); // AUDIT #4: retry — hydrateHistory swallows fetch failures, one late re-sync self-heals a missed payout
         reconcilePending();       // drop the now-settled card from PENDING / fix the strip count
         break;
       }
       // ---- challenge ROOM engine ----
-      case 'created': handleChallengeMessage(msg); break;
-      case 'joined': handleChallengeMessage(msg); break;
-      case 'opponent-joined': handleChallengeMessage(msg); setOppName(msg.name || oppName); break;
-      case 'opponent-wants-rematch': handleChallengeMessage(msg); break;
-      case 'opponent-disconnected': handleChallengeMessage(msg); showToast('Opponent disconnected'); break;
+      // AUDIT MED #6 (2026-07-02, CJ): friend-room mode is fully coded but has no UI entry and
+      // won't ship for now — gated OFF behind CHALLENGE_ENABLED. Flip the flag to restore.
+      case 'created': if (CHALLENGE_ENABLED) handleChallengeMessage(msg); break;
+      case 'joined': if (CHALLENGE_ENABLED) handleChallengeMessage(msg); break;
+      case 'opponent-joined': if (CHALLENGE_ENABLED) { handleChallengeMessage(msg); setOppName(msg.name || oppName); } break;
+      case 'opponent-wants-rematch': if (CHALLENGE_ENABLED) handleChallengeMessage(msg); break;
+      case 'opponent-disconnected': if (CHALLENGE_ENABLED) { handleChallengeMessage(msg); showToast('Opponent disconnected'); } break;
       case 'opponent-answered': break; // informational (matches web)
       case 'round-start': {
+        if (!CHALLENGE_ENABLED) break;
         isChallengeRef.current = true; onlineRef.current = true; setOnline(true); setRematchReq(false);
         const cs = getChallenge();
         const oppNm = cs && (cs.role==='host' ? cs.joinerName : cs.hostName);
@@ -628,6 +641,7 @@ export default function App() {
       }
       case 'round-go': break; // informational — the 3-2-1 countdown drives timer start (matches web)
       case 'result': {        // challenge room result: opponent.time (no serverTime)
+        if (!CHALLENGE_ENABLED) break;
         const res = msg.you.result, oppT = msg.opponent.time;
         const cs = getChallenge();
         const oppNm = (cs && (cs.role==='host' ? cs.joinerName : cs.hostName)) || oppName || 'Opponent';
@@ -862,6 +876,7 @@ export default function App() {
       cancelPendingMatch: (mid) => { try { markCancelledId(mid); const cxlMsg = cancelMatch(mid, wsIdentity()); ensureConn(() => wsSend(cxlMsg)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
       // refs + env
       stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
+      resultBalBefore: resultBalBeforeRef.current, // AUDIT #4: frozen at result arrival, null in practice
     };
     const AW = PHProvider || React.Fragment;
     const ap = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};

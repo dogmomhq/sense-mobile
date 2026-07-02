@@ -211,7 +211,7 @@ export default function ReskinApp({ g }) {
         if (d && Array.isArray(d.cancelled)) setCancelledRows(d.cancelled);
       } catch (e) {}
     })();
-  }, [g.displayName]); // re-run once the account registers / handle syncs
+  }, [g.displayName, g.authEmail]); // AUDIT #5 (2026-07-02): also re-run when a mid-session sign-in lands — authEmail flips right after supabaseTokenRef is set, so the token-gated early-return above no longer strands the profile (memberSince, lifetime, daily bonus) unhydrated
 
   // leaderboard hydration (records only + you-rank, server pass 5a `?name=`)
   useEffect(() => {
@@ -392,7 +392,11 @@ export default function ReskinApp({ g }) {
       : (r === 'win' && both && gap > 0 && gap <= 0.25) ? 'closewin' : r;
     const stkC = g.online ? (g.stakeRef.current || 0) : 0;
     const payC = winCents(stkC);
-    const balBefore = r === 'win' ? g.balance - payC : r === 'draw' ? g.balance - stkC : g.balance;
+    // AUDIT #4 (2026-07-02): prefer the balance frozen at result-arrival (pre-payout, post-escrow)
+    // over live math — g.balance races the settle's async balance fetch, so subtracting the payout
+    // from it shows a wrong number whenever the fetch is slow or fails. Fallback = old computation.
+    const balBefore = (g.online && g.resultBalBefore != null) ? g.resultBalBefore
+      : r === 'win' ? g.balance - payC : r === 'draw' ? g.balance - stkC : g.balance;
     const correctTxt = g.q.correctIdx != null ? g.q.options[g.q.correctIdx] : '—';
     body = (
       <ResultsScreen key={'res' + String(g.matchId || '')}
