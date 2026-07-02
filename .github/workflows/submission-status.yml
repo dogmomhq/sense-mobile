@@ -1,0 +1,14 @@
+name: Submission Status (debug)
+on: workflow_dispatch
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query submission error
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          curl -s https://api.expo.dev/graphql \
+            -H "Authorization: Bearer $EXPO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query{submissions{byId(submissionId:\"25a64215-af49-4c80-bcbb-f58e18bea1e5\"){id status error{errorCode message} logsUrl}}}"}'
