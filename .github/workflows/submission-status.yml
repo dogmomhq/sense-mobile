@@ -8,15 +8,20 @@ jobs:
   status:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - name: Install deps
-        run: npm ci || npm install
-      - name: Restore ASC API key
-        run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
-      - name: Re-submit with debug output
+      - name: Fetch submission logs
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_DEBUG: "1"
-        run: npx --yes eas-cli@latest submit -p ios --profile testflight --latest --non-interactive 2>&1 | tail -80
+        run: |
+          for ID in b4aaf650-0f87-4fa6-869b-142c2d73741e 25a64215-af49-4c80-bcbb-f58e18bea1e5; do
+            echo "=== submission $ID ==="
+            RESP=$(curl -s https://api.expo.dev/graphql \
+              -H "Authorization: Bearer $EXPO_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"query{submissions{byId(submissionId:\\\"$ID\\\"){id status logsUrl error{errorCode message}}}}\"}")
+            echo "$RESP"
+            URL=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['submissions']['byId'].get('logsUrl') or '')" 2>/dev/null)
+            if [ -n "$URL" ]; then
+              echo "--- logs ---"
+              curl -s "$URL" | tail -60
+            fi
+          done
