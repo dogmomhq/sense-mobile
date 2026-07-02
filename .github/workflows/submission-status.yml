@@ -8,11 +8,15 @@ jobs:
   status:
     runs-on: ubuntu-latest
     steps:
-      - name: Query submission error
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Restore ASC API key
+        run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
+      - name: Re-submit with debug output
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          curl -s https://api.expo.dev/graphql \
-            -H "Authorization: Bearer $EXPO_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"query{submissions{byId(submissionId:\"25a64215-af49-4c80-bcbb-f58e18bea1e5\"){id status error{errorCode message} logsUrl}}}"}'
+          EXPO_DEBUG: "1"
+        run: npx --yes eas-cli@latest submit -p ios --profile testflight --latest --non-interactive 2>&1 | tail -80
