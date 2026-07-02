@@ -1,0 +1,34 @@
+name: Reskin Snapshots
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: reskin-snapshots
+  cancel-in-progress: true
+jobs:
+  snap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - name: Web deps
+        run: npx expo install react-dom react-native-web @expo/metro-runtime react-native-svg expo-linear-gradient @expo-google-fonts/inter expo-font expo-haptics @react-native-async-storage/async-storage
+      - name: Export web (root base-url for local serving)
+        run: |
+          node -e "const a=require('./app.json'); a.expo.experiments={...(a.expo.experiments||{}),baseUrl:'/'}; require('fs').writeFileSync('app.json',JSON.stringify(a,null,2));"
+          npx expo export --platform web --output-dir dist
+      - name: Install Playwright chromium
+        run: npx --yes playwright@1.48.0 install --with-deps chromium
+      - name: Install playwright lib
+        run: npm install --no-save playwright@1.48.0 serve
+      - name: Capture screenshots
+        run: node snapshot-reskin.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reskin-shots
+          path: reskin-shots/
+
