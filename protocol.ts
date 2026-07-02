@@ -23,8 +23,8 @@ export type ResultReason = 'correct_answer' | 'both_wrong' | 'faster' | 'same_sp
 
 // ---------- CLIENT -> SERVER ----------
 export interface QueueMsg { type: 'queue'; name: string; tier: number; paymentMode: PaymentMode; wallet: string | null; onChainGameId: number | null; }
-export interface AsyncAnswerMsg { type: 'async-answer'; matchId: string; answerIndex: number; clientTime: number; }
-export interface CancelMatchMsg { type: 'cancel-match'; matchId: string; }
+export interface AsyncAnswerMsg { type: 'async-answer'; matchId: string; answerIndex: number; clientTime: number; name?: string | null; token?: string | null; supabaseToken?: string | null; }
+export interface CancelMatchMsg { type: 'cancel-match'; matchId: string; name?: string | null; token?: string | null; supabaseToken?: string | null; }
 export interface RttPongMsg { type: 'rtt-pong'; nonce: number; }
 export interface KeepaliveMsg { type: 'keepalive'; }
 export interface CreateRoomMsg { type: 'create'; name: string; tier: number; paymentMode: PaymentMode; wallet: string | null; onChainGameId: number | null; }
@@ -41,10 +41,12 @@ export type ClientMessage =
 // Builders (free-mode / online — what mobile uses):
 export const queue = (name: string, tier = 1, opts: { wallet?: string | null; onChainGameId?: number | null; paymentMode?: PaymentMode } = {}): QueueMsg =>
   ({ type: 'queue', name, tier, paymentMode: opts.paymentMode ?? 'none', wallet: opts.wallet ?? null, onChainGameId: opts.onChainGameId ?? null });
-/** answerIndex: 0..3, or -1 for timeout. clientTime: ms since GO (local). */
-export const asyncAnswer = (matchId: string, answerIndex: number, clientTime: number): AsyncAnswerMsg =>
-  ({ type: 'async-answer', matchId, answerIndex, clientTime });
-export const cancelMatch = (matchId: string): CancelMatchMsg => ({ type: 'cancel-match', matchId });
+/** answerIndex: 0..3, or -1 for timeout. clientTime: ms since GO (local).
+ *  Optional identity (name/token/supabaseToken) lets the server verify the sender
+ *  on a fresh socket after a reconnect (server recovers ws._asyncName from it). */
+export const asyncAnswer = (matchId: string, answerIndex: number, clientTime: number, identity: { name?: string | null; token?: string | null; supabaseToken?: string | null } = {}): AsyncAnswerMsg =>
+  ({ type: 'async-answer', matchId, answerIndex, clientTime, ...identity });
+export const cancelMatch = (matchId: string, identity: { name?: string | null; token?: string | null; supabaseToken?: string | null } = {}): CancelMatchMsg => ({ type: 'cancel-match', matchId, ...identity });
 export const rttPong = (nonce: number): RttPongMsg => ({ type: 'rtt-pong', nonce });
 export const keepalive = (): KeepaliveMsg => ({ type: 'keepalive' });
 // Challenge room (Phase 4):
