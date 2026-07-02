@@ -25,6 +25,7 @@ export default function QuestionScreen({
   stake = '$1.00 · WIN $1.90',
   streak = 8, balance = '$24.50',
   onAnswer, onTimeout, showClock = false,
+  concealed = false,                        // countdown conceal: photo+answers render at opacity 0 (decoded, never painted) until the countdown ends
   ringMode = 'fuse',                        // 'fuse' | 'laser' — which timer-ring engine
   timingDbgRef = null,                      // ?timedebug=1: { flipTs, goTs } from ReskinApp (goAnchor delta) + last press latency written here
 }) {
@@ -62,7 +63,7 @@ export default function QuestionScreen({
 
       {/* full-bleed photo (center top / cover) */}
       <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
-        style={{ position: 'absolute', top: 0, left: 0 }} />
+        style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
 
       {/* same olive top fade as home */}
       <LinearGradient pointerEvents="none"
@@ -81,11 +82,15 @@ export default function QuestionScreen({
       {/* frozen (answered) readout shows hundredths so it equals the scored
           time exactly; live readout stays tenths */}
       <TimerRing secondsLeft={tLeft} mode={ringMode} precision={secondsLeft != null ? 2 : 1} />
-      <AnswerGrid answers={answers} lockedIndex={locked}
-        onAnswer={(i, label, pressTs) => {
-          if (timingDbgRef && timingDbgRef.current) timingDbgRef.current.press = { pressTs, submitTs: Date.now() };
-          setLocked(i); if (onAnswer) onAnswer(i, label, pressTs);
-        }} />
+      {/* conceal wrapper (2026-07-02): answers invisible until countdown ends — same
+          geometry (full-screen absolute, box-none), zero repaint cost on reveal */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15, opacity: concealed ? 0 : 1 }}>
+        <AnswerGrid answers={answers} lockedIndex={locked}
+          onAnswer={(i, label, pressTs) => {
+            if (timingDbgRef && timingDbgRef.current) timingDbgRef.current.press = { pressTs, submitTs: Date.now() };
+            setLocked(i); if (onAnswer) onAnswer(i, label, pressTs);
+          }} />
+      </View>
       {TIMEDEBUG && <TimeDebug startTsRef={startTsRef} secondsLeft={secondsLeft} tLeft={tLeft} timingDbgRef={timingDbgRef} />}
     </View>
   );
