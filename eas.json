@@ -17,7 +17,7 @@
       "autoIncrement": true,
       "credentialsSource": "local",
       "ios": {
-        "image": "latest"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "simulator": {
