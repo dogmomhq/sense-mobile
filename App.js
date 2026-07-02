@@ -390,7 +390,9 @@ export default function App() {
       if (isChallengeRef.current) {
         wsSend(roomAnswer(idx, Math.round(playerTime)));   // challenge ROOM engine
       } else {
-        wsSend(asyncAnswer(matchIdRef.current, idx, Math.round(playerTime)));  // async matchmaking
+        // AUDIT FIX #2: plain wsSend silently DROPS on a closed socket (answer lost -> timeout loss).
+        // Freeze the message now, then reconnect-if-needed and send; identity lets the server verify us on the fresh socket.
+        { const ansMsg = asyncAnswer(matchIdRef.current, idx, Math.round(playerTime), wsIdentity()); ensureConn(() => wsSend(ansMsg)); }  // async matchmaking
         const mid = matchIdRef.current;
         // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
@@ -707,6 +709,9 @@ export default function App() {
     }
   }
   function ensureConn(after) { if (isConnected()) { after && after(); } else connectWS((m) => wsHandlerRef.current(m), () => {}, () => after && after(), () => bailHome('Connection lost')); }
+  // Identity attached to answer/cancel sends so the server can verify us on a FRESH socket after a
+  // reconnect (ws._asyncName is per-socket and lost on relaunch/flap; token required for credit matches).
+  function wsIdentity() { return { name: myName(), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined }; }
   // Restore the ONE handle owned by this email account from the server (1 email = 1 account = 1 username).
   function syncAccount() { const t = supabaseTokenRef.current; if (!t) return; ensureConn(() => wsSend({ type: 'account-sync', supabaseToken: t, preferredHandle: myName() })); }
   async function sendQueueMsg() {
@@ -851,7 +856,7 @@ export default function App() {
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
       startPractice, cancelOnline, sendCode, verifyCode, signInWithApple, signOutAuth, doRename,
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
-      cancelPendingMatch: (mid) => { try { markCancelledId(mid); wsSend(cancelMatch(mid)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
+      cancelPendingMatch: (mid) => { try { markCancelledId(mid); const cxlMsg = cancelMatch(mid, wsIdentity()); ensureConn(() => wsSend(cxlMsg)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
       // refs + env
       stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
     };
