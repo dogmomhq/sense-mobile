@@ -330,7 +330,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} try { if (PH) PH.onFeatureFlags(() => { try { if (PH.getFeatureFlag('default-stake') === 'test') setStake(25); } catch (e) {} }); } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX module rides the same toggle
   // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
   // against the server's open list, so a stale 'WAITING' card for an already-settled match
@@ -719,6 +719,9 @@ export default function App() {
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
     // RESKIN: the tier selector queues into the matching server pool (1..4 per the
     // canonical ladder). With RESKIN=false this is the exact old line (tier 1).
+    // GUARD: an off-ladder stake (e.g. from a stale experiment) would DISPLAY one number while the
+    // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
+    if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
     wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
   }
