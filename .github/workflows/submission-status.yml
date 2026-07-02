@@ -1,5 +1,9 @@
 name: Submission Status (debug)
-on: workflow_dispatch
+on:
+  push:
+    paths:
+      - .github/workflows/submission-status.yml
+  workflow_dispatch:
 jobs:
   status:
     runs-on: ubuntu-latest
