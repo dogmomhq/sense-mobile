@@ -1,0 +1,35 @@
+name: ASC Capabilities Check
+
+# TEMP (Package 2): reads the bundle ID's enabled capabilities + lists dist
+# certificates and profiles so we know whether App Attest / Push Notifications
+# need enabling and whether the provisioning profile must be regenerated.
+# Read-only. Delete after Package 2 ships.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pip install pyjwt cryptography requests
+      - env:
+          ASC_KEY: ${{ secrets.ASC_API_KEY_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import jwt, time, base64, os, requests, json
+          key = base64.b64decode(os.environ['ASC_KEY']).decode()
+          tok = jwt.encode({'iss':'b26d5075-81df-418d-93b6-a3dd7be13e0c','iat':int(time.time()),'exp':int(time.time())+1200,'aud':'appstoreconnect-v1'}, key, algorithm='ES256', headers={'kid':'47N638GLZG'})
+          H = {'Authorization': f'Bearer {tok}'}
+          A = 'https://api.appstoreconnect.apple.com/v1'
+          r = requests.get(f'{A}/bundleIds?filter[identifier]=com.dogmomhq.sensemobile&include=bundleIdCapabilities', headers=H).json()
+          bid = r['data'][0]['id'] if r.get('data') else None
+          caps = [i['attributes']['capabilityType'] for i in r.get('included',[]) if i['type']=='bundleIdCapabilities']
+          print('BUNDLE_ID_RESOURCE:', bid)
+          print('CAPABILITIES:', json.dumps(caps))
+          c = requests.get(f'{A}/certificates?filter[certificateType]=DISTRIBUTION,IOS_DISTRIBUTION&limit=20', headers=H).json()
+          for d in c.get('data',[]):
+              a=d['attributes']; print('CERT:', d['id'], a['certificateType'], a['displayName'], 'expires', a['expirationDate'])
+          p = requests.get(f'{A}/profiles?limit=20', headers=H).json()
+          for d in p.get('data',[]):
+              a=d['attributes']; print('PROFILE:', d['id'], a['profileType'], a['name'], a['profileState'], 'expires', a['expirationDate'])
+          PY
