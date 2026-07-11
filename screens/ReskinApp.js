@@ -8,7 +8,8 @@
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, Platform, Alert } from 'react-native';
-import HomeScreen from './HomeScreen';
+import Constants from 'expo-constants';
+import HomeScreen, { BUILD_TAG } from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
 import CountdownScreen from './CountdownScreen';
 import ResultsScreen from './ResultsScreen';
@@ -451,7 +452,7 @@ export default function ReskinApp({ g }) {
     if (g.tab === 'history') {
       screen = signedIn ? (
         <HistoryScreen pending={pendingRows} feed={feed}
-          practice={{ w: g.rec.wins, l: g.rec.losses, d: g.rec.draws, log: [] }}
+          practice={{ w: g.rec.wins, l: g.rec.losses, d: g.rec.draws, log: (g.pracLog || []).map((e) => ({ result: e.result, animal: e.animal, yourTime: fmtSecs(e.time) })) }}
           onCancelPending={(row) => row && row.mid && g.cancelPendingMatch(row.mid)}
           onStartPractice={g.startPractice} />
       ) : (
@@ -472,7 +473,7 @@ export default function ReskinApp({ g }) {
           netLifetime={fmtSigned(serverInfo && serverInfo.net_lifetime_cents != null
             ? serverInfo.net_lifetime_cents
             : (g.ledger || []).reduce((a, t) => a + (t.amount || 0), 0))}
-          balance={balanceShown} soundsOn={g.sound} version="v1.0.0 · reskin"
+          balance={balanceShown} soundsOn={g.sound} version={'v' + ((Constants.expoConfig && Constants.expoConfig.version) || '?') + ' · ' + BUILD_TAG}
           onToggleSounds={() => g.setSound((x) => !x)}
           onDeposit={() => setRoute('deposit')}
           email={g.signinEmail} onChangeEmail={g.setSigninEmail}

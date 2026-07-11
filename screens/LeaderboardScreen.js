@@ -23,7 +23,7 @@ function Row({ row, isYou }) {
           backgroundColor: COLORS.lime, borderRadius: 12 * s,
           paddingVertical: 8 * s, paddingHorizontal: 20 * s }}>
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 24 * s, color: '#10140C',
-            letterSpacing: 0.06 * 24 * s }}>BEAT #{row.rank - 1} ABOVE YOU ↑</Text>
+            letterSpacing: 0.06 * 24 * s }}>{row.rank <= 1 ? 'YOU\u2019RE #1 \u00b7 DEFEND IT' : 'BEAT #' + (row.rank - 1) + ' ABOVE YOU \u2191'}</Text>
         </View>
       ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 * s,

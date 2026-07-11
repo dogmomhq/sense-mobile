@@ -270,6 +270,8 @@ export default function App() {
   const [onlineRec, setOnlineRec] = useState({ wins:0, losses:0, draws:0 });
   const [matchLog, setMatchLog] = useState([]);      // settled online/challenge matches
   const [pending, setPending] = useState({});         // matchId -> {opponent, myTime, ts}
+  const pendingRef = useRef({}); useEffect(() => { pendingRef.current = pending; }, [pending]); // mirror for timers (push-ask guard)
+  const [pracLog, setPracLog] = useState([]);          // last 10 practice rounds {result, animal, time}
   const [banners, setBanners] = useState([]);         // background-result notifications
   const [showActions, setShowActions] = useState(false); // play-screen Play Again/History/Home
   const [challenge, setChallenge] = useState(null);   // challengeService snapshot
@@ -336,7 +338,7 @@ export default function App() {
   })).current;
 
   // Persist practice stats (web saves to localStorage; mobile uses AsyncStorage)
-  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); hydrateOpenGames(myNameRef.current); } catch (e) {} try { const bal = await AsyncStorage.getItem('sense_balance'); if (bal != null) setBalance(parseInt(bal) || 0); const lg = await AsyncStorage.getItem('sense_ledger'); if (lg) setLedger(JSON.parse(lg)); } catch (e) {} } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await AsyncStorage.getItem('sense_rec'); if (r) setRec(JSON.parse(r)); const h = await AsyncStorage.getItem('sense_hist'); if (h) history.current = JSON.parse(h); const pl = await AsyncStorage.getItem('sense_praclog'); if (pl) setPracLog(JSON.parse(pl)); const o = await AsyncStorage.getItem('sense_orec'); if (o) setOnlineRec(JSON.parse(o)); let hn = await AsyncStorage.getItem('sense_handle'); if (!hn) { hn = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); AsyncStorage.setItem('sense_handle', hn); } myNameRef.current = hn; const acct = await AsyncStorage.getItem('sense_account'); if (acct) { accountRef.current = JSON.parse(acct); if (accountRef.current && accountRef.current.handle) myNameRef.current = accountRef.current.handle; } try { setDisplayName(myNameRef.current || ''); hydrateHistory(myNameRef.current); hydrateOpenGames(myNameRef.current); } catch (e) {} try { const bal = await AsyncStorage.getItem('sense_balance'); if (bal != null) setBalance(parseInt(bal) || 0); const lg = await AsyncStorage.getItem('sense_ledger'); if (lg) setLedger(JSON.parse(lg)); } catch (e) {} } catch (e) {} })(); }, []);
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
@@ -408,7 +410,7 @@ export default function App() {
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
         if (pendTimer.current) clearTimeout(pendTimer.current);
         pendTimer.current = setTimeout(() => { if (onlineRef.current) setShowActions(true); }, 4000); // web: actions appear at +4s
-        setTimeout(() => { try { ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: true }); } catch (e) {} }, 1200); // P2: THE ask moment — they just queued an answer and want the result
+        setTimeout(() => { try { if (pendingRef.current[mid]) ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: true }); } catch (e) {} }, 2000); // P2 ask moment (CJ 2026-07-11): 2s after submit, ONLY if the match hasn't already settled — an instant result makes the ask pointless
       }
       return;
     }
@@ -418,6 +420,7 @@ export default function App() {
     history.current = [...history.current, r.result === 'win'];
     try { AsyncStorage.setItem('sense_hist', JSON.stringify(history.current)); } catch (e) {}
     setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
+    setPracLog(p => { const n = [{ result: r.result, animal: q.options[q.correctIdx], time: playerTime }, ...p].slice(0, 10); try { AsyncStorage.setItem('sense_praclog', JSON.stringify(n)); } catch (e) {} return n; });
     setTimeout(() => fadeTo(() => setMode('results')), 800);
   }
   function playAgain() {
@@ -785,7 +788,7 @@ export default function App() {
     // signed-out screen can NEVER show the prior session's balance / deposits / history.
     setBalance(0); setLedger([]); setServerLedger([]); setMatchLog([]); setPending({});
     setOnlineRec({ wins: 0, losses: 0, draws: 0 }); history.current = [];
-    try { await AsyncStorage.multiRemove(['sense_balance','sense_ledger','sense_hist','sense_orec']); } catch (e) {}
+    try { await AsyncStorage.multiRemove(['sense_balance','sense_ledger','sense_hist','sense_orec','sense_praclog']); } catch (e) {}
   }
   async function deleteAccountNow() {
     // Apple 5.1.1(v): permanent server-side deletion. Server expires+refunds open games,
@@ -805,7 +808,7 @@ export default function App() {
     setOnlineRec({ wins: 0, losses: 0, draws: 0 }); setRec({ wins: 0, losses: 0, draws: 0 }); history.current = [];
     const fresh = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900);
     myNameRef.current = fresh; setDisplayName(fresh);
-    try { await AsyncStorage.multiRemove(['sense_account','sense_balance','sense_ledger','sense_hist','sense_orec','sense_rec']); await AsyncStorage.setItem('sense_handle', fresh); } catch (e) {}
+    try { await AsyncStorage.multiRemove(['sense_account','sense_balance','sense_ledger','sense_hist','sense_orec','sense_rec','sense_praclog']); await AsyncStorage.setItem('sense_handle', fresh); } catch (e) {}
     showToast('Account deleted.');
     return true;
   }
@@ -889,7 +892,7 @@ export default function App() {
     const g = {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
-      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec,
+      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
