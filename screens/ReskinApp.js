@@ -49,9 +49,11 @@ const TIME_LIMIT = 10000;
 // no opponent yet) does the WaitingScreen show. ~matches the original UI, which
 // stayed on the question and only surfaced actions at +4s. Purely a render gate —
 // the scored clientTime (App.js submit) is untouched.
-// CJ 2026-07-11 (B35): 3000 -> 2000, and the WaitingScreen now fades in (see its
-// mount fade) instead of hard-cutting, so the handoff reads as one motion.
-const WAIT_GRACE_MS = 2000;
+// CJ 2026-07-11 (B35): match PRACTICE mode's rhythm — practice holds the frozen
+// question 800ms then fades to results (App.js submit: fadeTo(...) at 800). Online
+// uses the same 800ms hold, then fades to the WaitingScreen (its mount fade) if no
+// result arrived. No perceptible pause, one continuous motion, both modes feel identical.
+const WAIT_GRACE_MS = 800;
 
 export const fmtMoney = (cents) => '$' + (Math.abs(cents || 0) / 100).toFixed(2);
 const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
