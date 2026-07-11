@@ -783,6 +783,28 @@ export default function App() {
     setOnlineRec({ wins: 0, losses: 0, draws: 0 }); history.current = [];
     try { await AsyncStorage.multiRemove(['sense_balance','sense_ledger','sense_hist','sense_orec']); } catch (e) {}
   }
+  async function deleteAccountNow() {
+    // Apple 5.1.1(v): permanent server-side deletion. Server expires+refunds open games,
+    // forfeits remaining credits (ledger row), frees the handle, anonymizes history.
+    const tok = (accountRef.current && accountRef.current.token) || supabaseTokenRef.current || '';
+    if (tok) {
+      try {
+        const r = await fetch(HTTPS_BASE + '/api/account/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) { showToast(j.error === 'unauthorized' ? 'Session expired - restart the app and try again.' : 'Could not delete account. Try again.'); return false; }
+      } catch (e) { showToast('No connection. Try again.'); return false; }
+    }
+    // local wipe: fresh anonymous state, new generated name
+    try { await supabase.auth.signOut(); } catch (e) {}
+    supabaseTokenRef.current = null; accountRef.current = null; setAuthEmail(null); setAuthSince(null);
+    setBalance(0); setLedger([]); setServerLedger([]); setMatchLog([]); setPending({});
+    setOnlineRec({ wins: 0, losses: 0, draws: 0 }); setRec({ wins: 0, losses: 0, draws: 0 }); history.current = [];
+    const fresh = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900);
+    myNameRef.current = fresh; setDisplayName(fresh);
+    try { await AsyncStorage.multiRemove(['sense_account','sense_balance','sense_ledger','sense_hist','sense_orec','sense_rec']); await AsyncStorage.setItem('sense_handle', fresh); } catch (e) {}
+    showToast('Account deleted.');
+    return true;
+  }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
     ensureConn(() => {
@@ -871,7 +893,7 @@ export default function App() {
       setTab, setStake, setCountdown, setBanners, setShowActions, setSound,
       setSigninEmail, setSigninCode, setSigninStep,
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
-      startPractice, cancelOnline, sendCode, verifyCode, signInWithApple, signOutAuth, doRename,
+      startPractice, cancelOnline, sendCode, verifyCode, signInWithApple, signOutAuth, doRename, deleteAccountNow,
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
       cancelPendingMatch: (mid) => { try { markCancelledId(mid); const cxlMsg = cancelMatch(mid, wsIdentity()); ensureConn(() => wsSend(cxlMsg)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
       // refs + env

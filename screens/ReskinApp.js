@@ -7,7 +7,7 @@
 // Money display: 1 credit = 1¢ (DECISIONS Q2). fmtMoney is THE switchable
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Platform } from 'react-native';
+import { View, Text, Pressable, Platform, Alert } from 'react-native';
 import HomeScreen from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
 import CountdownScreen from './CountdownScreen';
@@ -479,7 +479,19 @@ export default function ReskinApp({ g }) {
           codeStr={g.signinCode} onChangeCode={g.setSigninCode}
           step={g.signinStep} busy={g.signinBusy}
           onSendCode={g.sendCode} onVerify={g.verifyCode} onApple={g.signInWithApple} onSignOut={g.signOutAuth}
-          onRename={g.doRename} />
+          onRename={g.doRename}
+          onDeleteAccount={() => {
+            // Apple 5.1.1(v): permanent, double-confirmed. Credits are forfeited (free credits era).
+            const doIt = async () => { const ok = await g.deleteAccountNow(); if (ok) g.setTab('home'); };
+            if (Platform.OS === 'web') { // RN-web Alert is a no-op; confirm() keeps web + snapshot tests working
+              if (window.confirm('Delete account? This is permanent. Your handle, match history and remaining credits will be gone forever.')) doIt();
+              return;
+            }
+            Alert.alert('Delete account?',
+              'This is permanent. Your handle, match history and remaining credits will be gone forever.',
+              [{ text: 'Cancel', style: 'cancel' },
+               { text: 'Delete Forever', style: 'destructive', onPress: doIt }]);
+          }} />
       );
     }
     body = (
