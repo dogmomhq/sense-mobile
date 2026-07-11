@@ -250,7 +250,7 @@ export default function App() {
   const [mode, setMode] = useState(null);
   const [countdown, setCountdown] = useState(false);
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
-  const [sound, setSound] = useState(false);
+  const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
   const [q, setQ] = useState(null);
   const [used, setUsed] = useState([]);
   const [picked, setPicked] = useState(null);
@@ -338,8 +338,8 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
-  useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX module rides the same toggle
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound2', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX rides the same toggle. 1c (2026-07-10): key is sense_sound2 — legacy sense_sound was auto-written '0' on every install, reading it would keep everyone muted despite the new default-ON
   // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
   // against the server's open list, so a stale 'WAITING' card for an already-settled match
   // (async-result missed while disconnected) drops live without a manual refresh, and the

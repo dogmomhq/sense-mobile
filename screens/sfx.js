@@ -1,7 +1,7 @@
 // ── RESKIN SFX + HAPTICS (Phase 6) ──────────────────────────────────────────
 // 8 local procedural sounds (scripts/gen-sfx.js, CC0 — we synthesized them).
 // Gated by the SAME Sound toggle as the legacy playSfx: App.js calls
-// setSfxEnabled(sound) whenever the toggle flips. DEFAULT OFF.
+// setSfxEnabled(sound) whenever the toggle flips. DEFAULT ON (1c, 2026-07-10).
 // Native: expo-audio players. Web export: HTMLAudio fallback (guarded).
 // Haptics: native only (expo-haptics), no-op on web. Every call is try/catch —
 // audio/haptics must never break the game loop.
@@ -18,7 +18,7 @@ const SRC = {
   payout: require('../assets/sounds/payout.wav'),
 };
 
-let enabled = false;          // mirrors the Profile Sound toggle (default OFF)
+let enabled = false;          // mirrors the Profile Sound toggle (App.js syncs on mount)
 let players = null;           // lazy-built on first enable
 
 export function setSfxEnabled(on) {

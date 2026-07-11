@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, Animated, Easing, useWindowDimensions, StatusBar } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { COLORS, FONTS, useScale, getSafeTop } from './theme';
-import { sfx, hapTap } from './sfx';
+import { sfx, hapTap, hapHeartbeat } from './sfx';
 
 const EYE = require('../assets/countdown/eye_base.jpeg');
 const EYE_W = 1536, EYE_H = 2752;
@@ -134,7 +134,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     // are native-only no-ops on web. Never fires in freezeBeat previews
     // (beat() isn't called there).
     if (b === 'go') { sfx('go'); hapTap('heavy'); }
-    else { sfx('countdown_beat'); hapTap('medium'); }
+    else { sfx('countdown_beat'); hapHeartbeat(); } // lub-dub haptic matches the heartbeat audio (CJ, 2026-07-10)
     const prev = wraps[cur.current];
     cur.current = 1 - cur.current;
     const next = wraps[cur.current];
