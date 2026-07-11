@@ -18,6 +18,8 @@ const fs = require('fs');
     // GO is a real visible beat with the same weight as the numerals
     ['countdown_go', 'http://localhost:8080/?reskin=countdown&beat=go'],
     ['waiting', 'http://localhost:8080/?reskin=waiting&t=0'],
+    // B35: permission-off variant -> notify copy swaps + TURN ON NOTIFICATIONS button
+    ['waiting_push_off', 'http://localhost:8080/?reskin=waiting&t=0&push=off'],
     // reveal stage = stake pill + W/D/L record line visible (audit MED #8 verification)
     ['results_win_reveal', 'http://localhost:8080/?reskin=results&outcome=win&at=reveal'],
     ['results_nearmiss', 'http://localhost:8080/?reskin=results&outcome=nearmiss&at=race'],

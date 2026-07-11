@@ -49,7 +49,9 @@ const TIME_LIMIT = 10000;
 // no opponent yet) does the WaitingScreen show. ~matches the original UI, which
 // stayed on the question and only surfaced actions at +4s. Purely a render gate —
 // the scored clientTime (App.js submit) is untouched.
-const WAIT_GRACE_MS = 3000;
+// CJ 2026-07-11 (B35): 3000 -> 2000, and the WaitingScreen now fades in (see its
+// mount fade) instead of hard-cutting, so the handoff reads as one motion.
+const WAIT_GRACE_MS = 2000;
 
 export const fmtMoney = (cents) => '$' + (Math.abs(cents || 0) / 100).toFixed(2);
 const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
@@ -357,6 +359,7 @@ export default function ReskinApp({ g }) {
         <WaitingScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
+          pushOn={g.pushOn !== false} onEnablePush={g.enablePush}
           onPlayAgain={() => { g.setShowActions(false); g.requeueOnline(); }}
           onHistory={() => g.navTo('history')} onHome={g.goHome} />
       );

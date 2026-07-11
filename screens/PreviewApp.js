@@ -132,7 +132,7 @@ export default function PreviewApp() {
   if (which === 'countdown') return <CountdownLoop freezeBeat={beat} />;
   if (which === 'results') return <ResultsLoop outcome={typeof outcome !== 'undefined' ? outcome : 'win'} at={typeof at !== 'undefined' ? at : null}
     practice={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('practice') === '1'} />;
-  if (which === 'waiting') return <WaitingScreen showClock handle="NIGHTOWL88" freeze={qhas(t)} />;
+  if (which === 'waiting') return <WaitingScreen showClock handle="NIGHTOWL88" freeze={qhas(t)} pushOn={typeof window === 'undefined' || new URLSearchParams(window.location.search).get('push') !== 'off'} />; // &push=off -> TURN ON NOTIFICATIONS button variant (B35)
   if (which === 'history') return (
     <AppShell activeTab="history" handle="NIGHTOWL88" pendingCount={1} showClock>
       <HistoryScreen tab={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'practice' ? 'practice' : 'matches'}

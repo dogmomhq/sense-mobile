@@ -49,6 +49,7 @@ export default function WaitingScreen({
   streak = 8, balance = '$24.50', handle = null, signedIn = true,
   lockedTime = '1.42s', stakeText = '$1.00 · WIN $1.90',
   onPlayAgain, onHistory, onHome, showClock = false, freeze = false,
+  pushOn = true, onEnablePush,
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
@@ -61,8 +62,17 @@ export default function WaitingScreen({
   const pillB = playB + (210 + 64 * g) * s;             // stake pill (design top 1565)
   const eyesCY = 1287 * s * vs; // radar center: panther eye line baked into waiting_eyes.png
 
+  // B35 (CJ 2026-07-11): fade the whole takeover in over the frozen question instead of
+  // hard-cutting — the grace hold now ends in one continuous motion. freeze (snapshot CI)
+  // skips the animation for deterministic frames.
+  const fade = useRef(new Animated.Value(freeze ? 1 : 0)).current;
+  useEffect(() => {
+    if (freeze) return;
+    Animated.timing(fade, { toValue: 1, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [fade, freeze]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.forest, overflow: 'hidden' }}>
+    <Animated.View style={{ flex: 1, backgroundColor: COLORS.forest, overflow: 'hidden', opacity: fade }}>
       <StatusBar barStyle="light-content" />
 
       {/* full-bleed dark panther-eyes plate (derived from batch6/waiting.png) */}
@@ -107,6 +117,25 @@ export default function WaitingScreen({
         </View>
       </View>
 
+      {/* notify promise + enable button (B35, CJ 2026-07-11): the server pushes the result
+          on settle/expiry, so this promise is real. If permission is off we don't promise —
+          we offer the button instead (never claim a notification we can't deliver). */}
+      <View style={{ position: 'absolute', top: 1190 * s * vs + headerOff, left: 40 * s, right: 40 * s, alignItems: 'center', zIndex: 10 }}>
+        <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, letterSpacing: 0.08 * 30 * s,
+          color: 'rgba(245,241,230,0.85)', textAlign: 'center' }}>
+          {pushOn ? 'WE\u2019LL NOTIFY YOU WHEN THE RESULT IS IN' : 'GET NOTIFIED WHEN THE RESULT IS IN'}
+        </Text>
+        {!pushOn && (
+          <PressBtn onPress={onEnablePush} style={{ marginTop: 28 * s, height: 100 * s,
+            paddingHorizontal: 52 * s, borderRadius: RADII.stake * s, borderWidth: 3 * s,
+            borderColor: COLORS.lime, backgroundColor: 'rgba(16,20,13,0.6)',
+            alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: FONTS.interBlack, fontSize: 40 * s, color: COLORS.lime,
+              letterSpacing: 0.05 * 40 * s, includeFontPadding: false }}>TURN ON NOTIFICATIONS</Text>
+          </PressBtn>
+        )}
+      </View>
+
       {/* stake pill */}
       <View style={{ position: 'absolute', bottom: pillB, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: COLORS.stakeBg, borderWidth: 1.5 * s, borderColor: COLORS.stakeBorder,
@@ -142,6 +171,6 @@ export default function WaitingScreen({
           </PressBtn>
         ))}
       </View>
-    </View>
+    </Animated.View>
   );
 }

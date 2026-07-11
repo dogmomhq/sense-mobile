@@ -41,3 +41,41 @@ export async function ensurePushRegistration(httpsBase, getAuthToken, { askIfNee
     if (j && j.ok) await AsyncStorage.setItem(SENT_KEY, stamp);
   } catch {}
 }
+
+// B35 (CJ 2026-07-11): waiting-screen "TURN ON NOTIFICATIONS" support.
+// getPushStatus -> 'granted' | 'undetermined' (can show system prompt) |
+// 'denied' (iOS won't re-prompt; only Settings can flip it) | 'unsupported'.
+export async function getPushStatus() {
+  try {
+    if (Platform.OS !== 'ios') return 'unsupported';
+    let Notifications; try { Notifications = require('expo-notifications'); } catch { return 'unsupported'; }
+    const perm = await Notifications.getPermissionsAsync();
+    if (perm.status === 'granted') return 'granted';
+    return perm.canAskAgain === false ? 'denied' : 'undetermined';
+  } catch { return 'unsupported'; }
+}
+
+// Explicit button tap = fresh consent, so this bypasses the asked-once gate that
+// ensurePushRegistration respects. undetermined -> system prompt in place;
+// denied -> deep-link to the app's iOS Settings page (the system will never
+// re-prompt) and the caller's foreground re-check picks up the flip on return.
+// Returns true only when permission is granted AND registration was kicked off.
+export async function requestPushPermission(httpsBase, getAuthToken) {
+  try {
+    if (Platform.OS !== 'ios') return false;
+    let Notifications; try { Notifications = require('expo-notifications'); } catch { return false; }
+    let perm = await Notifications.getPermissionsAsync();
+    if (perm.status !== 'granted') {
+      if (perm.canAskAgain === false) {
+        const { Linking } = require('react-native');
+        Linking.openSettings().catch(() => {});
+        return false;
+      }
+      await AsyncStorage.setItem(ASKED_KEY, '1'); // this WAS the one ask
+      perm = await Notifications.requestPermissionsAsync();
+      if (perm.status !== 'granted') return false;
+    }
+    await ensurePushRegistration(httpsBase, getAuthToken, { askIfNeeded: false });
+    return true;
+  } catch { return false; }
+}

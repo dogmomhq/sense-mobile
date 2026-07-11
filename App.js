@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder, AppState } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
 let SK = null; // Skia removed: explosion renders via react-native-svg (Confetti)
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -15,7 +15,7 @@ import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, P
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
 import { runAttestation } from './attest'; // P2 observe mode — silent, never blocks
-import { ensurePushRegistration } from './push'; // P2 — ask after first async answer, silent refresh on start
+import { ensurePushRegistration, getPushStatus, requestPushPermission } from './push'; // P2 ask-after-answer + B35 waiting-screen enable button
 
 // ===== RESKIN feature flag (branch reskin-ui) ================================
 // true  -> render the new pixel-locked UI (screens/ReskinApp.js) on top of the
@@ -272,6 +272,7 @@ export default function App() {
   const [pending, setPending] = useState({});         // matchId -> {opponent, myTime, ts}
   const pendingRef = useRef({}); useEffect(() => { pendingRef.current = pending; }, [pending]); // mirror for timers (push-ask guard)
   const [pracLog, setPracLog] = useState([]);          // last 10 practice rounds {result, animal, time}
+  const [pushOn, setPushOn] = useState(true);          /* B35: notification permission state. Defaults true so the waiting-screen button never flashes before the first check resolves; 'unsupported' (Android/Expo Go) also hides the button. */
   const [banners, setBanners] = useState([]);         // background-result notifications
   const [showActions, setShowActions] = useState(false); // play-screen Play Again/History/Home
   const [challenge, setChallenge] = useState(null);   // challengeService snapshot
@@ -342,6 +343,16 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
+  /* B35: keep pushOn in sync with the real iOS permission. Checked on mount and every
+     return to foreground — the only way the value changes while we're running is the user
+     flipping it in iOS Settings (or granting via our prompt, which openSettings round-trips
+     also catch since the permission alert itself fires an active transition). */
+  useEffect(() => {
+    const refresh = () => { getPushStatus().then((st) => setPushOn(st !== 'undetermined' && st !== 'denied')).catch(() => {}); };
+    refresh();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') refresh(); });
+    return () => { try { sub.remove(); } catch (e) {} };
+  }, []);
   useEffect(() => { initSfx(); initAnalytics(); track('app_open'); /* P2: attest once per install + silent push-token refresh */ setTimeout(() => { try { runAttestation(HTTPS_BASE, authTok); ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: false }); } catch (e) {} }, 3000); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound2', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX rides the same toggle. 1c (2026-07-10): key is sense_sound2 — legacy sense_sound was auto-written '0' on every install, reading it would keep everyone muted despite the new default-ON
   // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
@@ -902,6 +913,7 @@ export default function App() {
       navTo, goHome, submit, playAgain, requeueOnline, startPaidOnline,
       startPractice, cancelOnline, sendCode, verifyCode, signInWithApple, signOutAuth, doRename, deleteAccountNow,
       showToast, applyCredit, hydrateHistory, serverCredits: RESKIN_CREDITS,
+      pushOn, /* B35 */ enablePush: async () => { const ok = await requestPushPermission(HTTPS_BASE, authTok); if (ok) setPushOn(true); return ok; },
       cancelPendingMatch: (mid) => { try { markCancelledId(mid); const cxlMsg = cancelMatch(mid, wsIdentity()); ensureConn(() => wsSend(cxlMsg)); } catch (e) {} showToast('Cancelling…'); setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000); }, // FIX: if the terminal message is missed (socket flap), reconcile drops the card
       // refs + env
       stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
