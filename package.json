@@ -21,7 +21,9 @@
     "expo-audio": "~1.1.1",
     "expo-crypto": "~15.0.9",
     "expo-updates": "~29.0.18",
-    "posthog-react-native": "^3.3.0"
+    "posthog-react-native": "^3.3.0",
+    "expo-notifications": "~0.32.17",
+    "react-native-ios-appattest": "1.0.1"
   },
   "scripts": {
     "start": "expo start",

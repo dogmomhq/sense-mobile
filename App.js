@@ -14,6 +14,8 @@ import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './we
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
+import { runAttestation } from './attest'; // P2 observe mode — silent, never blocks
+import { ensurePushRegistration } from './push'; // P2 — ask after first async answer, silent refresh on start
 
 // ===== RESKIN feature flag (branch reskin-ui) ================================
 // true  -> render the new pixel-locked UI (screens/ReskinApp.js) on top of the
@@ -338,7 +340,7 @@ export default function App() {
   useEffect(() => { try { AsyncStorage.setItem('sense_rec', JSON.stringify(rec)); } catch (e) {} }, [rec]);
   useEffect(() => { try { AsyncStorage.setItem('sense_orec', JSON.stringify(onlineRec)); } catch (e) {} }, [onlineRec]);
   useEffect(() => onChallengeChange(setChallenge), []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); /* P2: attest once per install + silent push-token refresh */ setTimeout(() => { try { runAttestation(HTTPS_BASE, authTok); ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: false }); } catch (e) {} }, 3000); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound2', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX rides the same toggle. 1c (2026-07-10): key is sense_sound2 — legacy sense_sound was auto-written '0' on every install, reading it would keep everyone muted despite the new default-ON
   // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
   // against the server's open list, so a stale 'WAITING' card for an already-settled match
@@ -406,6 +408,7 @@ export default function App() {
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
         if (pendTimer.current) clearTimeout(pendTimer.current);
         pendTimer.current = setTimeout(() => { if (onlineRef.current) setShowActions(true); }, 4000); // web: actions appear at +4s
+        setTimeout(() => { try { ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: true }); } catch (e) {} }, 1200); // P2: THE ask moment — they just queued an answer and want the result
       }
       return;
     }
@@ -725,6 +728,7 @@ export default function App() {
   function ensureConn(after) { if (isConnected()) { after && after(); } else connectWS((m) => wsHandlerRef.current(m), () => {}, () => after && after(), () => bailHome('Connection lost')); }
   // Identity attached to answer/cancel sends so the server can verify us on a FRESH socket after a
   // reconnect (ws._asyncName is per-socket and lost on relaunch/flap; token required for credit matches).
+  function authTok() { return (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || ''; } // P2: same precedence the API calls use
   function wsIdentity() { return { name: myName(), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined }; }
   // Restore the ONE handle owned by this email account from the server (1 email = 1 account = 1 username).
   function syncAccount() { const t = supabaseTokenRef.current; if (!t) return; ensureConn(() => wsSend({ type: 'account-sync', supabaseToken: t, preferredHandle: myName() })); }

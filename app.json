@@ -2,33 +2,47 @@
   "expo": {
     "name": "sense-mobile",
     "slug": "sense-mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
-    "runtimeVersion": { "policy": "appVersion" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "enabled": true,
       "url": "https://u.expo.dev/ee740f0c-1158-49cb-86a6-b5ed2d72f8b6",
       "fallbackToCacheTimeout": 0
     },
     "plugins": [
-      ["expo-font", { "fonts": [
-        "./assets/fonts/Inter_400Regular.ttf",
-        "./assets/fonts/Inter_500Medium.ttf",
-        "./assets/fonts/Inter_600SemiBold.ttf",
-        "./assets/fonts/Inter_700Bold.ttf",
-        "./assets/fonts/Inter_800ExtraBold.ttf",
-        "./assets/fonts/Inter_900Black.ttf"
-      ]}],
-      "expo-apple-authentication"
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Inter_400Regular.ttf",
+            "./assets/fonts/Inter_500Medium.ttf",
+            "./assets/fonts/Inter_600SemiBold.ttf",
+            "./assets/fonts/Inter_700Bold.ttf",
+            "./assets/fonts/Inter_800ExtraBold.ttf",
+            "./assets/fonts/Inter_900Black.ttf"
+          ]
+        }
+      ],
+      "expo-apple-authentication",
+      "expo-notifications"
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dogmomhq.sensemobile",
       "usesAppleSignIn": true,
-      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.developer.devicecheck.appattest-environment": "production"
+      }
     },
     "android": {
       "package": "com.dogmomhq.sensemobile",
@@ -39,7 +53,14 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
-    "web": { "favicon": "./assets/favicon.png", "output": "single" },
-    "extra": { "eas": { "projectId": "ee740f0c-1158-49cb-86a6-b5ed2d72f8b6" } }
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ee740f0c-1158-49cb-86a6-b5ed2d72f8b6"
+      }
+    }
   }
 }
