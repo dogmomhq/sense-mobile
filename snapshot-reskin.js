@@ -59,8 +59,11 @@ const fs = require('fs');
       window.localStorage.setItem('sense_handle', h);
     }, [JSON.stringify({ accountId: acct.accountId, handle: acct.handle, token: acct.token }), acct.handle]);
     await p2.goto('http://localhost:8080/', { waitUntil: 'load' });
-    await p2.waitForTimeout(6000);
-    await p2.getByText('PROFILE', { exact: true }).first().click();
+    await p2.waitForTimeout(8000);
+    await p2.screenshot({ path: 'reskin-shots/e2e_delete_0_boot.png' });
+    const bodyTxt = await p2.evaluate(() => document.body.innerText.replace(/\n+/g, ' | ').slice(0, 500));
+    console.log('e2e-delete: boot text:', bodyTxt);
+    await p2.getByText('PROFILE', { exact: true }).first().click({ timeout: 15000 });
     await p2.waitForTimeout(2500);
     await p2.screenshot({ path: 'reskin-shots/e2e_delete_1_profile.png' });
     await p2.getByText('DELETE ACCOUNT', { exact: true }).first().click(); // confirm() auto-accepted above
