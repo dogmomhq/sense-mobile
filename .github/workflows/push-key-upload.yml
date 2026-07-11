@@ -1,0 +1,15 @@
+name: push-key-upload
+on: workflow_dispatch
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node .github/scripts/upload-push-key.mjs
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          P8_B64: ${{ secrets.APNS_P8_B64 }}
+          KEY_ID: P4VLX728UV
+          TEAM_ID: 79NQHBFDS8
