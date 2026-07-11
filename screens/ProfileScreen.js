@@ -286,9 +286,18 @@ export default function ProfileScreen({
           onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} onSignOut={onSignOut}
           onRename={onRename} />
       ) : (
-        <SignInCard email={email} {...(code ? { code } : {})} onSignIn={onSignIn}
-          onChangeEmail={onChangeEmail} codeStr={codeStr} onChangeCode={onChangeCode}
-          step={step} busy={busy} onSendCode={onSendCode} onVerify={onVerify} onApple={onApple} />
+        <View>
+          <SignInCard email={email} {...(code ? { code } : {})} onSignIn={onSignIn}
+            onChangeEmail={onChangeEmail} codeStr={codeStr} onChangeCode={onChangeCode}
+            step={step} busy={busy} onSendCode={onSendCode} onVerify={onVerify} onApple={onApple} />
+          {/* Apple 5.1.1(v): device-bound accounts (no email) are still accounts — they hold a
+              handle, credits and history, so deletion must be reachable without signing in. */}
+          {onDeleteAccount ? (
+            <View style={{ paddingHorizontal: 45 * s, marginTop: 24 * s }}>
+              <SettingsRow label="DELETE ACCOUNT" danger onPress={onDeleteAccount} />
+            </View>
+          ) : null}
+        </View>
       )}
     </ScrollView>
   );
