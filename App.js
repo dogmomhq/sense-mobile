@@ -315,6 +315,7 @@ export default function App() {
   // exactly as before. Server contract unaffected: clientTime is still ms
   // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
   const startOverrideRef = useRef(null);
+  const imgMsRef = useRef(null); // #50: ms from question receipt to image prefetch done (null = not measured)
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const questionIdxRef = useRef(null); // bank index of the active online question (additive 2026-06-16, for history thumbnails)
   // CANCEL pass (2026-06-16): matchIds this client has locally cancelled. Used to SUPPRESS a
@@ -416,7 +417,7 @@ export default function App() {
       } else {
         // AUDIT FIX #2: plain wsSend silently DROPS on a closed socket (answer lost -> timeout loss).
         // Freeze the message now, then reconnect-if-needed and send; identity lets the server verify us on the fresh socket.
-        { const ansMsg = asyncAnswer(matchIdRef.current, idx, Math.round(playerTime), wsIdentity()); ensureConn(() => wsSend(ansMsg)); }  // async matchmaking
+        { const ansMsg = asyncAnswer(matchIdRef.current, idx, Math.round(playerTime), wsIdentity(), imgMsRef.current); ensureConn(() => wsSend(ansMsg)); }  // async matchmaking (#50: imgMs rides along, null omitted)
         const mid = matchIdRef.current;
         // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
@@ -454,7 +455,12 @@ export default function App() {
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
     const img = HTTPS_BASE + '/img/' + question.imageToken;
-    try { Image.prefetch(img); } catch (e) {}
+    // #50: time the image download (receipt -> prefetch resolved) and report it with the
+    // answer so the server can tell slow downloads from time-shaving. Guarded by matchId:
+    // a late resolve from a previous match must not pollute this one. Failure => null (no claim).
+    imgMsRef.current = null;
+    const qReceivedAt = Date.now();
+    try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; }).catch(() => {}); } catch (e) {}
     activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
     setMatchId(mid);
     // questionIdx (additive 2026-06-16): the server now sends the bank index with
