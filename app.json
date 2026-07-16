@@ -2,7 +2,7 @@
   "expo": {
     "name": "sense-mobile",
     "slug": "sense-mobile",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -30,7 +30,13 @@
         }
       ],
       "expo-apple-authentication",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Sense checks your location before paid games to confirm real-money play is allowed in your state. Checked at most once every 3 hours. Never used for ads or tracking."
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,
