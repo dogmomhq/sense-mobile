@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder, AppState } from 'react-native';
+import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder, AppState, Alert, Linking } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
 let SK = null; // Skia removed: explosion renders via react-native-svg (Confetti)
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -769,7 +769,16 @@ export default function App() {
     catch (e) { bailHome('This version can\u2019t verify location \u2014 update the app to play paid games'); return; }
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') { bailHome('Location access is required for paid games \u2014 enable it in Settings > Sense'); return; }
+      if (status !== 'granted') {
+        // iOS never re-shows the system popup after a decline — closest allowed UX is our
+        // own popup with a one-tap jump straight to the Sense page in Settings (CJ 2026-07-15).
+        bailHome(null);
+        Alert.alert('Location needed', 'Paid games require location to confirm your state allows real-money play. Free games are unaffected.', [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Enable Location', onPress: () => { try { Linking.openSettings(); } catch (e) {} } },
+        ]);
+        return;
+      }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       wsSend({ type: 'gps-check', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
     } catch (e) { bailHome('Couldn\u2019t get your location \u2014 try again'); }
