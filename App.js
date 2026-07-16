@@ -327,6 +327,7 @@ export default function App() {
   // transient orphan) can never trap the player in an endless re-queue/replay loop. Manual
   // replays (RUN IT BACK / swipe-up) are intentionally NOT guarded. Resets on a real question.
   const autoRequeueRef = useRef({ n: 0, t: 0 });
+  const gpsRetryRef = useRef(0);        // GPS gate (2026-07-15): one re-queue per PLAY tap, no loops
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
@@ -723,7 +724,17 @@ export default function App() {
           refreshServerBalance(); bailHome(null); showToast('NOT ENOUGH BALANCE', 'error'); break;
         }
         bailHome(msg.error || 'Could not find a match'); break;
+      case 'gps-result':
+        // Server logged the fix (state or null — null falls back to IP on its side).
+        // Re-queue the game the player asked for; guard already counted in handleGpsCheck.
+        showToast('Location verified');
+        sendQueueMsg();
+        break;
       case 'error':
+        // GPS GATE (2026-07-15): server wants a fresh location fix before a paid game
+        // (state gaming law compliance, re-checked after 3h). Run the location flow
+        // instead of booting the player — gps-result re-queues automatically.
+        if (msg.needGps) { handleGpsCheck(); break; }
         // CANCEL pass: defensively swallow a stale "Not in this match" (server now sends the clean
         // 'match-unavailable' instead, but an in-flight old message must never boot the player with
         // a scary "NOT IN THIS MATCH" banner — symptoms 4 & 5). Treat it as a soft re-queue.
@@ -746,6 +757,23 @@ export default function App() {
   function wsIdentity() { return { name: myName(), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined }; }
   // Restore the ONE handle owned by this email account from the server (1 email = 1 account = 1 username).
   function syncAccount() { const t = supabaseTokenRef.current; if (!t) return; ensureConn(() => wsSend({ type: 'account-sync', supabaseToken: t, preferredHandle: myName() })); }
+  // GPS GATE (2026-07-15): fetch one foreground fix and hand it to the server, which
+  // resolves lat/lng -> state (FCC) and stores it for 3h. Permission popup shows ONCE
+  // (iOS), silent after. expo-location is required at call time (same pattern as Apple
+  // sign-in) so a build without the module degrades to a toast, never a crash.
+  async function handleGpsCheck() {
+    if (gpsRetryRef.current >= 2) { gpsRetryRef.current = 0; bailHome('Couldn\u2019t verify your location \u2014 try again'); return; }
+    gpsRetryRef.current += 1;
+    let Location;
+    try { Location = require('expo-location'); }
+    catch (e) { bailHome('This version can\u2019t verify location \u2014 update the app to play paid games'); return; }
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') { bailHome('Location access is required for paid games \u2014 enable it in Settings > Sense'); return; }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      wsSend({ type: 'gps-check', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+    } catch (e) { bailHome('Couldn\u2019t get your location \u2014 try again'); }
+  }
   async function sendQueueMsg() {
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
@@ -825,6 +853,7 @@ export default function App() {
   }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue() {
+    gpsRetryRef.current = 0;   // fresh PLAY tap = fresh GPS retry budget
     ensureConn(() => {
       if (accountRef.current && accountRef.current.token) sendQueueMsg();
       else { pendingAfterReg.current = sendQueueMsg; wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
