@@ -460,7 +460,23 @@ export default function App() {
     // a late resolve from a previous match must not pollute this one. Failure => null (no claim).
     imgMsRef.current = null;
     const qReceivedAt = Date.now();
-    try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; }).catch(() => {}); } catch (e) {}
+    // Ready-gate (B39): the round now starts when the image is READY, not when the
+    // question arrives. begin() tells the server "my round starts NOW" ({type:'ready'}
+    // — it re-anchors our clock at receipt so download time can't count against us),
+    // then runs the countdown. Fire-and-forget: never waits for a reply; a dropped
+    // ready just means the server keeps the old (question-sent) anchor. Runs exactly
+    // once — on prefetch resolve, prefetch failure, or the 3s cap, whichever is first
+    // (cap < server's 4s READY_DEADLINE so a capped ready still lands in the window).
+    // Challenge rooms ('room') keep the old immediate start — the room engine drives
+    // their timing, not the async queue.
+    let began = false;
+    const begin = () => {
+      if (began || matchIdRef.current !== mid) return; // stale callback from an old match must not start/ready this one
+      began = true;
+      if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); } catch (e) {} }
+      setCountdown(true); fadeTo(() => setMode('play'));
+    };
+    try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
     activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
     setMatchId(mid);
     // questionIdx (additive 2026-06-16): the server now sends the bank index with
@@ -469,7 +485,7 @@ export default function App() {
     questionIdxRef.current = (question.questionIdx != null ? question.questionIdx : null);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null, questionIdx: questionIdxRef.current });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
-    setCountdown(true); fadeTo(() => setMode('play'));
+    if (mid === 'room') begin(); else setTimeout(begin, 3000); // countdown start moved into begin() (ready-gate B39)
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
   function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk, qIdx) {
