@@ -31,7 +31,7 @@ const RESKIN = true;
 // the SERVER balance (hydrateHistory pulls /history balance after every credit-moving event).
 const RESKIN_CREDITS = RESKIN && true;
 const CHALLENGE_ENABLED = false; // 2026-07-02 CJ: friend-room/challenge mode hidden (no UI entry anyway) — may return later; flip to restore
-const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4 }; // canonical tier ladder (DECISIONS #1, mirrors server CREDIT_TIER_CENTS) — tier4 $10->$100 2026-06-14
+const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4, 200: 5, 400: 6, 800: 7, 1600: 8, 3200: 9, 6400: 10, 12800: 11 }; // fixed-prize ladder (phase 2, 2026-07-16) — mirrors server lib/economy.js TIERS. Indices are append-only wire values; 3 ($5) + 4 ($100) are retired legacy, kept so old installs still map, never reused.
 
 const TIME_LIMIT = 10000;
 const SERVER_WS = PREVIEW_SERVER_WS;
@@ -736,7 +736,7 @@ export default function App() {
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
         if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
-        else showToast('MATCH EXPIRED — STAKE REFUNDED');
+        else showToast('MATCH EXPIRED — ENTRY REFUNDED');
         break;
       }
       case 'queue-failed':

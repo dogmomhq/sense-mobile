@@ -76,12 +76,12 @@ const HISTORY_DEMO = {
   // RUNNING LEDGER (CJ spec 2026-06-11): one unified row per credit movement.
   // Match-derived rows carry questionIdx (thumbnail); deposit/bonus do not.
   feed: [
-    { badge: 'stake', title: 'STAKED · VS ???', sub: 'PENDING — WAITING FOR OPPONENT', amount: '-$1.00', balance: '$24.50', questionIdx: 3 },
-    { badge: 'win', label: 'PAYOUT', title: 'WON VS ALEX_R', sub: '1.42s VS 1.60s', amount: '+$0.95', balance: '$25.50', questionIdx: 11 },
-    { badge: 'stake', title: 'STAKED · VS ALEX_R', sub: 'WON — SEE PAYOUT', amount: '-$0.50', balance: '$24.55', questionIdx: 11 },
+    { badge: 'stake', title: 'ENTRY · VS ???', sub: 'PENDING — WAITING FOR OPPONENT', amount: '-$1.00', balance: '$24.50', questionIdx: 3 },
+    { badge: 'win', label: 'PRIZE', title: 'WON VS ALEX_R', sub: '1.42s VS 1.60s', amount: '+$0.95', balance: '$25.50', questionIdx: 11 },
+    { badge: 'stake', title: 'ENTRY · VS ALEX_R', sub: 'WON — SEE PRIZE', amount: '-$0.50', balance: '$24.55', questionIdx: 11 },
     { badge: 'deposit', title: 'DEPOSIT', sub: 'CARD DEPOSIT', amount: '+$5.00', balance: '$25.05' },
-    { badge: 'loss', label: 'STAKE', title: 'STAKED · VS SPEEDY_TOM', sub: 'LOST · 1.75s VS 1.55s', amount: '-$1.00', balance: '$20.05', questionIdx: 30 },
-    { badge: 'draw', title: 'DRAW VS JUNGLE_CAT', sub: 'STAKE RETURNED', amount: '+$1.00', balance: '$21.05', questionIdx: 6 },
+    { badge: 'loss', label: 'ENTRY', title: 'ENTRY · VS SPEEDY_TOM', sub: 'LOST · 1.75s VS 1.55s', amount: '-$1.00', balance: '$20.05', questionIdx: 30 },
+    { badge: 'draw', title: 'DRAW VS JUNGLE_CAT', sub: 'ENTRY RETURNED', amount: '+$1.00', balance: '$21.05', questionIdx: 6 },
     { badge: 'refund', title: 'REFUNDED', sub: 'MATCH CANCELLED / EXPIRED', amount: '+$0.50', balance: '$20.05', questionIdx: 18 },
     { badge: 'bonus', title: 'BONUS', sub: 'DAILY CHECK-IN', amount: '+$0.25', balance: '$19.55' },
   ],

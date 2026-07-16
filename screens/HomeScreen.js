@@ -3,7 +3,7 @@
 // Percent bands (photo / fades) stay percentages of the real screen height,
 // exactly like the CSS, so other aspect ratios degrade gracefully.
 import React from 'react';
-import { View, Text, Pressable, useWindowDimensions, StatusBar } from 'react-native';
+import { View, Text, Pressable, ScrollView, useWindowDimensions, StatusBar } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
@@ -14,9 +14,17 @@ import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 
 const CHEETAH = require('../assets/cheetah.jpeg');
 const CHEETAH_W = 768, CHEETAH_H = 1376;
-const TIERS = ['$0.50', '$1.00', '$5.00', '$100.00'];
+// default ladder (offline fallback — ReskinApp passes the live server ladder).
+// Phase 2 (2026-07-16): 9 fixed-prize tiers; locked ones render greyed "SOON".
+const TIERS = [
+  { label: '$0.50', locked: false }, { label: '$1.00', locked: false },
+  { label: '$2.00', locked: false }, { label: '$4.00', locked: false },
+  { label: '$8.00', locked: false }, { label: '$16.00', locked: true },
+  { label: '$32.00', locked: true }, { label: '$64.00', locked: true },
+  { label: '$128.00', locked: true },
+];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B39';
+export const BUILD_TAG = 'B40';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
@@ -121,24 +129,38 @@ export default function HomeScreen({
           color: COLORS.lime, includeFontPadding: false }}>{winAmount}</Text>
       </View>
 
-      {/* tier pills (design y1895, bottom-anchored, selected cell 1.09x wider) */}
-      <View style={{ position: 'absolute', bottom: pillsB, left: 43 * s, right: 48 * s,
-        flexDirection: 'row', gap: 16 * s, zIndex: 15 }}>
-        {tiers.map((t, i) => {
-          const sel = i === selectedTier;
-          return (
-            <Pressable key={t} onPress={() => onSelectTier && onSelectTier(i)}
-              style={{ flex: sel ? 1.09 : 1,
-                backgroundColor: sel ? COLORS.lime : COLORS.tierBg,
-                borderWidth: 1.5 * s, borderColor: sel ? COLORS.lime : COLORS.tierBorder,
-                borderRadius: RADII.tier * s, paddingVertical: 36 * s, paddingHorizontal: 12 * s,
-                alignItems: 'center',
-                ...(sel ? { shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16 * s, shadowOpacity: 1 } : null) }}>
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 48 * s, lineHeight: 57 * s,
-                letterSpacing: -0.01 * 48 * s, color: sel ? '#000' : COLORS.cream, top: 1 * s }}>{t}</Text>
-            </Pressable>
-          );
-        })}
+      {/* tier pills (design y1895, bottom-anchored, selected cell 1.09x wider).
+          Phase 2 (2026-07-16): 9 fixed-prize tiers — the row scrolls horizontally,
+          pill width locked to the original 4-across geometry (height 129 = old
+          36+57+36 paddings+line). Locked tiers render greyed with a SOON tag and
+          ignore taps; they light up on next app-open after an admin unlock (no
+          OTA). Accepts plain label strings (PreviewApp/legacy) or {label, locked}. */}
+      <View style={{ position: 'absolute', bottom: pillsB, left: 43 * s, right: 48 * s, zIndex: 15 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 * s }}>
+          {tiers.map((t, i) => {
+            const tier = typeof t === 'string' ? { label: t, locked: false } : t;
+            const sel = i === selectedTier;
+            const pillW = ((width - (43 + 48) * s) - 3 * 16 * s) / 4;
+            return (
+              <Pressable key={tier.label} disabled={tier.locked}
+                onPress={() => !tier.locked && onSelectTier && onSelectTier(i)}
+                style={{ width: sel ? pillW * 1.09 : pillW, height: 129 * s,
+                  opacity: tier.locked ? 0.4 : 1,
+                  backgroundColor: sel ? COLORS.lime : COLORS.tierBg,
+                  borderWidth: 1.5 * s, borderColor: sel ? COLORS.lime : COLORS.tierBorder,
+                  borderRadius: RADII.tier * s, paddingHorizontal: 12 * s,
+                  alignItems: 'center', justifyContent: 'center',
+                  ...(sel ? { shadowColor: COLORS.limeGlow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16 * s, shadowOpacity: 1 } : null) }}>
+                <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 48 * s, lineHeight: 57 * s,
+                  letterSpacing: -0.01 * 48 * s, color: sel ? '#000' : COLORS.cream, top: 1 * s }}>{tier.label}</Text>
+                {tier.locked ? (
+                  <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, lineHeight: 24 * s,
+                    letterSpacing: 0.1 * 20 * s, color: COLORS.cream, opacity: 0.8 }}>SOON</Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* OTA build stamp (bottom-right, above nav) — proves which bundle is live */}

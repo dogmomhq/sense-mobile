@@ -853,7 +853,7 @@ export default function ResultsScreen({
                 borderColor: 'rgba(245,241,230,0.5)', borderRadius: 44 * s,
                 paddingVertical: 20 * s, paddingHorizontal: 52 * s }}>
                 <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, letterSpacing: 0.1 * 36 * s,
-                  color: COLORS.cream }}>STAKE RETURNED · {fmt(stake)}</Text>
+                  color: COLORS.cream }}>ENTRY RETURNED · {fmt(stake)}</Text>
               </View>
             </Animated.View>
           </>
@@ -868,7 +868,7 @@ export default function ResultsScreen({
             <Animated.Text style={{ position: 'absolute', top: sy(1166), left: 0, right: 0, textAlign: 'center',
               fontFamily: FONTS.interExtra, fontSize: 25 * s, letterSpacing: 0.3 * 25 * s,
               color: COLORS.creamDim, opacity: cardIn, zIndex: 18 }}>
-              {practice ? 'PRACTICE · FREE' : 'ONLINE MATCH · ' + fmt(stake) + ' STAKE'}</Animated.Text>
+              {practice ? 'PRACTICE · FREE' : 'ONLINE MATCH · ' + fmt(stake) + ' ENTRY'}</Animated.Text>
             <Animated.View style={{ position: 'absolute', top: sy(1222), left: 60 * s, right: 60 * s,
               zIndex: 18, opacity: cardIn, transform: [{ translateY: cardY }] }}>
               <View style={{ backgroundColor: 'rgba(16,20,13,0.86)', borderWidth: 2.5 * s, borderColor: 'rgba(215,248,74,0.55)',

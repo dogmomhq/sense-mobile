@@ -3,14 +3,14 @@
 // Two tabs: MATCHES | PRACTICE (Matches + Transactions MERGED per #16).
 // MATCHES = a RUNNING LEDGER (CJ spec 2026-06-11): ONE unified row type — every
 //   credit movement is a row, enriched with match context where applicable:
-//   · STAKE  −$X · 'STAKED · VS ???' (pending) or annotated 'LOST · times' once
-//     settled as a loss (no second money row for losses — money left at stake)
-//   · PAYOUT +$X · 'WON VS NAME · 1.42s VS 1.76s'
-//   · REFUND +$X · 'MATCH CANCELLED / EXPIRED' — or 'DRAW · STAKE RETURNED'
+//   · ENTRY  −$X · 'ENTRY · VS ???' (pending) or annotated 'LOST · times' once
+//     settled as a loss (no second money row for losses)
+//   · PRIZE  +$X · 'WON VS NAME · 1.42s VS 1.76s'
+//   · REFUND +$X · 'MATCH CANCELLED / EXPIRED' — or 'DRAW · ENTRY RETURNED'
 //   · DEPOSIT / BONUS rows as-is
 //   Every row shows the running balance (server balance_after).
 //   Pending match cards (CANCEL + lockout ring) stay pinned on top; their
-//   STAKE row ALSO appears in the feed per the spec.
+//   ENTRY row ALSO appears in the feed per the spec.
 // PRACTICE = W/L/D record tiles + practice-vs-computer card + START PRACTICE
 //   CTA + recent practice log rows.
 // Pure presentational: everything arrives via props; renders inside AppShell.
@@ -86,7 +86,7 @@ const BADGE = {
   draw:      { label: 'DRAW',      bg: 'transparent', border: COLORS.cream, text: COLORS.cream },
   cancelled: { label: 'CANCELLED', bg: 'transparent', border: GREY, text: GREY },
   pending:   { label: 'PENDING',   bg: 'transparent', border: COLORS.lime, text: COLORS.lime },
-  stake:     { label: 'STAKE',     bg: 'transparent', border: COLORS.cream, text: COLORS.cream },
+  stake:     { label: 'ENTRY',     bg: 'transparent', border: COLORS.cream, text: COLORS.cream },
   refund:    { label: 'REFUND',    bg: 'transparent', border: GREY, text: GREY },
   deposit:   { label: 'DEPOSIT',   bg: 'transparent', border: COLORS.lime, text: COLORS.lime },
   bonus:     { label: 'BONUS',     bg: 'transparent', border: COLORS.lime, text: COLORS.lime },
@@ -242,7 +242,7 @@ function PracticeTab({ practice, onStartPractice }) {
           color: COLORS.cream, textAlign: 'center', marginTop: 24 * s,
           includeFontPadding: false }}>PRACTICE VS{'\n'}COMPUTER · FREE</Text>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: COLORS.creamDim,
-          letterSpacing: 0.1 * 28 * s, marginTop: 18 * s }}>NO STAKES · SHARPEN YOUR SENSES</Text>
+          letterSpacing: 0.1 * 28 * s, marginTop: 18 * s }}>NO MATCHES · SHARPEN YOUR SENSES</Text>
       </View>
 
       {/* W/L/D tiles */}

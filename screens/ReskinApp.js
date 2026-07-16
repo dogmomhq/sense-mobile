@@ -37,8 +37,29 @@ function SignInGate({ onSignIn, label }) {
 
 // ── constants ────────────────────────────────────────────────────────────────
 const RING_MODE = 'laser';                 // 'laser' | 'fuse' — CJ lean (laser); one const to flip
-const TIER_CENTS = [50, 100, 500, 10000];   // canonical ladder (DECISIONS #1) — mirrors server CREDIT_TIER_CENTS (tier4 $10->$100 2026-06-14)
-const RAKE = 0.05;                          // shared rake constant (DECISIONS #2)
+// FIXED-PRIZE LADDER (phase 2, 2026-07-16) — mirrors server lib/economy.js TIERS.
+// Each tier: fixed pre-announced prize (1.9x entry) + flat fixed fee (0.1x entry);
+// prize + fee === 2 x entry, always. Indices are append-only wire values — legacy
+// 3 ($5) and 4 ($100) are retired, never reused, hidden from the picker but still
+// recognized so old history rows show correct dollars. Locked tiers render greyed
+// "SOON" until an admin flips them server-side — no OTA needed: the ladder
+// refreshes from GET /api/tiers on app open; this table is the offline fallback.
+const TIER_LADDER = [
+  { index: 1,  entryCents: 50,    prizeCents: 95,    enabled: true  },
+  { index: 2,  entryCents: 100,   prizeCents: 190,   enabled: true  },
+  { index: 5,  entryCents: 200,   prizeCents: 380,   enabled: true  },
+  { index: 6,  entryCents: 400,   prizeCents: 760,   enabled: true  },
+  { index: 7,  entryCents: 800,   prizeCents: 1520,  enabled: true  },
+  { index: 8,  entryCents: 1600,  prizeCents: 3040,  enabled: false },
+  { index: 9,  entryCents: 3200,  prizeCents: 6080,  enabled: false },
+  { index: 10, entryCents: 6400,  prizeCents: 12160, enabled: false },
+  { index: 11, entryCents: 12800, prizeCents: 24320, enabled: false },
+];
+const LEGACY_CENTS = [500, 10000];          // retired tiers 3/4 — display-only for old history rows
+let LIVE_LADDER = null;                     // set from GET /api/tiers; module-level so it survives remounts
+const ladder = () => LIVE_LADDER || TIER_LADDER;
+const firstEnabled = (l) => (l.find((t) => t.enabled) || l[0]).entryCents;
+const tierFor = (cents) => ladder().find((t) => t.entryCents === cents);
 const TIME_LIMIT = 10000;
 // WAITING-SCREEN GRACE (bug fix 2026-06-13): after answering a paid online match
 // DON'T jump straight to the WaitingScreen takeover. Hold this long on the frozen
@@ -57,7 +78,7 @@ const WAIT_GRACE_MS = 800;
 
 export const fmtMoney = (cents) => '$' + (Math.abs(cents || 0) / 100).toFixed(2);
 const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
-const winCents = (stakeCents) => Math.round(stakeCents * 2 * (1 - RAKE));
+const winCents = (stakeCents) => { const t = tierFor(stakeCents); return t ? t.prizeCents : Math.round((stakeCents || 0) * 2 * 0.95); }; // fixed prize from ladder; fallback keeps legacy $5/$100 history rows correct
 const fmtSecs = (ms) => (ms == null ? '—' : (Math.min(ms, TIME_LIMIT) / 1000).toFixed(2) + 's');
 const stakeLabel = (stakeCents) => `${fmtMoney(stakeCents)} · WIN ${fmtMoney(winCents(stakeCents))}`;
 // BUG 1 FIX (2026-06-13): the PENDING card must show the TRUE staked tier, not the raw
@@ -67,7 +88,7 @@ const stakeLabel = (stakeCents) => `${fmtMoney(stakeCents)} · WIN ${fmtMoney(wi
 // (`RESKIN_TIER_BY_CENTS[..] || 1`) and escrows THAT, so mirror it: known ladder value
 // passes through, any other non-zero value snaps to tier 1. 0 = 'stake unknown'
 // (server-hydrated open game the client never saw the tier for) — leave it untouched.
-const snapStakeCents = (c) => (!c ? 0 : TIER_CENTS.includes(c) ? c : TIER_CENTS[0]);
+const snapStakeCents = (c) => (!c ? 0 : (tierFor(c) || LEGACY_CENTS.includes(c)) ? c : ladder()[0].entryCents);
 const monthYear = (d) => { try { return new Date(d).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }); } catch (e) { return '—'; } };
 
 function authToken(g) {
@@ -156,8 +177,22 @@ export default function ReskinApp({ g }) {
   const timingDbg = useRef({});            // ?timedebug=1: { flipTs, goTs, press } per round
   const [graceElapsed, setGraceElapsed] = useState(false); // WAIT_GRACE_MS after answering a paid online match has passed with no result yet
 
-  // make sure the selected stake is on the canonical ladder (App default is 10)
-  useEffect(() => { if (!TIER_CENTS.includes(g.stake)) g.setStake(TIER_CENTS[0]); }, []);
+  // ladder sync (phase 2): snap the selected entry onto an ENABLED ladder tier (App
+  // default is 10, legacy $5/$100 may linger from old installs), then refresh the
+  // ladder from the server so admin tier unlocks reach the picker on next app-open
+  // without an OTA. Fetch failure = keep the hardcoded fallback, no error surfaced.
+  const [tierList, setTierList] = useState(ladder());
+  useEffect(() => {
+    const ok = (c) => { const t = tierFor(c); return !!(t && t.enabled); };
+    if (!ok(g.stake)) g.setStake(firstEnabled(ladder()));
+    fetch(g.httpsBase + '/api/tiers').then((r) => r.json()).then((j) => {
+      const rows = (j && j.tiers) || [];
+      if (!rows.length) return;
+      LIVE_LADDER = rows.map((t) => ({ index: t.index, entryCents: t.entryCents, prizeCents: t.prizeCents, enabled: !!t.enabled }));
+      setTierList(LIVE_LADDER);
+      if (!ok(g.stakeRef.current)) g.setStake(firstEnabled(LIVE_LADDER));
+    }).catch(() => {});
+  }, []);
 
   // COUNTDOWN CONTRACT (rev3 2026-06-12): 4 beats x 600ms (3·2·1·GO, GO is a
   // full opaque beat @1800-2400). Question timer starts at 2400ms (server
@@ -255,8 +290,8 @@ export default function ReskinApp({ g }) {
   const signedIn = !!g.authEmail;
   const balanceShown = signedIn ? balanceTxt : '—';
   const pendingCount = Object.keys(g.pending || {}).length;
-  const tierIdx = Math.max(0, TIER_CENTS.indexOf(g.stake));
-  const stakeCents = TIER_CENTS[tierIdx];
+  const tierIdx = Math.max(0, tierList.findIndex((t) => t.entryCents === g.stake));
+  const stakeCents = tierList[tierIdx].entryCents;
   const insufficient = g.balance < stakeCents;
 
   /* ── history feed: RUNNING LEDGER (CJ spec 2026-06-11). ONE unified row per
@@ -274,17 +309,17 @@ export default function ReskinApp({ g }) {
     const enrich = (type, matchId) => {
       const m = matchId ? byId[matchId] : null;
       if (type === 'entry') {
-        if (m && m.result === 'loss') return { badge: 'loss', label: 'STAKE', title: `STAKED · ${vs(m)}`, sub: `LOST · ${times(m)}` };
-        if (m && m.result === 'win') return { badge: 'stake', title: `STAKED · ${vs(m)}`, sub: 'WON — SEE PAYOUT' };
-        if (m) return { badge: 'stake', title: `STAKED · ${vs(m)}`, sub: 'DRAW — STAKE RETURNED' };
-        if (matchId && cancelledIds.has(matchId)) return { badge: 'stake', title: 'STAKED · VS ???', sub: 'CANCELLED — SEE REFUND' };
-        if (matchId && g.pending && g.pending[matchId]) return { badge: 'stake', title: 'STAKED · VS ???', sub: 'PENDING — WAITING FOR OPPONENT' };
-        return { badge: 'stake', title: 'STAKED', sub: '' };
+        if (m && m.result === 'loss') return { badge: 'loss', label: 'ENTRY', title: `ENTRY · ${vs(m)}`, sub: `LOST · ${times(m)}` };
+        if (m && m.result === 'win') return { badge: 'stake', title: `ENTRY · ${vs(m)}`, sub: 'WON — SEE PRIZE' };
+        if (m) return { badge: 'stake', title: `ENTRY · ${vs(m)}`, sub: 'DRAW — ENTRY RETURNED' };
+        if (matchId && cancelledIds.has(matchId)) return { badge: 'stake', title: 'ENTRY · VS ???', sub: 'CANCELLED — SEE REFUND' };
+        if (matchId && g.pending && g.pending[matchId]) return { badge: 'stake', title: 'ENTRY · VS ???', sub: 'PENDING — WAITING FOR OPPONENT' };
+        return { badge: 'stake', title: 'ENTRY', sub: '' };
       }
-      if (type === 'win') return m ? { badge: 'win', label: 'PAYOUT', title: `WON ${vs(m)}`, sub: times(m) }
-        : { badge: 'win', label: 'PAYOUT', title: 'WON', sub: '' };
+      if (type === 'win') return m ? { badge: 'win', label: 'PRIZE', title: `WON ${vs(m)}`, sub: times(m) }
+        : { badge: 'win', label: 'PRIZE', title: 'WON', sub: '' };
       if (type === 'refund') return (m && m.result === 'draw')
-        ? { badge: 'draw', title: `DRAW ${vs(m)}`, sub: 'STAKE RETURNED' }
+        ? { badge: 'draw', title: `DRAW ${vs(m)}`, sub: 'ENTRY RETURNED' }
         : { badge: 'refund', title: 'REFUNDED', sub: 'MATCH CANCELLED / EXPIRED' };
       if (type === 'deposit') return { badge: 'deposit', title: 'DEPOSIT', sub: 'CARD DEPOSIT' };
       if (type === 'signup_bonus') return { badge: 'bonus', title: 'BONUS', sub: 'WELCOME CREDITS' };
@@ -442,9 +477,9 @@ export default function ReskinApp({ g }) {
     body = (
       <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
         onSignIn={() => g.setTab('profile')}
-        tiers={TIER_CENTS.map(fmtMoney)} selectedTier={tierIdx}
+        tiers={tierList.map((t) => ({ label: fmtMoney(t.entryCents), locked: !t.enabled }))} selectedTier={tierIdx}
         winAmount={'WIN ' + fmtMoney(winCents(stakeCents))}
-        onSelectTier={signedIn ? ((i) => g.setStake(TIER_CENTS[i])) : (() => g.setTab('profile'))}
+        onSelectTier={signedIn ? ((i) => { if (tierList[i] && tierList[i].enabled) g.setStake(tierList[i].entryCents); }) : (() => g.setTab('profile'))}
         playDisabled={signedIn && insufficient} insufficientLabel="NOT ENOUGH BALANCE — TAP + TO ADD FUNDS"
         onPlay={signedIn ? (() => { if (!insufficient) g.startPaidOnline(); }) : (() => g.setTab('profile'))}
         onPractice={g.startPractice}
