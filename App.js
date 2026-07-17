@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, getReasonText, generatePlayerName } from './gameEngine.js';
-import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS } from './websocket.js';
+import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
@@ -272,6 +272,8 @@ export default function App() {
   const [pending, setPending] = useState({});         // matchId -> {opponent, myTime, ts}
   const pendingRef = useRef({}); useEffect(() => { pendingRef.current = pending; }, [pending]); // mirror for timers (push-ask guard)
   const [pracLog, setPracLog] = useState([]);          // last 10 practice rounds {result, animal, time}
+  const [wsUp, setWsUp] = useState(true);              // B42: socket truth for waiting screens (true until proven dead)
+  useEffect(() => { onConnState(setWsUp); return () => onConnState(null); }, []);
   const [pushOn, setPushOn] = useState(true);          /* B35: notification permission state. Defaults true so the waiting-screen button never flashes before the first check resolves; 'unsupported' (Android/Expo Go) also hides the button. */
   const [banners, setBanners] = useState([]);         // background-result notifications
   const [showActions, setShowActions] = useState(false); // play-screen Play Again/History/Home
@@ -963,7 +965,7 @@ export default function App() {
     const g = {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
-      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog,
+      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
