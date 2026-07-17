@@ -14,7 +14,7 @@ import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS, onConnState
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
-import { runAttestation } from './attest'; // P2 observe mode — silent, never blocks
+import { runAttestation, assertAnswer, getAttestKeyId, loadAttestKey } from './attest'; // P2 attest-once + P3 per-answer assertions — silent, never block
 import { ensurePushRegistration, getPushStatus, requestPushPermission } from './push'; // P2 ask-after-answer + B35 waiting-screen enable button
 
 // ===== RESKIN feature flag (branch reskin-ui) ================================
@@ -359,7 +359,7 @@ export default function App() {
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active') refresh(); });
     return () => { try { sub.remove(); } catch (e) {} };
   }, []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); /* P2: attest once per install + silent push-token refresh */ setTimeout(() => { try { runAttestation(HTTPS_BASE, authTok); ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: false }); } catch (e) {} }, 3000); try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); /* P2: attest once per install + silent push-token refresh */ setTimeout(() => { try { runAttestation(HTTPS_BASE, authTok); ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: false }); } catch (e) {} }, 3000); try { loadAttestKey(); } catch (e) {} /* P3: cache keyId for queue msgs */ try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound2', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX rides the same toggle. 1c (2026-07-10): key is sense_sound2 — legacy sense_sound was auto-written '0' on every install, reading it would keep everyone muted despite the new default-ON
   // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
   // against the server's open list, so a stale 'WAITING' card for an already-settled match
@@ -421,7 +421,7 @@ export default function App() {
       } else {
         // AUDIT FIX #2: plain wsSend silently DROPS on a closed socket (answer lost -> timeout loss).
         // Freeze the message now, then reconnect-if-needed and send; identity lets the server verify us on the fresh socket.
-        { const ansMsg = asyncAnswer(matchIdRef.current, idx, Math.round(playerTime), wsIdentity(), imgMsRef.current); ensureConn(() => wsSend(ansMsg)); }  // async matchmaking (#50: imgMs rides along, null omitted)
+        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current); ensureConn(() => wsSend(ansMsg)); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs */ assertAnswer(_amid, idx, _at).then((a) => { if (a) wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion }); }).catch(() => {}); }  // async matchmaking (#50: imgMs rides along, null omitted)
         const mid = matchIdRef.current;
         // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
@@ -843,7 +843,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap' }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap', attestKeyId: getAttestKeyId() || undefined }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
