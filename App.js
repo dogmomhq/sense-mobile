@@ -643,7 +643,16 @@ export default function App() {
       }
       // ---- async matchmaking ----
       case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
-      case 'async-question': autoRequeueRef.current.n = 0; loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // a real question = we matched; clear the auto-requeue guard. server escrowed the stake before sending the question.
+      case 'async-question':
+        // B43 GHOST GUARD: a question while we're NOT in online play means a stale/replayed
+        // queue reached the server (any vector). Never hijack the screen — cancel for an
+        // instant refund and stay put. Belt-and-suspenders on top of the websocket.js fix.
+        if (!onlineRef.current) {
+          try { markCancelledId(msg.matchId); wsSend(cancelMatch(msg.matchId, wsIdentity())); } catch (e) {}
+          refreshServerBalance();
+          break;
+        }
+        autoRequeueRef.current.n = 0; loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // a real question = we matched; clear the auto-requeue guard. server escrowed the stake before sending the question.
       case 'answer-ack': break;     // local time already frozen on tap — ignore the server echo
       case 'async-waiting': break;  // we answered first; waiting on opponent
       case 'async-result': {
@@ -752,7 +761,7 @@ export default function App() {
         // Server logged the fix (state or null — null falls back to IP on its side).
         // Re-queue the game the player asked for; guard already counted in handleGpsCheck.
         showToast('Location verified');
-        sendQueueMsg();
+        sendQueueMsg('gps');
         break;
       case 'error':
         // GPS GATE (2026-07-15): server wants a fresh location fix before a paid game
@@ -807,7 +816,7 @@ export default function App() {
       wsSend({ type: 'gps-check', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
     } catch (e) { bailHome('Couldn\u2019t get your location \u2014 try again'); }
   }
-  async function sendQueueMsg() {
+  async function sendQueueMsg(src) {
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
     // RESKIN: the tier selector queues into the matching server pool (1..4 per the
@@ -816,7 +825,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName() });
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap' }); // B43: tag WHY this queue fired (tap/runback/auto/gps) — server logs it for ghost forensics
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
@@ -885,11 +894,11 @@ export default function App() {
     return true;
   }
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
-  function startQueue() {
+  function startQueue(src) {
     gpsRetryRef.current = 0;   // fresh PLAY tap = fresh GPS retry budget
     ensureConn(() => {
-      if (accountRef.current && accountRef.current.token) sendQueueMsg();
-      else { pendingAfterReg.current = sendQueueMsg; wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
+      if (accountRef.current && accountRef.current.token) sendQueueMsg(src);
+      else { pendingAfterReg.current = () => sendQueueMsg(src); wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
     });
   }
   // RESKIN_CREDITS: pull the server-authoritative balance + ledger after any credit-moving event
@@ -921,7 +930,7 @@ export default function App() {
     setConfirming(false);
     playOnline();
   }
-  function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue(); }
+  function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue('tap'); }
   // Guarded wrapper for the AUTO re-queue paths (match-unavailable / stale "not in this match").
   function autoRequeue() {
     const now = Date.now(); const grd = autoRequeueRef.current;
@@ -933,13 +942,13 @@ export default function App() {
       fadeTo(() => { setMode(null); setTab('home'); });
       return;
     }
-    requeueOnline();
+    requeueOnline('auto');
   }
-  function requeueOnline() {
+  function requeueOnline(src) {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
     if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
-    setNotice(null); setOppName('Rival'); setMode('joining'); startQueue();
+    setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(src || 'runback');
   }
   function cancelOnline() { try { if (matchIdRef.current) { markCancelledId(matchIdRef.current); wsSend(cancelMatch(matchIdRef.current)); } } catch (e) {} bailHome(null); }
   // ---- challenge (friend room) ----
