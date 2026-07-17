@@ -264,6 +264,8 @@ export default function App() {
   const [matchId, setMatchId] = useState(null);
   const [myTime, setMyTime] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [dobAsk, setDobAsk] = useState(false);   // DOB CAPTURE (B44): server said needDob — show the age modal
+  const [dobErr, setDobErr] = useState(null);    // server/client rejection line inside the modal
   const [toast, setToast] = useState(null);
   const [toastKind, setToastKind] = useState('info'); // 'info' | 'error' — reskin toast tint (old UI ignores)
   // online/challenge parity state
@@ -445,15 +447,21 @@ export default function App() {
   }
   function goHome() {
     if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }
-    onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setShowActions(false); closeChallenge();
+    onlineRef.current = false; isChallengeRef.current = false;
     activeMatchRef.current = null; matchIdRef.current = null; // BUG 2 FIX: drop the foreground match so late dup events for a left match can't re-foreground/bounce
-    fadeTo(() => { setMode(null); setTab('home'); });
+    // B44 flash fix: setOnline(false) used to run HERE, synchronously. The waiting screen
+    // renders only while g.online is true (ReskinApp: answered && g.online && graceElapsed),
+    // so flipping it before the fade finished made that render pass fall through to the
+    // QuestionScreen — the raw animal photo — for the 130ms fade window. All render-visible
+    // state now flips inside the fade callback, batched with mode/tab, so there is no
+    // intermediate frame. Refs above stay synchronous (the B43 ghost guard depends on them).
+    fadeTo(() => { setOnline(false); setShowActions(false); closeChallenge(); setMode(null); setTab('home'); });
   }
 
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
   function showToast(m, kind) { setToast(m); setToastKind(kind === 'error' ? 'error' : 'info'); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
-  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; setOnline(false); matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { setMode(null); setTab('home'); }); }
+  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { setOnline(false); setMode(null); setTab('home'); }); } // B44: setOnline moved into the fade callback (same flash as goHome)
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
     const img = HTTPS_BASE + '/img/' + question.imageToken;
@@ -757,6 +765,13 @@ export default function App() {
           refreshServerBalance(); bailHome(null); showToast('NOT ENOUGH BALANCE', 'error'); break;
         }
         bailHome(msg.error || 'Could not find a match'); break;
+      case 'dob-result':
+        // Saved (or already on file) -> re-queue the game the player asked for. The server
+        // re-runs the full geo gate on that queue; an underage player gets the plain
+        // "You must be N+" error there (bailHome shows it). Failure keeps the modal open.
+        if (msg.ok) { setDobAsk(false); setDobErr(null); showToast('Age verified'); sendQueueMsg('dob'); }
+        else setDobErr(msg.message || 'Could not save. Try again.');
+        break;
       case 'gps-result':
         // Server logged the fix (state or null — null falls back to IP on its side).
         // Re-queue the game the player asked for; guard already counted in handleGpsCheck.
@@ -767,6 +782,9 @@ export default function App() {
         // GPS GATE (2026-07-15): server wants a fresh location fix before a paid game
         // (state gaming law compliance, re-checked after 3h). Run the location flow
         // instead of booting the player — gps-result re-queues automatically.
+        // DOB GATE (B44): age-rule states (Artaev memo) need a stored birthday. Show the
+        // modal over the joining screen; dob-result re-queues automatically on success.
+        if (msg.needDob) { setDobErr(null); setDobAsk(true); break; }
         if (msg.needGps) { handleGpsCheck(); break; }
         // CANCEL pass: defensively swallow a stale "Not in this match" (server now sends the clean
         // 'match-unavailable' instead, but an in-flight old message must never boot the player with
@@ -825,7 +843,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap' }); // B43: tag WHY this queue fired (tap/runback/auto/gps) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap' }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
@@ -944,6 +962,15 @@ export default function App() {
     }
     requeueOnline('auto');
   }
+  // DOB CAPTURE (B44): modal submit. Refreshes the Supabase token first (same as
+  // sendQueueMsg) so an expired session fails with a clear re-login message, not silently.
+  async function submitDob(dob) {
+    setDobErr(null);
+    let supaTok = supabaseTokenRef.current || undefined;
+    if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} }
+    ensureConn(() => wsSend({ type: 'set-dob', dob, name: myName(), supabaseToken: supaTok }));
+  }
+  function cancelDob() { setDobAsk(false); setDobErr(null); bailHome(null); } // they were on 'joining' — leave it cleanly
   function requeueOnline(src) {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
@@ -975,6 +1002,7 @@ export default function App() {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
+      dobAsk, dobErr, submitDob, cancelDob,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
