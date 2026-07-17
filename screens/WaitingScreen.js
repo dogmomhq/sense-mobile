@@ -46,6 +46,7 @@ function RadarPulse({ cx, cy, freeze = false }) {
 }
 
 export default function WaitingScreen({
+  noConn,
   streak = 8, balance = '$24.50', handle = null, signedIn = true,
   lockedTime = '1.42s', stakeText = '$1.00 · WIN $1.90',
   onPlayAgain, onHistory, onHome, showClock = false, freeze = false,
@@ -113,7 +114,7 @@ export default function WaitingScreen({
           borderColor: 'rgba(245,241,230,0.25)', borderRadius: RADII.stake * s,
           paddingVertical: 18 * s, paddingHorizontal: 42 * s }}>
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s,
-            letterSpacing: 0.1 * 36 * s, color: COLORS.cream }}>AN OPPONENT IS OUT THERE</Text>
+            letterSpacing: 0.1 * 36 * s, color: COLORS.cream }}>{noConn ? 'NO CONNECTION — RECONNECTING…' : 'AN OPPONENT IS OUT THERE'}</Text>
         </View>
       </View>
 
