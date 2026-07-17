@@ -147,14 +147,14 @@ function ReskinBanners({ banners, onPress }) {
 
 // minimal queue-flash state (DECISIONS #23: no radar screen — async matching
 // typically resolves <1s; this is just the gap before `async-question`)
-function FindingFlash({ onCancel }) {
+function FindingFlash({ onCancel, noConn }) {
   const s = useScale();
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 110 * s, color: COLORS.wordmark,
-        includeFontPadding: false }}>MATCHING…</Text>
+        includeFontPadding: false }}>{noConn ? 'NO SIGNAL' : 'MATCHING…'}</Text>
       <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, color: COLORS.creamDim,
-        letterSpacing: 0.1 * 30 * s, marginTop: 20 * s }}>LOCKING IN A LIVE OPPONENT</Text>
+        letterSpacing: 0.1 * 30 * s, marginTop: 20 * s }}>{noConn ? 'NO CONNECTION — RETRYING…' : 'LOCKING IN A LIVE OPPONENT'}</Text>
       <Pressable onPress={onCancel} style={{ marginTop: 60 * s, paddingVertical: 20 * s, paddingHorizontal: 60 * s }}>
         <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s, color: COLORS.creamDim,
           letterSpacing: 0.1 * 32 * s }}>CANCEL</Text>
@@ -402,7 +402,7 @@ export default function ReskinApp({ g }) {
   let body = null;
 
   if (g.mode === 'joining') {
-    body = <FindingFlash onCancel={g.cancelOnline} />;
+    body = <FindingFlash onCancel={g.cancelOnline} noConn={g.wsUp === false} />;
   } else if (g.mode === 'play' && g.q) {
     const answered = g.picked !== null;
     if (answered && g.online && !g.isChallenge && graceElapsed) {
@@ -412,7 +412,7 @@ export default function ReskinApp({ g }) {
       // 'results' and we'd never reach this branch — so a fast/instant result skips
       // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
-        <WaitingScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        <WaitingScreen noConn={g.wsUp === false} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
           pushOn={g.pushOn !== false} onEnablePush={g.enablePush}
