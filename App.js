@@ -489,9 +489,10 @@ export default function App() {
     try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
     activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
     setMatchId(mid);
-    // questionIdx (additive 2026-06-16): the server now sends the bank index with
-    // the question; we keep it so the pending + settled history cards can resolve
-    // a stable question-image thumbnail from the bundled questions bank.
+    // questionIdx (2026-07-17 cheat-surface fix): the server NO LONGER sends the bank
+    // index with a live question — a proxy reader could look up the answer in the bundled
+    // bank mid-round. It now arrives post-answer (answer-ack / results). This line only
+    // keeps backward compat if an old server includes it; normally it sets null.
     questionIdxRef.current = (question.questionIdx != null ? question.questionIdx : null);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null, questionIdx: questionIdxRef.current });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
@@ -661,7 +662,14 @@ export default function App() {
           break;
         }
         autoRequeueRef.current.n = 0; loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // a real question = we matched; clear the auto-requeue guard. server escrowed the stake before sending the question.
-      case 'answer-ack': break;     // local time already frozen on tap — ignore the server echo
+      case 'answer-ack': { // local time already frozen on tap — the echo never touches timing.
+        // 2026-07-17: questionIdx now rides the ack (post-answer) — capture it and heal the
+        // pending card created on tap (which had no idx to use).
+        if (msg.questionIdx != null) {
+          questionIdxRef.current = msg.questionIdx;
+          setPending(p => (p[msg.matchId] && p[msg.matchId].questionIdx == null) ? { ...p, [msg.matchId]: { ...p[msg.matchId], questionIdx: msg.questionIdx } } : p);
+        }
+        break; }
       case 'async-waiting': break;  // we answered first; waiting on opponent
       case 'async-result': {
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
@@ -669,7 +677,7 @@ export default function App() {
         const myT = (pending[msg.matchId] && pending[msg.matchId].myTime != null) ? pending[msg.matchId].myTime : myTimeRef.current;
         // questionIdx from the pending entry so a BACKGROUND settlement (the active
         // ref may point at a different game by now) still records the right thumbnail.
-        const qI = (pending[msg.matchId] && pending[msg.matchId].questionIdx != null) ? pending[msg.matchId].questionIdx : questionIdxRef.current;
+        const qI = (msg.questionIdx != null) ? msg.questionIdx : ((pending[msg.matchId] && pending[msg.matchId].questionIdx != null) ? pending[msg.matchId].questionIdx : questionIdxRef.current); // result msg is authoritative since 2026-07-17
         logMatch(msg.matchId, res, msg.reason, myT, oppT, msg.correctIdx, oppNm, (pending[msg.matchId] && pending[msg.matchId].stake) || stakeRef.current, qI);
         cancelledIdsRef.current.delete(msg.matchId); // it settled (race-loss: A was already told it went live) — stop suppressing
         // foreground only if this is the match currently on the Play screen — else a background banner
@@ -704,7 +712,7 @@ export default function App() {
         const res = msg.you.result, oppT = msg.opponent.time;
         const cs = getChallenge();
         const oppNm = (cs && (cs.role==='host' ? cs.joinerName : cs.hostName)) || oppName || 'Opponent';
-        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm, 0, questionIdxRef.current);
+        logMatch('room-'+Date.now(), res, msg.reason, myTimeRef.current, oppT, msg.correctIdx, oppNm, 0, (msg.questionIdx != null ? msg.questionIdx : questionIdxRef.current));
         setRematchReq(false);
         showResultsFor(msg, oppT);
         break;
