@@ -7,7 +7,7 @@
 // Money display: 1 credit = 1¢ (DECISIONS Q2). fmtMoney is THE switchable
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Platform, Alert, AppState } from 'react-native';
+import { View, Text, Pressable, Platform, Alert, AppState, TextInput } from 'react-native';
 import Constants from 'expo-constants';
 import HomeScreen, { BUILD_TAG } from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
@@ -20,6 +20,54 @@ import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
 import AppShell from './AppShell';
 import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
+
+// DOB MODAL (B44): shown when the server rejects a paid queue with needDob (age-rule
+// states, Artaev memo). Pure input UI — validation for a REAL date here; the server
+// re-validates and is the authority. One-time: DOB is immutable server-side.
+function DobModal({ error, onSubmit, onCancel }) {
+  const s = useScale();
+  const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
+  const [localErr, setLocalErr] = useState(null);
+  const ddRef = useRef(null); const yyRef = useRef(null);
+  const box = { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14 * s, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    color: COLORS.cream, fontFamily: FONTS.interBold, fontSize: 30 * s, textAlign: 'center', paddingVertical: 20 * s };
+  function go() {
+    const m = Number(mm), d = Number(dd), y = Number(yy);
+    const now = new Date();
+    if (!m || !d || !y || yy.length !== 4 || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > now.getFullYear()) { setLocalErr('Enter a valid date of birth.'); return; }
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d || dt > now) { setLocalErr('Enter a valid date of birth.'); return; }
+    setLocalErr(null);
+    onSubmit(String(y) + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+  }
+  const err = localErr || error;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90,
+      backgroundColor: 'rgba(0,0,0,0.78)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 48 * s }}>
+      <View style={{ width: '100%', backgroundColor: COLORS.forest, borderRadius: 28 * s, borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)', paddingVertical: 44 * s, paddingHorizontal: 40 * s }}>
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, color: COLORS.cream, textAlign: 'center', letterSpacing: 1 }}>VERIFY YOUR AGE</Text>
+        <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, lineHeight: 28 * s, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 14 * s }}>
+          Your state requires a date of birth for paid games. One time only.</Text>
+        <View style={{ flexDirection: 'row', marginTop: 32 * s }}>
+          <TextInput style={[box, { flex: 1 }]} value={mm} onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 2); setMm(v); if (v.length === 2 && ddRef.current) ddRef.current.focus(); }}
+            placeholder="MM" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={2} />
+          <TextInput ref={ddRef} style={[box, { flex: 1, marginHorizontal: 14 * s }]} value={dd} onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 2); setDd(v); if (v.length === 2 && yyRef.current) yyRef.current.focus(); }}
+            placeholder="DD" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={2} />
+          <TextInput ref={yyRef} style={[box, { flex: 1.5 }]} value={yy} onChangeText={(t) => setYy(t.replace(/\D/g, '').slice(0, 4))}
+            placeholder="YYYY" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={4} />
+        </View>
+        {err ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: '#FF7A6B', textAlign: 'center', marginTop: 18 * s }}>{err}</Text> : null}
+        <Pressable onPress={go} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 26 * s, alignItems: 'center', marginTop: 30 * s }}>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>CONTINUE</Text>
+        </Pressable>
+        <Pressable onPress={onCancel} style={{ alignItems: 'center', marginTop: 22 * s, paddingVertical: 8 * s }}>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>CANCEL</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 // AUTH GATE (2026-06-19, CJ strict model): not signed in -> gated tabs show this
 // prompt instead of personal data. Practice stays open; balance/tiers/Play/history gated.
@@ -600,6 +648,7 @@ export default function ReskinApp({ g }) {
         <ReskinBanners banners={g.banners}
           onPress={(b) => { g.setBanners((prev) => prev.filter((x) => x.id !== b.id)); g.navTo('history'); }} />
       ) : null}
+      {g.dobAsk ? <DobModal error={g.dobErr} onSubmit={g.submitDob} onCancel={g.cancelDob} /> : null}
       {g.toast ? <ReskinToast text={String(g.toast).toUpperCase()} kind={g.toastKind} /> : null}
       {g.notice && !g.mode ? <ReskinToast text={String(g.notice).toUpperCase()} /> : null}
     </View>
