@@ -58,8 +58,42 @@ export async function runAttestation(httpsBase, getAuthToken) {
     if (j && j.ok && j.verdict === 'valid') {
       await AsyncStorage.setItem(DONE_KEY, '1');
       await AsyncStorage.setItem('sense_attest_key', keyId);
+      _attestKeyCache = keyId; // P3: same-session pickup for the paid-queue message
     } else {
       await AsyncStorage.setItem(TRIES_KEY, String(tries + 1));
     }
   } catch {} // observe mode: never surface, never throw
+}
+
+// P3 (2026-07-17): per-answer assertion. Signs SHA256(`${matchId}:${answerIndex}:${clientTime}`)
+// with the Secure Enclave key registered above. Called fire-and-forget AFTER the answer is
+// sent, so it can never add a millisecond to answer timing. Returns { keyId, assertion } or
+// null; every failure path is silent (observe mode) — old binaries / unattested installs
+// simply send nothing. 1500ms cap so a slow enclave call can't hold the follow-up forever.
+export async function assertAnswer(matchId, answerIndex, clientTime) {
+  try {
+    if (Platform.OS !== 'ios') return null;
+    const keyId = await AsyncStorage.getItem('sense_attest_key');
+    if (!keyId) return null; // never attested (or attest failed) on this install
+    let AppAttest; try { AppAttest = require('react-native-ios-appattest'); } catch { return null; }
+    const payload = matchId + ':' + answerIndex + ':' + clientTime; // ASCII only — server hashes the identical string
+    const bytes = new Uint8Array(payload.length);
+    for (let i = 0; i < payload.length; i++) bytes[i] = payload.charCodeAt(i) & 0xff;
+    const Crypto = require('expo-crypto');
+    const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes);
+    const assertion = await Promise.race([
+      AppAttest.attestRequestData(bytesToB64(new Uint8Array(digest)), keyId),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 1500)),
+    ]);
+    return assertion ? { keyId, assertion } : null;
+  } catch { return null; }
+}
+
+// P3: cached keyId for the paid-queue message (sync read at send time; loaded at app start
+// and refreshed after runAttestation so a first-install key is picked up same-session).
+let _attestKeyCache = null;
+export function getAttestKeyId() { return _attestKeyCache; }
+export async function loadAttestKey() {
+  try { _attestKeyCache = await AsyncStorage.getItem('sense_attest_key'); } catch {}
+  return _attestKeyCache;
 }
