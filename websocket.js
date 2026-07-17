@@ -20,6 +20,7 @@ let walletVerified = false; // tracks whether server confirmed wallet
 let verifyCallback = null; // callback waiting for verify-wallet-result
 let verifyTimeout = null;
 let pendingQueue = []; // messages queued while WS connecting
+let intentionalClose = false; // B43: disconnectWS() sets this so onclose skips the reconnect ladder
 let connStateCb = null; // B42: app-level "is the pipe up" indicator (UI truth on waiting screens)
 export function onConnState(cb) { connStateCb = cb; }
 function notifyConn(up) { try { if (connStateCb) connStateCb(up); } catch (e) {} }
@@ -106,12 +107,14 @@ function handleOpen(callback) {
 
 export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
   if (!_serverUrl) { console.error('[ws] setServerUrl() must be called before connectWS'); return; }
+  intentionalClose = false; // B43: a new connect intent re-arms normal reconnect behavior
   messageHandler = onMessage;
   disconnectHandler = onDisconnect;
   onOpenHandler = onOpen;
   if (onConnectionLost) connectionLostHandler = onConnectionLost;
 
   if (ws && ws.readyState === WebSocket.OPEN) {
+    onOpenHandler = null; // B43: one-shot — never leave a fired intent armed for a later reconnect
     if (onOpen) onOpen();
     return;
   }
@@ -121,6 +124,7 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
 
   ws.onopen = () => {
     disarm();
+    onOpenHandler = null; // B43: one-shot — handleOpen fires the local ref; a reconnect must never replay it
     handleOpen(onOpen);
   };
 
@@ -133,6 +137,7 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
     ws = null;
     stopKeepalive();
     if (disconnectHandler) disconnectHandler();
+    if (intentionalClose) { intentionalClose = false; return; } // B43: we hung up on purpose — no zombie reconnect
     if (!reconnecting) {
       reconnecting = true;
       let attempts = 0;
@@ -158,7 +163,7 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
             };
             ws.onerror = () => {};
             setupWsHandlers(ws);
-            if (onOpenHandler) onOpenHandler();
+            { const h = onOpenHandler; onOpenHandler = null; if (h) h(); } // B43: one-shot
           };
           ws.onclose = () => {
             disarmR();
@@ -223,6 +228,9 @@ export function isConnected() {
 }
 
 export function disconnectWS() {
+  intentionalClose = true;  // B43: tell onclose this hangup is on purpose
+  onOpenHandler = null;     // B43: drop any armed intent (e.g. a queue send) so nothing can replay it
+  pendingQueue = [];        // B43: drop buffered messages — a stale queued 'queue' msg is a ghost-game vector
   reconnecting = false;
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   stopKeepalive();
