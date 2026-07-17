@@ -20,6 +20,16 @@ let walletVerified = false; // tracks whether server confirmed wallet
 let verifyCallback = null; // callback waiting for verify-wallet-result
 let verifyTimeout = null;
 let pendingQueue = []; // messages queued while WS connecting
+let connStateCb = null; // B42: app-level "is the pipe up" indicator (UI truth on waiting screens)
+export function onConnState(cb) { connStateCb = cb; }
+function notifyConn(up) { try { if (connStateCb) connStateCb(up); } catch (e) {} }
+// B42: with wifi off, a socket can hang in CONNECTING forever — onclose never fires,
+// so the retry loop (and its bailHome after 5 fails) never runs. Force-close hung dials.
+const CONNECT_TIMEOUT_MS = 6000;
+function armConnectWatchdog(sock) {
+  const t = setTimeout(() => { try { if (sock && sock.readyState === 0) sock.close(); } catch (e) {} }, CONNECT_TIMEOUT_MS);
+  return () => clearTimeout(t);
+}
 
 export function setWalletAuth(auth) {
   walletAuth = auth;
@@ -72,6 +82,7 @@ function stopKeepalive() {
 
 function handleOpen(callback) {
   console.log('[ws] Connected to', _serverUrl);
+  notifyConn(true);
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   startKeepalive();
 
@@ -106,8 +117,10 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
   }
 
   ws = new WebSocket(_serverUrl);
+  const disarm = armConnectWatchdog(ws);
 
   ws.onopen = () => {
+    disarm();
     handleOpen(onOpen);
   };
 
@@ -115,6 +128,8 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
 
   ws.onclose = () => {
     console.log('[ws] Disconnected');
+    disarm();
+    notifyConn(false);
     ws = null;
     stopKeepalive();
     if (disconnectHandler) disconnectHandler();
@@ -127,14 +142,18 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
         console.log('[ws] Reconnect attempt', attempts);
         try {
           ws = new WebSocket(_serverUrl);
+          const disarmR = armConnectWatchdog(ws);
           ws.onopen = () => {
+            disarmR();
             console.log('[ws] Reconnected');
+            notifyConn(true);
             reconnecting = false;
             startKeepalive();
             if (walletAuth) ws.send(JSON.stringify({ type: 'verify-wallet', ...walletAuth }));
             ws.onclose = () => {
               ws = null;
               stopKeepalive();
+              notifyConn(false);
               if (disconnectHandler) disconnectHandler();
             };
             ws.onerror = () => {};
@@ -142,6 +161,8 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
             if (onOpenHandler) onOpenHandler();
           };
           ws.onclose = () => {
+            disarmR();
+            notifyConn(false);
             ws = null;
             if (attempts < maxAttempts) setTimeout(tryReconnect, 2000 * attempts);
             else {
