@@ -7,7 +7,7 @@
 // Money display: 1 credit = 1¢ (DECISIONS Q2). fmtMoney is THE switchable
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Platform, Alert } from 'react-native';
+import { View, Text, Pressable, Platform, Alert, AppState } from 'react-native';
 import Constants from 'expo-constants';
 import HomeScreen, { BUILD_TAG } from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
@@ -244,14 +244,33 @@ export default function ReskinApp({ g }) {
           }
         }
       } catch (e) {}
+    })();
+  }, [g.displayName, g.authEmail]); // AUDIT #5 (2026-07-02): also re-run when a mid-session sign-in lands — authEmail flips right after supabaseTokenRef is set, so the token-gated early-return above no longer strands the profile (memberSince, lifetime, daily bonus) unhydrated
+
+  // STREAK FIX (2026-07-16, B41): /history stats used to load only in the effect
+  // above (app-open / sign-in), so the streak shown in the header and profile froze
+  // at that snapshot — live wins after open never moved it. Stats now refresh when a
+  // new settled match reaches the client log (live result or reconnect backfill),
+  // when the app returns to the foreground (results settled while closed), on rename,
+  // and on sign-in. Owns setServerStats/setCancelledRows exclusively.
+  const newestMatchId = (g.matchLog && g.matchLog[0] && g.matchLog[0].matchId) || null;
+  useEffect(() => {
+    let alive = true;
+    const pull = async () => {
+      const tok = authToken(g);
+      if (!tok) return;
       try {
         const r = await fetch(`${g.httpsBase}/history/x?limit=200&token=${encodeURIComponent(tok)}`);
         const d = await r.json();
+        if (!alive) return;
         if (d && d.stats) setServerStats(d.stats);
         if (d && Array.isArray(d.cancelled)) setCancelledRows(d.cancelled);
       } catch (e) {}
-    })();
-  }, [g.displayName, g.authEmail]); // AUDIT #5 (2026-07-02): also re-run when a mid-session sign-in lands — authEmail flips right after supabaseTokenRef is set, so the token-gated early-return above no longer strands the profile (memberSince, lifetime, daily bonus) unhydrated
+    };
+    pull();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') pull(); });
+    return () => { alive = false; sub.remove(); };
+  }, [newestMatchId, g.displayName, g.authEmail]);
 
   // leaderboard hydration (records only + you-rank, server pass 5a `?name=`)
   useEffect(() => {
