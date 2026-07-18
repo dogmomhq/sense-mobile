@@ -191,7 +191,8 @@ export default function DepositScreen({
   };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 * s }} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 * s }} keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={true}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 150 * s, color: COLORS.wordmark,
         textAlign: 'center', includeFontPadding: false, marginBottom: 16 * s }}>ADD FUNDS</Text>
 
@@ -257,20 +258,20 @@ export default function DepositScreen({
       {/* keyboard Done toolbar (iOS number-pad has no return key) */}
       {Platform.OS === 'ios' ? (
         <InputAccessoryView nativeID="depDone">
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: '#1a1d14',
-            paddingVertical: 10 * s, paddingHorizontal: 18 * s, borderTopWidth: 1, borderTopColor: 'rgba(215,248,74,0.25)' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', backgroundColor: '#1a1d14',
+            paddingVertical: 16 * s, paddingHorizontal: 18 * s, borderTopWidth: 1, borderTopColor: 'rgba(215,248,74,0.25)' }}>
             <Pressable onPress={() => {
               const nx = focusedField.current === 'custom' ? numberRef
                 : focusedField.current === 'number' ? expiryRef
                 : focusedField.current === 'expiry' ? cvvRef : null;
               if (nx && nx.current) nx.current.focus(); else Keyboard.dismiss(); // CVV: nothing after it
-            }} hitSlop={12}>
-              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.cream,
-                paddingHorizontal: 14 * s, paddingVertical: 4 * s, marginRight: 10 * s }}>Next</Text>
+            }} hitSlop={16}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 42 * s, color: COLORS.cream,
+                paddingHorizontal: 22 * s, paddingVertical: 8 * s, marginRight: 14 * s }}>Next</Text>
             </Pressable>
-            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={12}>
-              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime,
-                paddingHorizontal: 14 * s, paddingVertical: 4 * s }}>Done</Text>
+            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={16}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 42 * s, color: COLORS.lime,
+                paddingHorizontal: 22 * s, paddingVertical: 8 * s }}>Done</Text>
             </Pressable>
           </View>
         </InputAccessoryView>
