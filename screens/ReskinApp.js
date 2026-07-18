@@ -7,7 +7,7 @@
 // Money display: 1 credit = 1¢ (DECISIONS Q2). fmtMoney is THE switchable
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Platform, Alert, AppState, TextInput } from 'react-native';
+import { View, Text, Pressable, Platform, Alert, AppState, TextInput, Linking } from 'react-native';
 import Constants from 'expo-constants';
 import HomeScreen, { BUILD_TAG } from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
@@ -26,6 +26,8 @@ import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
 // UI — validation for a REAL date here; the server re-validates and is the authority.
 // One-time: DOB is immutable server-side. Terms checkbox text is a placeholder until CJ
 // supplies the final terms copy.
+// B51: when CJ supplies the hosted terms URL, set it here — the link goes live, no other change.
+const TERMS_URL = '';
 function DobModal({ error, onSubmit, onCancel }) {
   const s = useScale();
   const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
@@ -62,11 +64,13 @@ function DobModal({ error, onSubmit, onCancel }) {
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }}>YOU ENTERED</Text>
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 31 * s, color: COLORS.cream, marginTop: 10 * s, textAlign: 'center' }}>
               {MONTHS[confirm.m - 1]} {confirm.d}, {confirm.y}</Text>
-            <Pressable onPress={() => setAgreed(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 26 * s, paddingVertical: 6 * s, paddingHorizontal: 4 * s }}>
-              <View style={{ width: 34 * s, height: 34 * s, borderRadius: 9 * s, borderWidth: 3, borderColor: agreed ? COLORS.lime : 'rgba(255,255,255,0.45)', backgroundColor: agreed ? COLORS.lime : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 14 * s }}>
-                {agreed ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 22 * s, color: '#0A0A0A' }}>{'\u2713'}</Text> : null}
+            <Pressable onPress={() => setAgreed(v => !v)} hitSlop={14} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 26 * s, paddingVertical: 14 * s, paddingHorizontal: 4 * s }}>
+              <View style={{ width: 52 * s, height: 52 * s, borderRadius: 13 * s, borderWidth: 3, borderColor: agreed ? COLORS.lime : 'rgba(255,255,255,0.45)', backgroundColor: agreed ? COLORS.lime : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 20 * s }}>
+                {agreed ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, color: '#0A0A0A' }}>{'\u2713'}</Text> : null}
               </View>
-              <Text style={{ fontFamily: FONTS.interBold, fontSize: 18 * s, color: 'rgba(255,255,255,0.8)', flexShrink: 1, lineHeight: 24 * s }}>I confirm this is accurate and accept the Terms of Service</Text>
+              <Text style={{ fontFamily: FONTS.interBold, fontSize: 25 * s, color: 'rgba(255,255,255,0.85)', flexShrink: 1, lineHeight: 35 * s }}>I confirm this is accurate and accept the {''}
+                <Text onPress={TERMS_URL ? () => Linking.openURL(TERMS_URL).catch(() => {}) : undefined}
+                  style={{ color: COLORS.lime, textDecorationLine: 'underline' }}>Terms of Service</Text></Text>
             </Pressable>
           </View>
         ) : (
@@ -84,12 +88,12 @@ function DobModal({ error, onSubmit, onCancel }) {
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>{confirm ? 'CONFIRM' : 'CONTINUE'}</Text>
         </Pressable>
         {confirm ? (
-          <Pressable onPress={() => { setConfirm(null); setAgreed(false); }} style={{ alignItems: 'center', marginTop: 18 * s, paddingVertical: 6 * s }}>
-            <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }}>EDIT DATE</Text>
+          <Pressable onPress={() => { setConfirm(null); setAgreed(false); }} hitSlop={12} style={{ alignItems: 'center', marginTop: 18 * s, paddingVertical: 14 * s }}>
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 }}>EDIT DATE</Text>
           </Pressable>
         ) : null}
-        <Pressable onPress={onCancel} style={{ alignItems: 'center', marginTop: 22 * s, paddingVertical: 8 * s }}>
-          <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>CANCEL</Text>
+        <Pressable onPress={onCancel} hitSlop={12} style={{ alignItems: 'center', marginTop: 14 * s, paddingVertical: 14 * s }}>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 27 * s, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>CANCEL</Text>
         </Pressable>
       </View>
     </View>
