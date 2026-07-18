@@ -266,6 +266,7 @@ export default function App() {
   const [notice, setNotice] = useState(null);
   const [dobAsk, setDobAsk] = useState(false);   // DOB CAPTURE (B44): server said needDob — show the age modal
   const [dobErr, setDobErr] = useState(null);    // server/client rejection line inside the modal
+  const dobDepositResume = useRef(null);         // B48: deposit-triggered DOB — on save resume the DEPOSIT, not a queue
   const [toast, setToast] = useState(null);
   const [toastKind, setToastKind] = useState('info'); // 'info' | 'error' — reskin toast tint (old UI ignores)
   // online/challenge parity state
@@ -777,7 +778,11 @@ export default function App() {
         // Saved (or already on file) -> re-queue the game the player asked for. The server
         // re-runs the full geo gate on that queue; an underage player gets the plain
         // "You must be N+" error there (bailHome shows it). Failure keeps the modal open.
-        if (msg.ok) { setDobAsk(false); setDobErr(null); showToast('Age verified'); sendQueueMsg('dob'); }
+        if (msg.ok) {
+          setDobAsk(false); setDobErr(null); showToast('Age verified');
+          const resume = dobDepositResume.current; dobDepositResume.current = null;
+          if (resume) resume(); else sendQueueMsg('dob'); // B48: deposit context re-runs the deposit; play context re-queues
+        }
         else setDobErr(msg.message || 'Could not save. Try again.');
         break;
       case 'gps-result':
@@ -978,7 +983,14 @@ export default function App() {
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} }
     ensureConn(() => wsSend({ type: 'set-dob', dob, name: myName(), supabaseToken: supaTok }));
   }
-  function cancelDob() { setDobAsk(false); setDobErr(null); bailHome(null); } // they were on 'joining' — leave it cleanly
+  function cancelDob() {
+    setDobAsk(false); setDobErr(null);
+    if (dobDepositResume.current) { dobDepositResume.current = null; return; } // B48: deposit context — stay on the deposit screen
+    bailHome(null); // they were on 'joining' — leave it cleanly
+  }
+  // B48: first-deposit DOB ask (universal 18+ floor). DepositScreen hands us a resume
+  // callback that re-runs the deposit once the birthday is saved.
+  function askDobForDeposit(resume) { dobDepositResume.current = resume; setDobErr(null); setDobAsk(true); }
   function requeueOnline(src) {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
@@ -1010,7 +1022,7 @@ export default function App() {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
-      dobAsk, dobErr, submitDob, cancelDob,
+      dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
