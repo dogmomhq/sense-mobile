@@ -28,6 +28,7 @@ function DobModal({ error, onSubmit, onCancel }) {
   const s = useScale();
   const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
   const [localErr, setLocalErr] = useState(null);
+  const [confirm, setConfirm] = useState(null); // {y,m,d} under review — B47 typo guard (DOB is one-time)
   const ddRef = useRef(null); const yyRef = useRef(null);
   const box = { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14 * s, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
     color: COLORS.cream, fontFamily: FONTS.interBold, fontSize: 30 * s, textAlign: 'center', paddingVertical: 20 * s };
@@ -38,7 +39,11 @@ function DobModal({ error, onSubmit, onCancel }) {
     const dt = new Date(y, m - 1, d);
     if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d || dt > now) { setLocalErr('Enter a valid date of birth.'); return; }
     setLocalErr(null);
-    onSubmit(String(y) + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+    setConfirm({ y, m, d });
+  }
+  const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  function send() {
+    onSubmit(String(confirm.y) + '-' + String(confirm.m).padStart(2, '0') + '-' + String(confirm.d).padStart(2, '0'));
   }
   const err = localErr || error;
   return (
@@ -48,7 +53,14 @@ function DobModal({ error, onSubmit, onCancel }) {
         borderColor: 'rgba(255,255,255,0.12)', paddingVertical: 44 * s, paddingHorizontal: 40 * s }}>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, color: COLORS.cream, textAlign: 'center', letterSpacing: 1 }}>VERIFY YOUR AGE</Text>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, lineHeight: 28 * s, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 14 * s }}>
-          Your state requires a date of birth for paid games. One time only.</Text>
+          {confirm ? 'Double-check: this cannot be changed later.' : 'Your state requires a date of birth for paid games. One time only.'}</Text>
+        {confirm ? (
+          <View style={{ marginTop: 32 * s, alignItems: 'center' }}>
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }}>YOU ENTERED</Text>
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 31 * s, color: COLORS.cream, marginTop: 10 * s, textAlign: 'center' }}>
+              {MONTHS[confirm.m - 1]} {confirm.d}, {confirm.y}</Text>
+          </View>
+        ) : (
         <View style={{ flexDirection: 'row', marginTop: 32 * s }}>
           <TextInput style={[box, { flex: 1 }]} value={mm} onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 2); setMm(v); if (v.length === 2 && ddRef.current) ddRef.current.focus(); }}
             placeholder="MM" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={2} />
@@ -57,10 +69,16 @@ function DobModal({ error, onSubmit, onCancel }) {
           <TextInput ref={yyRef} style={[box, { flex: 1.5 }]} value={yy} onChangeText={(t) => setYy(t.replace(/\D/g, '').slice(0, 4))}
             placeholder="YYYY" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={4} />
         </View>
+        )}
         {err ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: '#FF7A6B', textAlign: 'center', marginTop: 18 * s }}>{err}</Text> : null}
-        <Pressable onPress={go} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 26 * s, alignItems: 'center', marginTop: 30 * s }}>
-          <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>CONTINUE</Text>
+        <Pressable onPress={confirm ? send : go} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 26 * s, alignItems: 'center', marginTop: 30 * s }}>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>{confirm ? 'CONFIRM' : 'CONTINUE'}</Text>
         </Pressable>
+        {confirm ? (
+          <Pressable onPress={() => setConfirm(null)} style={{ alignItems: 'center', marginTop: 18 * s, paddingVertical: 6 * s }}>
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }}>EDIT DATE</Text>
+          </Pressable>
+        ) : null}
         <Pressable onPress={onCancel} style={{ alignItems: 'center', marginTop: 22 * s, paddingVertical: 8 * s }}>
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>CANCEL</Text>
         </Pressable>
