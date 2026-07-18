@@ -21,14 +21,17 @@ import DepositScreen from './DepositScreen';
 import AppShell from './AppShell';
 import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
 
-// DOB MODAL (B44): shown when the server rejects a paid queue with needDob (age-rule
-// states, Artaev memo). Pure input UI — validation for a REAL date here; the server
-// re-validates and is the authority. One-time: DOB is immutable server-side.
+// DOB MODAL (B44, B48): shown when the server answers needDob — first DEPOSIT (universal
+// 18+ floor) or a paid queue for accounts that got credits before the floor. Pure input
+// UI — validation for a REAL date here; the server re-validates and is the authority.
+// One-time: DOB is immutable server-side. Terms checkbox text is a placeholder until CJ
+// supplies the final terms copy.
 function DobModal({ error, onSubmit, onCancel }) {
   const s = useScale();
   const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
   const [localErr, setLocalErr] = useState(null);
   const [confirm, setConfirm] = useState(null); // {y,m,d} under review — B47 typo guard (DOB is one-time)
+  const [agreed, setAgreed] = useState(false);  // B48: terms checkbox on the review step gates CONFIRM
   const ddRef = useRef(null); const yyRef = useRef(null);
   const box = { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14 * s, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
     color: COLORS.cream, fontFamily: FONTS.interBold, fontSize: 30 * s, textAlign: 'center', paddingVertical: 20 * s };
@@ -53,12 +56,18 @@ function DobModal({ error, onSubmit, onCancel }) {
         borderColor: 'rgba(255,255,255,0.12)', paddingVertical: 44 * s, paddingHorizontal: 40 * s }}>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, color: COLORS.cream, textAlign: 'center', letterSpacing: 1 }}>VERIFY YOUR AGE</Text>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, lineHeight: 28 * s, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 14 * s }}>
-          {confirm ? 'Double-check: this cannot be changed later.' : 'Your state requires a date of birth for paid games. One time only.'}</Text>
+          {confirm ? 'Double-check: this cannot be changed later.' : 'You must be 18 years or older to play. One time only.'}</Text>
         {confirm ? (
           <View style={{ marginTop: 32 * s, alignItems: 'center' }}>
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }}>YOU ENTERED</Text>
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 31 * s, color: COLORS.cream, marginTop: 10 * s, textAlign: 'center' }}>
               {MONTHS[confirm.m - 1]} {confirm.d}, {confirm.y}</Text>
+            <Pressable onPress={() => setAgreed(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 26 * s, paddingVertical: 6 * s, paddingHorizontal: 4 * s }}>
+              <View style={{ width: 34 * s, height: 34 * s, borderRadius: 9 * s, borderWidth: 3, borderColor: agreed ? COLORS.lime : 'rgba(255,255,255,0.45)', backgroundColor: agreed ? COLORS.lime : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 14 * s }}>
+                {agreed ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 22 * s, color: '#0A0A0A' }}>{'\u2713'}</Text> : null}
+              </View>
+              <Text style={{ fontFamily: FONTS.interBold, fontSize: 18 * s, color: 'rgba(255,255,255,0.8)', flexShrink: 1, lineHeight: 24 * s }}>I confirm this is accurate and accept the Terms of Service</Text>
+            </Pressable>
           </View>
         ) : (
         <View style={{ flexDirection: 'row', marginTop: 32 * s }}>
@@ -71,11 +80,11 @@ function DobModal({ error, onSubmit, onCancel }) {
         </View>
         )}
         {err ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: '#FF7A6B', textAlign: 'center', marginTop: 18 * s }}>{err}</Text> : null}
-        <Pressable onPress={confirm ? send : go} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 26 * s, alignItems: 'center', marginTop: 30 * s }}>
+        <Pressable onPress={confirm ? (agreed ? send : undefined) : go} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 26 * s, alignItems: 'center', marginTop: 30 * s, opacity: confirm && !agreed ? 0.4 : 1 }}>
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>{confirm ? 'CONFIRM' : 'CONTINUE'}</Text>
         </Pressable>
         {confirm ? (
-          <Pressable onPress={() => setConfirm(null)} style={{ alignItems: 'center', marginTop: 18 * s, paddingVertical: 6 * s }}>
+          <Pressable onPress={() => { setConfirm(null); setAgreed(false); }} style={{ alignItems: 'center', marginTop: 18 * s, paddingVertical: 6 * s }}>
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }}>EDIT DATE</Text>
           </Pressable>
         ) : null}
@@ -555,7 +564,8 @@ export default function ReskinApp({ g }) {
           balance={balanceShown}
           onToast={(t, kind) => g.showToast(t, kind)}
           onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
-          onDone={() => { setRoute('tabs'); g.setTab('home'); }} />
+          onDone={() => { setRoute('tabs'); g.setTab('home'); }}
+          onNeedDob={g.askDobForDeposit} />
       </AppShell>
     );
   } else if (g.tab === 'home') {
