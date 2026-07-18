@@ -242,6 +242,13 @@ function FindingFlash({ onCancel, noConn }) {
 export default function ReskinApp({ g }) {
   const fontsReady = useSenseFonts();
   const [route, setRoute] = useState('tabs');            // 'tabs' | 'deposit'
+  // B49 (CJ): age + terms come BEFORE the card form — a declined card must never
+  // re-ask them. Gate only on a positive "no DOB" from the server; when in doubt the
+  // screen opens normally and the PAY-time needDob backstop still catches it.
+  const openDeposit = () => {
+    if (!!g.authEmail && g.dobOnFile === false) { g.askDobForDeposit(() => setRoute('deposit')); return; }
+    setRoute('deposit');
+  };
   const [cdOverlay, setCdOverlay] = useState(false);     // countdown takeover on top of question
   const [serverInfo, setServerInfo] = useState(null);    // /api/credits/me account (member_since, net_lifetime_cents, dailyBonus)
   const [serverStats, setServerStats] = useState(null);  // /history stats {accuracy, current_streak, ...}
@@ -556,7 +563,7 @@ export default function ReskinApp({ g }) {
         onSignIn={() => { setRoute('tabs'); g.setTab('profile'); }}
         pendingCount={pendingCount} onPendingPress={() => { setRoute('tabs'); g.setTab('history'); }}
         activeTab="profile" onTab={(t) => { setRoute('tabs'); g.setTab(t); }}
-        onAddFunds={() => setRoute('deposit')}>
+        onAddFunds={openDeposit}>
         <DepositScreen
           httpsBase={g.httpsBase}
           supabaseToken={authToken(g)}
@@ -579,7 +586,7 @@ export default function ReskinApp({ g }) {
         onPlay={signedIn ? (() => { if (!insufficient) g.startPaidOnline(); }) : (() => g.setTab('profile'))}
         onPractice={g.startPractice}
         pendingCount={pendingCount} onPendingPress={() => g.setTab('history')}
-        onAddFunds={() => setRoute('deposit')}
+        onAddFunds={openDeposit}
         activeTab="home" onTab={(t) => g.setTab(t)} />
     );
   } else {
@@ -610,7 +617,7 @@ export default function ReskinApp({ g }) {
             : (g.ledger || []).reduce((a, t) => a + (t.amount || 0), 0))}
           balance={balanceShown} soundsOn={g.sound} version={'v' + ((Constants.expoConfig && Constants.expoConfig.version) || '?') + ' · ' + BUILD_TAG}
           onToggleSounds={() => g.setSound((x) => !x)}
-          onDeposit={() => setRoute('deposit')}
+          onDeposit={openDeposit}
           email={g.signinEmail} onChangeEmail={g.setSigninEmail}
           codeStr={g.signinCode} onChangeCode={g.setSigninCode}
           step={g.signinStep} busy={g.signinBusy}
@@ -635,7 +642,7 @@ export default function ReskinApp({ g }) {
         onSignIn={() => g.setTab('profile')}
         pendingCount={pendingCount} onPendingPress={() => g.setTab('history')}
         activeTab={g.tab === 'home' ? 'home' : g.tab} onTab={(t) => g.setTab(t)}
-        onAddFunds={() => setRoute('deposit')}>
+        onAddFunds={openDeposit}>
         {screen}
       </AppShell>
     );
