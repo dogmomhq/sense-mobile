@@ -267,6 +267,7 @@ export default function App() {
   const [dobAsk, setDobAsk] = useState(false);   // DOB CAPTURE (B44): server said needDob — show the age modal
   const [dobErr, setDobErr] = useState(null);    // server/client rejection line inside the modal
   const dobDepositResume = useRef(null);         // B48: deposit-triggered DOB — on save resume the DEPOSIT, not a queue
+  const [dobOnFile, setDobOnFile] = useState(true); // B49: false only when the server SAYS no DOB (via /history) — defaults true so unknown never gates; the PAY-time backstop catches strays
   const [toast, setToast] = useState(null);
   const [toastKind, setToastKind] = useState('info'); // 'info' | 'error' — reskin toast tint (old UI ignores)
   // online/challenge parity state
@@ -550,6 +551,7 @@ export default function App() {
         if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
         if (Array.isArray(d.ledger)) setServerLedger(d.ledger);            // server-authoritative tx feed
         if (typeof d.balance === 'number') { setBalance(d.balance); AsyncStorage.setItem('sense_balance', String(d.balance)).catch(()=>{}); }
+        if (typeof d.dobOnFile === 'boolean') setDobOnFile(d.dobOnFile); // B49: deposit-screen age gate
       }
     } catch (e) {}
   }
@@ -779,7 +781,7 @@ export default function App() {
         // re-runs the full geo gate on that queue; an underage player gets the plain
         // "You must be N+" error there (bailHome shows it). Failure keeps the modal open.
         if (msg.ok) {
-          setDobAsk(false); setDobErr(null); showToast('Age verified');
+          setDobAsk(false); setDobErr(null); setDobOnFile(true); showToast('Age verified');
           const resume = dobDepositResume.current; dobDepositResume.current = null;
           if (resume) resume(); else sendQueueMsg('dob'); // B48: deposit context re-runs the deposit; play context re-queues
         }
@@ -1022,7 +1024,7 @@ export default function App() {
       // live state
       tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
-      dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit,
+      dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
