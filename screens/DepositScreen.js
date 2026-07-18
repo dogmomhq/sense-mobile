@@ -17,7 +17,7 @@
 //
 // Keeps the batch6/depositstub.png aesthetic (ADD FUNDS headline, Anton, lime
 // accents) but functional. Renders inside AppShell.
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, InputAccessoryView, Keyboard, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
@@ -64,6 +64,11 @@ export default function DepositScreen({
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
+  // B50: Next on the keyboard toolbar hops fields (number-pad has no return key).
+  const numberRef = useRef(null);
+  const expiryRef = useRef(null);
+  const cvvRef = useRef(null);
+  const focusedField = useRef(null); // 'custom' | 'number' | 'expiry' | 'cvv'
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -219,6 +224,7 @@ export default function DepositScreen({
       <View style={{ marginHorizontal: 45 * s, marginBottom: 36 * s }}>
         <TextInput placeholder="OR CUSTOM AMOUNT ($0.50–$500)" placeholderTextColor={COLORS.creamDim}
           value={custom ? '$' + custom : ''} onChangeText={onCustom} keyboardType="decimal-pad" inputAccessoryViewID="depDone"
+          onFocus={() => { focusedField.current = 'custom'; }}
           style={[fieldStyle, custom ? { borderColor: COLORS.lime } : null]} />
       </View>
 
@@ -227,6 +233,7 @@ export default function DepositScreen({
       <View style={{ marginHorizontal: 45 * s, marginBottom: 26 * s }}>
         <TextInput placeholder="4242 4242 4242 4242" placeholderTextColor={COLORS.creamDim}
           value={number} onChangeText={onNumber} keyboardType="number-pad" maxLength={19} inputAccessoryViewID="depDone"
+          ref={numberRef} onFocus={() => { focusedField.current = 'number'; }}
           style={fieldStyle} />
       </View>
 
@@ -235,12 +242,14 @@ export default function DepositScreen({
           <Text style={labelStyle}>EXPIRY</Text>
           <TextInput placeholder="MM/YY" placeholderTextColor={COLORS.creamDim}
             value={expiry} onChangeText={onExpiry} keyboardType="number-pad" maxLength={5} inputAccessoryViewID="depDone"
+            ref={expiryRef} onFocus={() => { focusedField.current = 'expiry'; }}
             style={fieldStyle} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={labelStyle}>CVV</Text>
           <TextInput placeholder="100" placeholderTextColor={COLORS.creamDim}
             value={cvv} onChangeText={onCvv} keyboardType="number-pad" maxLength={4} secureTextEntry inputAccessoryViewID="depDone"
+            ref={cvvRef} onFocus={() => { focusedField.current = 'cvv'; }}
             style={fieldStyle} />
         </View>
       </View>
@@ -250,6 +259,15 @@ export default function DepositScreen({
         <InputAccessoryView nativeID="depDone">
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: '#1a1d14',
             paddingVertical: 10 * s, paddingHorizontal: 18 * s, borderTopWidth: 1, borderTopColor: 'rgba(215,248,74,0.25)' }}>
+            <Pressable onPress={() => {
+              const nx = focusedField.current === 'custom' ? numberRef
+                : focusedField.current === 'number' ? expiryRef
+                : focusedField.current === 'expiry' ? cvvRef : null;
+              if (nx && nx.current) nx.current.focus(); else Keyboard.dismiss(); // CVV: nothing after it
+            }} hitSlop={12}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.cream,
+                paddingHorizontal: 14 * s, paddingVertical: 4 * s, marginRight: 10 * s }}>Next</Text>
+            </Pressable>
             <Pressable onPress={() => Keyboard.dismiss()} hitSlop={12}>
               <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime,
                 paddingHorizontal: 14 * s, paddingVertical: 4 * s }}>Done</Text>
