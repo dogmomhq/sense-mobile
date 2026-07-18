@@ -56,6 +56,7 @@ export default function DepositScreen({
   onToast,                   // (text, kind?) => void
   onRefresh,                 // () => void — pull fresh balance + ledger after success
   onDone,                    // () => void — pop back to tabs
+  onNeedDob,                 // (retry) => void — B48: server wants a DOB before first deposit
 }) {
   const s = useScale();
   const [amountCents, setAmountCents] = useState(2500); // default $25
@@ -144,6 +145,13 @@ export default function DepositScreen({
         if (onRefresh) onRefresh();   // pull the real balance + the new `deposit` ledger row
         if (onDone) onDone();         // pop back to tabs
         return;
+      }
+
+      // DOB GATE (B48): universal 18+ floor — the server asks for age verification on the
+      // FIRST deposit. Open the DOB modal; on save it re-runs this same deposit (fields
+      // are still filled in; the card re-tokenizes because Checkout tokens are one-use).
+      if (depJson && depJson.needDob) {
+        if (onNeedDob) { onNeedDob(() => doDeposit()); return; }
       }
 
       // map the server's error codes to a human message
