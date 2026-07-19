@@ -32,7 +32,11 @@ export function onConnState(cb) { connStateCb = cb; }
 function notifyConn(up) { try { if (connStateCb) connStateCb(up); } catch (e) {} }
 // B42: with wifi off, a socket can hang in CONNECTING forever — onclose never fires,
 // so the retry loop (and its bailHome after 5 fails) never runs. Force-close hung dials.
-const CONNECT_TIMEOUT_MS = 6000;
+// B55 (7/19): 6000 -> 4000. Railway edge dial-timeout waves hang NEW dials silently; healthy
+// connects finish <1s wifi / 1-3s weak cellular, so 4s only kills genuinely stuck attempts
+// and hands them to the B54 retry ladder sooner. Do NOT go lower: 1s would kill slow-but-
+// healthy cellular handshakes and loop them forever.
+const CONNECT_TIMEOUT_MS = 4000;
 function armConnectWatchdog(sock) {
   const t = setTimeout(() => { try { if (sock && sock.readyState === 0) sock.close(); } catch (e) {} }, CONNECT_TIMEOUT_MS);
   return () => clearTimeout(t);
@@ -167,7 +171,7 @@ function scheduleReconnect() {
 }
 
 // B54: user tapped while the loop was in a backoff wait — dial NOW, they're standing there.
-// (If a dial is already in flight there's no timer to skip; the watchdog resolves it ≤6s.)
+// (If a dial is already in flight there's no timer to skip; the watchdog resolves it ≤4s.)
 function kickReconnect() {
   if (!reconnecting || !reconnectTimer) return;
   clearTimeout(reconnectTimer); reconnectTimer = null;
