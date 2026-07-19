@@ -9,8 +9,9 @@
 // Badges grid CUT from MVP (Q10) — slot reserved below, do not delete.
 // Pure presentational; renders inside AppShell.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, Switch, Animated, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Switch, Animated, Platform, Image } from 'react-native';
 import InitialsAvatar from './components/InitialsAvatar';
+import { AVATARS, AVATAR_KEYS, avatarSource } from './avatars';
 import PressBtn from './components/PressBtn';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 // Apple sign-in native module — guarded require so web / Expo Go (no native module) never crash.
@@ -161,7 +162,7 @@ function SettingsRow({ label, right = null, danger = false, onPress }) {
 
 function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
   onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version,
-  onRename }) {
+  onRename, avatarKey, onSelectAvatar }) {
   const s = useScale();
   const netPos = !String(netLifetime).startsWith('-');
   // Phase 6 (gap leftover): tap name → inline edit. 3-16 chars [a-zA-Z0-9_]
@@ -176,7 +177,15 @@ function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
     <View style={{ paddingHorizontal: 45 * s }}>
       {/* hero: initials avatar + handle (tap to rename) + member-since */}
       <View style={{ alignItems: 'center', marginBottom: 36 * s }}>
-        <InitialsAvatar handle={handle} size={260} ring={4} fontSize={104} />
+        {onSelectAvatar ? (
+          <Image source={avatarSource(avatarKey)} fadeDuration={0}
+            style={{ width: 260 * s, height: 260 * s, borderRadius: 130 * s,
+              borderWidth: 4 * s, borderColor: COLORS.lime,
+              shadowColor: 'rgba(215,248,74,0.5)', shadowOffset: { width: 0, height: 0 },
+              shadowRadius: 16 * s, shadowOpacity: 1 }} />
+        ) : (
+          <InitialsAvatar handle={handle} size={260} ring={4} fontSize={104} />
+        )}
         {editing ? (
           <View style={{ alignItems: 'center', marginTop: 28 * s, alignSelf: 'stretch' }}>
             <TextInput value={draft} onChangeText={(t) => setDraft(t.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16))}
@@ -214,6 +223,27 @@ function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: COLORS.creamDim,
           letterSpacing: 0.12 * 28 * s, marginTop: 10 * s }}>
           MEMBER SINCE {String(memberSince).toUpperCase()}</Text>
+        {/* B53: 5-animal avatar picker — device-local choice, header updates live */}
+        {onSelectAvatar ? (
+          <View style={{ marginTop: 30 * s, alignItems: 'center' }}>
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim,
+              letterSpacing: 0.14 * 24 * s, marginBottom: 18 * s }}>CHOOSE YOUR ANIMAL</Text>
+            <View style={{ flexDirection: 'row', gap: 22 * s }}>
+              {AVATAR_KEYS.map((k) => {
+                const sel = k === avatarKey;
+                return (
+                  <Pressable key={k} onPress={() => onSelectAvatar(k)} hitSlop={8}>
+                    <Image source={AVATARS[k]} fadeDuration={0}
+                      style={{ width: 100 * s, height: 100 * s, borderRadius: 50 * s,
+                        borderWidth: (sel ? 4 : 2) * s,
+                        borderColor: sel ? COLORS.lime : 'rgba(245,241,230,0.3)',
+                        opacity: sel ? 1 : 0.68 }} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
       </View>
 
       {/* stats card */}
@@ -273,6 +303,7 @@ export default function ProfileScreen({
   netLifetime = '+$212.40', balance = '$24.50', soundsOn = true, version = 'v0.9.0',
   email = '', code = undefined,
   onSignIn, onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onRename,
+  avatarKey, onSelectAvatar,
   // live OTP wiring (ReskinApp)
   onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onApple, onSignOut,
 }) {
@@ -281,6 +312,7 @@ export default function ProfileScreen({
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 * s }}>
       {signedIn ? (
         <LoggedIn handle={handle} memberSince={memberSince} stats={stats}
+          avatarKey={avatarKey} onSelectAvatar={onSelectAvatar}
           netLifetime={netLifetime} balance={balance} soundsOn={soundsOn} version={version}
           onDeposit={onDeposit} onToggleSounds={onToggleSounds} onPrivacy={onPrivacy}
           onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} onSignOut={onSignOut}

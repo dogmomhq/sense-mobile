@@ -73,23 +73,28 @@ export function StreakChip({ streak = 8 }) {
 
 export function BalancePill({ balance = '$24.50', onPressAdd }) {
   const s = useScale();
+  // B53 (CJ): the WHOLE pill is the deposit button — "possibly most important
+  // button on the screen" — not just the small + circle. The + is drawn as an
+  // SVG cross (a text "+" never sits optically centered; font metrics drift).
   return (
-    <View style={{ width: 343 * s, height: 114 * s, backgroundColor: COLORS.chipBg,
-      borderWidth: 2.5 * s, borderColor: COLORS.lime, borderRadius: RADII.chip * s,
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingLeft: 38 * s, paddingRight: 37 * s }}>
+    <Pressable onPress={onPressAdd} hitSlop={10}
+      style={({ pressed }) => ({ width: 343 * s, height: 114 * s, backgroundColor: COLORS.chipBg,
+        borderWidth: 2.5 * s, borderColor: COLORS.lime, borderRadius: RADII.chip * s,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingLeft: 38 * s, paddingRight: 37 * s, opacity: pressed ? 0.72 : 1 })}>
       <View>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, lineHeight: 26 * s,
           letterSpacing: 0.12 * 19 * s, color: COLORS.creamDim, marginBottom: 6 * s }}>BALANCE</Text>
         <Text style={{ fontFamily: FONTS.interBlack, fontSize: 40 * s, lineHeight: 54 * s,
           letterSpacing: -0.02 * 40 * s, color: COLORS.cream }}>{balance}</Text>
       </View>
-      <Pressable onPress={onPressAdd} hitSlop={14}
-        style={{ width: 54 * s, height: 54 * s, borderRadius: 27 * s, borderWidth: 3 * s,
-          borderColor: COLORS.lime, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: COLORS.lime, fontFamily: FONTS.interBold, fontSize: 38 * s, lineHeight: 44 * s }}>+</Text>
-      </Pressable>
-    </View>
+      <View style={{ width: 54 * s, height: 54 * s, borderRadius: 27 * s, borderWidth: 3 * s,
+        borderColor: COLORS.lime, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={26 * s} height={26 * s} viewBox="0 0 24 24" fill="none">
+          <Path d="M12 3.2 V20.8 M3.2 12 H20.8" stroke={COLORS.lime} strokeWidth={3.6} strokeLinecap="round" />
+        </Svg>
+      </View>
+    </Pressable>
   );
 }
 

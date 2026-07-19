@@ -24,13 +24,13 @@ const TIERS = [
   { label: '$128.00', locked: true },
 ];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B52';
+export const BUILD_TAG = 'B53';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
   onPlay, onPractice, onSelectTier, onTab, activeTab = 'home', showClock = false,
   // live wiring (ReskinApp): identity header, pending strip, insufficient-balance state
-  handle = null, signedIn = true, onSignIn, onAddFunds,
+  handle = null, signedIn = true, onSignIn, onAddFunds, avatar,
   pendingCount = 0, onPendingPress,
   playDisabled = false, insufficientLabel = 'NOT ENOUGH BALANCE',
 }) {
@@ -70,6 +70,7 @@ export default function HomeScreen({
         style={{ position: 'absolute', top: height * 0.35, left: 0, right: 0, height: height * 0.7, zIndex: 2 }} />
 
       <GlassHeader streak={streak} balance={balance} handle={handle} signedIn={signedIn}
+        {...(avatar ? { avatar } : {})}
         onSignIn={onSignIn} onPressAdd={onAddFunds} showClock={showClock} />
       {pendingCount > 0 ? <PendingStrip count={pendingCount} onPress={onPendingPress} /> : null}
 

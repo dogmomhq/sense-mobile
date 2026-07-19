@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, Platform, Alert, AppState, TextInput, Linking } from 'react-native';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeScreen, { BUILD_TAG } from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
 import CountdownScreen from './CountdownScreen';
@@ -19,6 +20,7 @@ import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
 import AppShell from './AppShell';
+import { avatarSource, DEFAULT_AVATAR_KEY } from './avatars';
 import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
 
 // DOB MODAL (B44, B48): shown when the server answers needDob — first DEPOSIT (universal
@@ -246,6 +248,11 @@ function FindingFlash({ onCancel, noConn }) {
 export default function ReskinApp({ g }) {
   const fontsReady = useSenseFonts();
   const [route, setRoute] = useState('tabs');            // 'tabs' | 'deposit'
+  // B53: chosen animal avatar — device-local (AsyncStorage), never sent to the
+  // server. Opponents/leaderboard don't see it; a reinstall resets the choice.
+  const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
+  useEffect(() => { AsyncStorage.getItem('sense_avatar').then((v) => { if (v) setAvatarKey(v); }).catch(() => {}); }, []);
+  const pickAvatar = (k) => { setAvatarKey(k); AsyncStorage.setItem('sense_avatar', k).catch(() => {}); };
   // B49 (CJ): age + terms come BEFORE the card form — a declined card must never
   // re-ask them. Gate only on a positive "no DOB" from the server; when in doubt the
   // screen opens normally and the PAY-time needDob backstop still catches it.
@@ -564,6 +571,7 @@ export default function ReskinApp({ g }) {
   } else if (route === 'deposit') {
     body = (
       <AppShell streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        avatar={avatarSource(avatarKey)}
         onSignIn={() => { setRoute('tabs'); g.setTab('profile'); }}
         pendingCount={pendingCount} onPendingPress={() => { setRoute('tabs'); g.setTab('history'); }}
         activeTab="profile" onTab={(t) => { setRoute('tabs'); g.setTab(t); }}
@@ -582,6 +590,7 @@ export default function ReskinApp({ g }) {
   } else if (g.tab === 'home') {
     body = (
       <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        avatar={avatarSource(avatarKey)}
         onSignIn={() => g.setTab('profile')}
         tiers={tierList.map((t) => ({ label: fmtMoney(t.entryCents), locked: !t.enabled }))} selectedTier={tierIdx}
         winAmount={'WIN ' + fmtMoney(winCents(stakeCents))}
@@ -611,6 +620,7 @@ export default function ReskinApp({ g }) {
       const winPct = played ? Math.round((g.onlineRec.wins / played) * 100) : 0;
       screen = (
         <ProfileScreen signedIn={signedIn} handle={handle}
+          avatarKey={avatarKey} onSelectAvatar={pickAvatar}
           memberSince={serverInfo && serverInfo.member_since ? monthYear(serverInfo.member_since)
             : (g.authSince ? monthYear(g.authSince) : '—')}
           stats={{ played, w: g.onlineRec.wins, l: g.onlineRec.losses, d: g.onlineRec.draws,
@@ -643,6 +653,7 @@ export default function ReskinApp({ g }) {
     }
     body = (
       <AppShell streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        avatar={avatarSource(avatarKey)}
         onSignIn={() => g.setTab('profile')}
         pendingCount={pendingCount} onPendingPress={() => g.setTab('history')}
         activeTab={g.tab === 'home' ? 'home' : g.tab} onTab={(t) => g.setTab(t)}
