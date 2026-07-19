@@ -11,7 +11,7 @@ let ws = null;
 let reconnectTimer = null;
 let messageHandler = null;
 let disconnectHandler = null;
-let connectionLostHandler = null; // called when all reconnects fail
+let connectionLostHandler = null; // dormant since B54 (loop never gives up); kept because App.js still passes it
 let walletAuth = null;
 let keepaliveInterval = null;
 let reconnecting = false;
@@ -21,6 +21,12 @@ let verifyCallback = null; // callback waiting for verify-wallet-result
 let verifyTimeout = null;
 let pendingQueue = []; // messages queued while WS connecting
 let intentionalClose = false; // B43: disconnectWS() sets this so onclose skips the reconnect ladder
+// B54: endless-reconnect state. The old inline ladder gave up after 5 tries (~30s) and,
+// worse, a socket that died AFTER one successful reconnect had NO retry at all (dead end
+// shipped 5/31: NO SIGNAL said RETRYING… while nothing retried — caught on video 7/18).
+const RECONNECT_CAP_MS = 8000;
+let reconnectAttempts = 0;
+let retryNow = null; // lets a user tap fast-forward a backoff wait (see connectWS)
 let connStateCb = null; // B42: app-level "is the pipe up" indicator (UI truth on waiting screens)
 export function onConnState(cb) { connStateCb = cb; }
 function notifyConn(up) { try { if (connStateCb) connStateCb(up); } catch (e) {} }
@@ -105,6 +111,69 @@ function handleOpen(callback) {
   }
 }
 
+// B54: ONE shared retry loop for every unexpected close. Capped backoff (1s,2s,…8s cap),
+// never gives up — the user's escape is the CANCEL button, not a dead screen. Attempt
+// counter resets on every successful open so the NEXT drop starts a fresh fast ladder.
+function scheduleReconnect() {
+  if (reconnecting) return; // one loop at a time
+  reconnecting = true;
+  const backoff = () => Math.min(1000 * Math.max(reconnectAttempts, 1), RECONNECT_CAP_MS);
+  const tryReconnect = () => {
+    reconnectTimer = null;
+    if (!reconnecting) return; // disconnectWS() while we waited — stand down
+    reconnectAttempts++;
+    console.log('[ws] Reconnect attempt', reconnectAttempts);
+    try {
+      ws = new WebSocket(_serverUrl);
+      const disarmR = armConnectWatchdog(ws);
+      ws.onopen = () => {
+        disarmR();
+        console.log('[ws] Reconnected');
+        reconnecting = false;
+        reconnectAttempts = 0; // B54: fresh ladder for the next drop
+        retryNow = null;
+        notifyConn(true);
+        startKeepalive();
+        if (walletAuth) ws.send(JSON.stringify({ type: 'verify-wallet', ...walletAuth }));
+        else flushPending(); // B54: no auth step means nothing else drains the pending queue
+        ws.onclose = () => {
+          // B54: THE FIX. This handler used to be notifyConn(false)-and-nothing — after one
+          // successful reconnect in a session, the next drop had no retry at all.
+          ws = null;
+          stopKeepalive();
+          notifyConn(false);
+          if (disconnectHandler) disconnectHandler();
+          if (intentionalClose) { intentionalClose = false; return; }
+          scheduleReconnect();
+        };
+        ws.onerror = () => {};
+        setupWsHandlers(ws);
+        { const h = onOpenHandler; onOpenHandler = null; if (h) h(); } // B43: one-shot
+      };
+      ws.onclose = () => { // dial failed (or B42 watchdog force-closed a hung CONNECTING)
+        disarmR();
+        notifyConn(false);
+        ws = null;
+        if (intentionalClose) { intentionalClose = false; reconnecting = false; return; }
+        reconnectTimer = setTimeout(tryReconnect, backoff());
+      };
+      ws.onerror = () => {};
+    } catch (e) {
+      reconnectTimer = setTimeout(tryReconnect, backoff());
+    }
+  };
+  retryNow = tryReconnect;
+  reconnectTimer = setTimeout(tryReconnect, 1000);
+}
+
+// B54: user tapped while the loop was in a backoff wait — dial NOW, they're standing there.
+// (If a dial is already in flight there's no timer to skip; the watchdog resolves it ≤6s.)
+function kickReconnect() {
+  if (!reconnecting || !reconnectTimer) return;
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  if (retryNow) retryNow();
+}
+
 export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
   if (!_serverUrl) { console.error('[ws] setServerUrl() must be called before connectWS'); return; }
   intentionalClose = false; // B43: a new connect intent re-arms normal reconnect behavior
@@ -118,14 +187,19 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
     if (onOpen) onOpen();
     return;
   }
+  // B54: a dial is already in flight — don't open a rival socket (rival dials were the old
+  // ghost-socket vector). The armed intent (onOpenHandler, latest wins) fires when it lands.
+  if (ws && ws.readyState === WebSocket.CONNECTING) return;
+  // B54: the reconnect loop owns the line right now — piggyback it; fast-forward any wait.
+  if (reconnecting) { kickReconnect(); return; }
 
   ws = new WebSocket(_serverUrl);
   const disarm = armConnectWatchdog(ws);
 
   ws.onopen = () => {
     disarm();
-    onOpenHandler = null; // B43: one-shot — handleOpen fires the local ref; a reconnect must never replay it
-    handleOpen(onOpen);
+    const h = onOpenHandler; onOpenHandler = null; // B43 one-shot; B54: fire the LATEST intent, not the captured one
+    handleOpen(h);
   };
 
   setupWsHandlers(ws);
@@ -138,54 +212,7 @@ export function connectWS(onMessage, onDisconnect, onOpen, onConnectionLost) {
     stopKeepalive();
     if (disconnectHandler) disconnectHandler();
     if (intentionalClose) { intentionalClose = false; return; } // B43: we hung up on purpose — no zombie reconnect
-    if (!reconnecting) {
-      reconnecting = true;
-      let attempts = 0;
-      const maxAttempts = 5;
-      const tryReconnect = () => {
-        attempts++;
-        console.log('[ws] Reconnect attempt', attempts);
-        try {
-          ws = new WebSocket(_serverUrl);
-          const disarmR = armConnectWatchdog(ws);
-          ws.onopen = () => {
-            disarmR();
-            console.log('[ws] Reconnected');
-            notifyConn(true);
-            reconnecting = false;
-            startKeepalive();
-            if (walletAuth) ws.send(JSON.stringify({ type: 'verify-wallet', ...walletAuth }));
-            ws.onclose = () => {
-              ws = null;
-              stopKeepalive();
-              notifyConn(false);
-              if (disconnectHandler) disconnectHandler();
-            };
-            ws.onerror = () => {};
-            setupWsHandlers(ws);
-            { const h = onOpenHandler; onOpenHandler = null; if (h) h(); } // B43: one-shot
-          };
-          ws.onclose = () => {
-            disarmR();
-            notifyConn(false);
-            ws = null;
-            if (attempts < maxAttempts) setTimeout(tryReconnect, 2000 * attempts);
-            else {
-              reconnecting = false;
-              if (connectionLostHandler) connectionLostHandler();
-            }
-          };
-          ws.onerror = () => {};
-        } catch (e) {
-          if (attempts < maxAttempts) setTimeout(tryReconnect, 2000 * attempts);
-          else {
-            reconnecting = false;
-            if (connectionLostHandler) connectionLostHandler();
-          }
-        }
-      };
-      setTimeout(tryReconnect, 1000);
-    }
+    scheduleReconnect(); // B54: shared endless loop (was: inline 5-attempt ladder that could dead-end)
   };
 
   ws.onerror = (err) => {
@@ -232,6 +259,7 @@ export function disconnectWS() {
   onOpenHandler = null;     // B43: drop any armed intent (e.g. a queue send) so nothing can replay it
   pendingQueue = [];        // B43: drop buffered messages — a stale queued 'queue' msg is a ghost-game vector
   reconnecting = false;
+  retryNow = null; reconnectAttempts = 0; // B54: kill any pending loop dial
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   stopKeepalive();
   if (ws) { ws.close(); ws = null; }

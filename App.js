@@ -278,6 +278,10 @@ export default function App() {
   const [pracLog, setPracLog] = useState([]);          // last 10 practice rounds {result, animal, time}
   const [wsUp, setWsUp] = useState(true);              // B42: socket truth for waiting screens (true until proven dead)
   useEffect(() => { onConnState(setWsUp); return () => onConnState(null); }, []);
+  useEffect(() => { /* B54: heal the pipe the moment we return to foreground — don't wait for a tap to discover it's dead */
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active' && !isConnected()) ensureConn(() => {}); });
+    return () => { try { sub.remove(); } catch (e) {} };
+  }, []);
   const [pushOn, setPushOn] = useState(true);          /* B35: notification permission state. Defaults true so the waiting-screen button never flashes before the first check resolves; 'unsupported' (Android/Expo Go) also hides the button. */
   const [banners, setBanners] = useState([]);         // background-result notifications
   const [showActions, setShowActions] = useState(false); // play-screen Play Again/History/Home
