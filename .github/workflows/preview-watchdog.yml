@@ -1,0 +1,74 @@
+name: preview-watchdog
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Probe only, never redeploy'
+        default: 'true'
+        required: false
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe /health 3x (20s apart)
+        id: probe
+        run: |
+          FAILS=0
+          RESULTS=""
+          for i in 1 2 3; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 8 https://web-production-c6ec6.up.railway.app/health || echo 000)
+            RESULTS="$RESULTS probe$i=$CODE"
+            case "$CODE" in
+              000|502|503|504) FAILS=$((FAILS+1));;
+            esac
+            [ "$i" -lt 3 ] && sleep 20
+          done
+          echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
+          echo "fails=$FAILS" >> "$GITHUB_OUTPUT"
+          echo "Probes:$RESULTS (hard fails: $FAILS/3)"
+
+      - name: Redeploy if 3/3 hard-fails
+        if: steps.probe.outputs.fails == '3'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          RESULTS: ${{ steps.probe.outputs.results }}
+        run: |
+          API=https://backboard.railway.com/graphql/v2
+          Q='{"query":"query { deployments(input: {projectId: \"3a3f93e6-9c74-4cb9-b44c-736d60cd7b37\", environmentId: \"33a41271-bf2d-4318-83e3-5444c34c9d05\", serviceId: \"5abaf099-ca62-4bcd-932f-b3358d6df44b\"}, first: 1) { edges { node { id createdAt status } } } }"}'
+          RESP=$(curl -s --max-time 20 -X POST "$API" -H "Project-Access-Token: $RAILWAY_TOKEN" -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0" -d "$Q")
+          DEP_ID=$(echo "$RESP" | jq -r '.data.deployments.edges[0].node.id')
+          CREATED=$(echo "$RESP" | jq -r '.data.deployments.edges[0].node.createdAt')
+          if [ -z "$DEP_ID" ] || [ "$DEP_ID" = "null" ]; then
+            echo "Could not fetch latest deployment: $RESP"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "ALERT: preview /health down 3/3 AND Railway API query failed" --body "Probes:$RESULTS — manual attention needed. $(date -u)"
+            exit 1
+          fi
+          AGE=$(( $(date +%s) - $(date -d "$CREATED" +%s) ))
+          echo "Latest deployment $DEP_ID age ${AGE}s"
+          if [ "$AGE" -lt 1800 ]; then
+            echo "Cooldown active (<30 min since last deployment) — no redeploy"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "ALERT: preview still down within cooldown — NOT redeploying" --body "Probes:$RESULTS. Latest deployment $DEP_ID is only ${AGE}s old. Either the re-roll landed bad again or a bigger outage. Check Railway dashboard. $(date -u)"
+            exit 1
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "DRY RUN — would redeploy $DEP_ID now"
+            exit 0
+          fi
+          M="{\"query\":\"mutation { deploymentRedeploy(id: \\\"$DEP_ID\\\", usePreviousImageTag: true) { id status } }\"}"
+          OUT=$(curl -s --max-time 30 -X POST "$API" -H "Project-Access-Token: $RAILWAY_TOKEN" -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0" -d "$M")
+          echo "Redeploy response: $OUT"
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Watchdog auto-redeployed preview (dial-timeout episode)" --body "3/3 /health probes hard-failed ($RESULTS). Auto-redeployed $DEP_ID to re-roll placement. Response: $OUT. Live games at that moment were already dying; redeploy takes ~60s. $(date -u)"
+          exit 1
