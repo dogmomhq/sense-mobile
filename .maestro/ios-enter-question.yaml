@@ -1,0 +1,11 @@
+# Enter a practice question and stop there (evil scenarios take over from shell)
+appId: com.dogmomhq.sensemobile
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "PRACTICE FREE"
+    timeout: 45000
+- tapOn: "PRACTICE FREE"
+- waitForAnimationToEnd:
+    timeout: 9000
+- takeScreenshot: shots/${TAG}-01-in-question
