@@ -86,6 +86,9 @@ jobs:
           sleep 4
           maestro test -e TAG=bg .maestro/ios-alive-check.yaml || FAIL=1
 
+          echo "=== flow 4: 5-game loop ==="
+          maestro test .maestro/ios-practice-loop.yaml || FAIL=1
+
           kill -INT $(cat /tmp/vid.pid) 2>/dev/null || true
           sleep 5
           kill $(cat /tmp/log.pid) 2>/dev/null || true
