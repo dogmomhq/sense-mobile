@@ -28,6 +28,7 @@ jobs:
           if [ -n "$INPUT_URL" ]; then
             echo "APP_URL=$INPUT_URL" >> "$GITHUB_ENV"
           else
+            npm install --no-audit --no-fund
             npx --yes eas-cli@latest build:list --platform ios --status finished --limit 20 --json --non-interactive > builds.json
             URL=$(jq -r '[.[] | select(.buildProfile=="simulator")][0].artifacts.applicationArchiveUrl // empty' builds.json)
             if [ -z "$URL" ]; then echo "NO FINISHED SIMULATOR BUILD"; jq -r '.[] | "\(.buildProfile) \(.status) \(.createdAt)"' builds.json | head; exit 1; fi
