@@ -1,0 +1,45 @@
+name: Assign Latest Build to External Group
+on:
+  workflow_dispatch:
+    inputs:
+      assign: { description: "assign latest build (false = inspect only)", required: false, default: "true" }
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect + assign via ASC API
+        env:
+          ASC_KEY_B64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          DO_ASSIGN: ${{ github.event.inputs.assign }}
+        run: |
+          python3 -m pip install --quiet pyjwt cryptography requests
+          python3 - <<'PY'
+          import os, time, json, base64, requests, jwt
+          KID="47N638GLZG"; ISS="b26d5075-81df-418d-93b6-a3dd7be13e0c"; APP="6775628110"
+          key=base64.b64decode(os.environ["ASC_KEY_B64"]).decode()
+          tok=jwt.encode({"iss":ISS,"iat":int(time.time()),"exp":int(time.time())+1000,"aud":"appstoreconnect-v1"},
+                         key, algorithm="ES256", headers={"kid":KID,"typ":"JWT"})
+          h={"Authorization":f"Bearer {tok}","Content-Type":"application/json"}
+          B="https://api.appstoreconnect.apple.com/v1"
+          groups=requests.get(f"{B}/apps/{APP}/betaGroups",headers=h).json().get("data",[])
+          for g in groups:
+              a=g['attributes']
+              print(f"GROUP {g['id']} | {a.get('name')} | internal={a.get('isInternalGroup')}")
+              t=requests.get(f"{B}/betaGroups/{g['id']}/betaTesters?limit=50",headers=h).json().get("data",[])
+              for x in t: print("   tester:", x['attributes'].get('email'), x['attributes'].get('state') if 'state' in x['attributes'] else '')
+          builds=requests.get(f"{B}/builds?filter[app]={APP}&sort=-uploadedDate&limit=6",headers=h).json().get("data",[])
+          for b in builds:
+              a=b['attributes']
+              bd=requests.get(f"{B}/builds/{b['id']}/buildBetaDetail",headers=h).json().get("data",{})
+              ebs=(bd.get('attributes') or {}).get('externalBuildState')
+              gs=requests.get(f"{B}/builds/{b['id']}/betaGroups",headers=h).json().get("data",[])
+              print(f"BUILD {b['id']} | v{a.get('version')} ({a.get('preReleaseVersion','')}) | up {str(a.get('uploadedDate'))[:10]} | proc={a.get('processingState')} expired={a.get('expired')} | extState={ebs} | groups={[x['id'] for x in gs]}")
+          ext=[g for g in groups if not g['attributes'].get('isInternalGroup')]
+          usable=[b for b in builds if b['attributes'].get('processingState')=='VALID' and not b['attributes'].get('expired')]
+          if os.environ.get("DO_ASSIGN")=="true" and ext and usable:
+              gid=ext[0]['id']; bid=usable[0]['id']
+              print(f"ASSIGNING build {bid} -> group {gid} ({ext[0]['attributes'].get('name')})")
+              r=requests.post(f"{B}/betaGroups/{gid}/relationships/builds",headers=h,
+                              data=json.dumps({"data":[{"type":"builds","id":bid}]}))
+              print("assign status", r.status_code, r.text[:400])
+          PY
