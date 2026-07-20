@@ -256,6 +256,7 @@ export default function App() {
   const [q, setQ] = useState(null);
   const [used, setUsed] = useState([]);
   const [picked, setPicked] = useState(null);
+  const [oppPending, setOppPending] = useState(false); // B59: server confirmed the opponent hasn't answered yet (async-waiting) — gates the WaitingScreen takeover
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState(null);
   const [comp, setComp] = useState(null);
@@ -468,7 +469,7 @@ export default function App() {
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
   function showToast(m, kind) { setToast(m); setToastKind(kind === 'error' ? 'error' : 'info'); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
-  function bailHome(msg) { clearJoinWatch(true); setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { setOnline(false); setMode(null); setTab('home'); }); } // B44: setOnline moved into the fade callback (same flash as goHome)
+  function bailHome(msg) { clearJoinWatch(true); setNotice(msg || null); onlineRef.current = false; isChallengeRef.current = false; matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { try { disconnectWS(); } catch (e) {} setOnline(false); setMode(null); setTab('home'); }); } // B44: setOnline moved into the fade callback (same flash as goHome). B59: disconnectWS moved in too — killing the socket pre-fade repainted the joining screen as NO SIGNAL for one frame (bug 2 pixel flash)
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
     clearJoinWatch(true); // B58: join acked with a real question — the watchdog stands down
@@ -503,7 +504,7 @@ export default function App() {
     // keeps backward compat if an old server includes it; normally it sets null.
     questionIdxRef.current = (question.questionIdx != null ? question.questionIdx : null);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null, questionIdx: questionIdxRef.current });
-    setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false);
+    setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false); setOppPending(false); // B59: new round — no confirmed wait yet
     if (mid === 'room') begin(); else setTimeout(begin, 3000); // countdown start moved into begin() (ready-gate B39)
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
@@ -679,7 +680,13 @@ export default function App() {
           setPending(p => (p[msg.matchId] && p[msg.matchId].questionIdx == null) ? { ...p, [msg.matchId]: { ...p[msg.matchId], questionIdx: msg.questionIdx } } : p);
         }
         break; }
-      case 'async-waiting': break;  // we answered first; waiting on opponent
+      case 'async-waiting': // we answered first; waiting on opponent. B59: this is the server's
+        // explicit "a real wait has begun" signal — it is NOT sent when the rival already
+        // answered (settle is in flight, result lands in ~0.3-1.5s). Only after this arrives
+        // may ReskinApp swap the frozen question for the WaitingScreen, which kills the
+        // 0.7s YOU-LOCKED flash before an instant result (bug 1, CJ video 2026-07-19).
+        if (msg.matchId && activeMatchRef.current === msg.matchId) setOppPending(true);
+        break;
       case 'async-result': {
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
         const oppNm = (msg.opponent && msg.opponent.name) || (pending[msg.matchId] && pending[msg.matchId].opponent) || oppName || 'Opponent';
@@ -1059,7 +1066,7 @@ export default function App() {
   if (RESKIN) {
     const g = {
       // live state
-      tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online,
+      tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,

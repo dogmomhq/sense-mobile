@@ -156,6 +156,7 @@ const TIME_LIMIT = 10000;
 // uses the same 800ms hold, then fades to the WaitingScreen (its mount fade) if no
 // result arrived. No perceptible pause, one continuous motion, both modes feel identical.
 const WAIT_GRACE_MS = 800;
+const WAIT_RESULT_CAP_MS = 5000; // B59: until the server CONFIRMS a real wait (async-waiting -> g.oppPending), hold the frozen question up to this long — an instant settle (rival already answered) lands well inside it, so no YOU-LOCKED flash before results. If confirmation AND result both vanish, the WaitingScreen still appears at the cap.
 
 export const fmtMoney = (cents) => '$' + (Math.abs(cents || 0) / 100).toFixed(2);
 const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
@@ -315,9 +316,9 @@ export default function ReskinApp({ g }) {
   useEffect(() => {
     if (!answeredOnlineWaiting) { setGraceElapsed(false); return; }
     setGraceElapsed(false);
-    const t = setTimeout(() => setGraceElapsed(true), WAIT_GRACE_MS);
+    const t = setTimeout(() => setGraceElapsed(true), g.oppPending ? WAIT_GRACE_MS : WAIT_RESULT_CAP_MS); // B59: no confirmed wait yet -> hold for the imminent result instead of flashing the takeover
     return () => clearTimeout(t);
-  }, [answeredOnlineWaiting, g.matchId]);
+  }, [answeredOnlineWaiting, g.matchId, g.oppPending]);
 
   // server hydration on open: daily bonus + profile fields (additive server pass 5a)
   useEffect(() => {
