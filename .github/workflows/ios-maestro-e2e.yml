@@ -63,6 +63,7 @@ jobs:
       - name: Run E2E (practice + evil scenarios)
         run: |
           mkdir -p shots
+          touch /tmp/e2e-start
           xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/run.mp4 & echo $! > /tmp/vid.pid
           xcrun simctl spawn "$UDID" log stream --style compact --predicate 'process == "sensemobile"' > shots/app.log 2>&1 & echo $! > /tmp/log.pid
 
@@ -93,7 +94,7 @@ jobs:
           sleep 5
           kill $(cat /tmp/log.pid) 2>/dev/null || true
           # collect Maestro screenshots wherever they landed
-          { find . -maxdepth 2 -name "*.png" -not -path "./shots/*" -not -path "./node_modules/*" 2>/dev/null; find "$HOME/.maestro" -name "*.png" 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
+          { find . -maxdepth 2 -name "*.png" -newer /tmp/e2e-start -not -path "./shots/*" -not -path "./node_modules/*" 2>/dev/null; find "$HOME/.maestro" -name "*.png" -newer /tmp/e2e-start 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
           ls -la shots/
           echo "VERDICT: $([ "$FAIL" = 0 ] && echo GREEN || echo RED)"
           exit $FAIL
