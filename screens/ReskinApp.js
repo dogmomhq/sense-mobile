@@ -300,8 +300,14 @@ export default function ReskinApp({ g }) {
     if (g.countdown && g.mode === 'play') {
       setCdOverlay(true);
       timingDbg.current = {};
-      const t = setTimeout(() => { timingDbg.current.flipTs = Date.now(); g.setCountdown(false); }, 2400);
-      return () => clearTimeout(t);
+      // B60: deadline-checked flip (was a single setTimeout — LPM deferred it ~2.1s,
+      // revealing the question late while the scored clock stayed honest → integrity draws)
+      const t0 = Date.now(); let done = false; let rafId = null;
+      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = Date.now(); g.setCountdown(false); };
+      const iv = setInterval(() => { if (Date.now() - t0 >= 2400) fire(); }, 50);
+      const rafLoop = () => { if (done) return; if (Date.now() - t0 >= 2400) { fire(); return; } rafId = requestAnimationFrame(rafLoop); };
+      rafId = requestAnimationFrame(rafLoop);
+      return () => { done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); };
     }
   }, [g.countdown, g.mode]);
 
@@ -567,6 +573,7 @@ export default function ReskinApp({ g }) {
           ? { w: g.onlineRec.wins, d: g.onlineRec.draws, l: g.onlineRec.losses }
           : { w: g.rec.wins, d: g.rec.draws, l: g.rec.losses }}
         photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
+        reason={g.result.reason || null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );
   } else if (route === 'deposit') {

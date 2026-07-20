@@ -270,6 +270,7 @@ export default function ResultsScreen({
   record = null,                        // AUDIT MED #8 (2026-07-02): {w,d,l} — was passed by ReskinApp but never accepted
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
+  reason = null,                        // B60: server settle reason — 'timing_review' = integrity draw (explainer line)
   onPlayAgain, onHome, onCycleEnd, showClock = false,
 }) {
   const s = useScale();
@@ -855,6 +856,11 @@ export default function ResultsScreen({
                 <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, letterSpacing: 0.1 * 36 * s,
                   color: COLORS.cream }}>ENTRY RETURNED · {fmt(stake)}</Text>
               </View>
+              {reason === 'timing_review' ? (
+                <Text style={{ marginTop: 24 * s, fontFamily: FONTS.interBold, fontSize: 30 * s,
+                  color: 'rgba(245,241,230,0.65)', textAlign: 'center', paddingHorizontal: 80 * s }}>
+                  Answer timing couldn't be verified this round — nobody wins, nobody loses.</Text>
+              ) : null}
             </Animated.View>
           </>
         ) : null}

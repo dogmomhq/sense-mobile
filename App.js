@@ -327,6 +327,7 @@ export default function App() {
   // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
   const startOverrideRef = useRef(null);
   const imgMsRef = useRef(null); // #50: ms from question receipt to image prefetch done (null = not measured)
+  const readySentTsRef = useRef(null); // B60: when we sent {type:'ready'} — drift telemetry (reveal lateness vs the 2400ms plan)
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const questionIdxRef = useRef(null); // bank index of the active online question (additive 2026-06-16, for history thumbnails)
   // CANCEL pass (2026-06-16): matchIds this client has locally cancelled. Used to SUPPRESS a
@@ -429,7 +430,7 @@ export default function App() {
       } else {
         // AUDIT FIX #2: plain wsSend silently DROPS on a closed socket (answer lost -> timeout loss).
         // Freeze the message now, then reconnect-if-needed and send; identity lets the server verify us on the fresh socket.
-        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current); ensureConn(() => wsSend(ansMsg)); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs */ assertAnswer(_amid, idx, _at).then((a) => { if (a) wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion }); }).catch(() => {}); }  // async matchmaking (#50: imgMs rides along, null omitted)
+        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const _drift = (readySentTsRef.current != null && startRef.current > readySentTsRef.current) ? Math.round(startRef.current - readySentTsRef.current - 2400) : null; const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current, _drift); ensureConn(() => wsSend(ansMsg)); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs */ assertAnswer(_amid, idx, _at).then((a) => { if (a) wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion }); }).catch(() => {}); }  // async matchmaking (#50: imgMs rides along, null omitted)
         const mid = matchIdRef.current;
         // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
@@ -492,7 +493,7 @@ export default function App() {
     const begin = () => {
       if (began || matchIdRef.current !== mid) return; // stale callback from an old match must not start/ready this one
       began = true;
-      if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); } catch (e) {} }
+      if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); readySentTsRef.current = Date.now(); } catch (e) {} }
       setCountdown(true); fadeTo(() => setMode('play'));
     };
     try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}

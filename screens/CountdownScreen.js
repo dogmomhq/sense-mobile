@@ -178,11 +178,20 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     // 3 @0 · 2 @600 · 1 @1200 · GO (opaque beat) @1800 · handoff @2400
     // (opaque tree unmounts in ONE frame, question live, <=150ms residual
     // flash) · onDone @2550
+    // B60 (2026-07-20): CLOCK-DRIVEN schedule. iOS Low Power Mode defers setTimeout
+    // alarms (observed ~2.1s late on the 2400ms handoff) while Date.now() stays
+    // honest — the question rendered late but the scored clock didn't, so the server
+    // saw an unexplained gap > 2000ms and voided paid matches (integrity draw).
+    // Fix: every stage fires when Date.now()-t0 passes its deadline, checked by BOTH
+    // a 50ms interval and a rAF loop (rAF keeps ticking ~30fps under LPM). A late
+    // tick fires ALL overdue stages at once — drift can't accumulate.
+    const t0 = Date.now();
+    const stageFns = [];
     beat(3);
-    timers.current.push(setTimeout(() => beat(2), BEAT_MS));
-    timers.current.push(setTimeout(() => beat(1), BEAT_MS * 2));
-    timers.current.push(setTimeout(() => beat('go'), BEAT_MS * 3));
-    timers.current.push(setTimeout(() => {
+    stageFns.push({ at: BEAT_MS,     run: () => beat(2) });
+    stageFns.push({ at: BEAT_MS * 2, run: () => beat(1) });
+    stageFns.push({ at: BEAT_MS * 3, run: () => beat('go') });
+    stageFns.push({ at: BEAT_MS * 4, run: () => {
       // 2400ms HANDOFF: the render swaps to the transparent residual — eye/
       // background/glyph/pill unmount THIS frame, question beneath is live
       // immediately. Residual = quick lime flash + the GO glyph fading out in
@@ -194,9 +203,20 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
       Animated.timing(flash, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
       // t0 anchor: first frame where the question is visible
       goRaf.current = requestAnimationFrame(() => { if (onHandoff) onHandoff(Date.now()); });
-    }, BEAT_MS * 4));
-    timers.current.push(setTimeout(() => onDone && onDone(), 2550));
-    return () => { timers.current.forEach(clearTimeout); if (goRaf.current) cancelAnimationFrame(goRaf.current); };
+    } });
+    stageFns.push({ at: 2550, run: () => onDone && onDone() });
+    let fired = 0; let stopped = false; let loopRaf = null;
+    const step = () => {
+      if (stopped) return;
+      const el = Date.now() - t0;
+      while (fired < stageFns.length && el >= stageFns[fired].at) { stageFns[fired].run(); fired++; }
+      if (fired >= stageFns.length) { stopped = true; clearInterval(iv); if (loopRaf) cancelAnimationFrame(loopRaf); }
+    };
+    const iv = setInterval(step, 50);
+    const rafLoop = () => { if (stopped) return; step(); if (!stopped) loopRaf = requestAnimationFrame(rafLoop); };
+    loopRaf = requestAnimationFrame(rafLoop);
+    return () => { stopped = true; clearInterval(iv); if (loopRaf) cancelAnimationFrame(loopRaf);
+      timers.current.forEach(clearTimeout); if (goRaf.current) cancelAnimationFrame(goRaf.current); };
   }, []);
 
   const glyphWrap = (i) => {
