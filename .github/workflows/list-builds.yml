@@ -13,5 +13,6 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx --yes eas-cli@latest build:list --platform ios --limit 30 --json --non-interactive > builds.json 2>cli.log || true
       - uses: actions/upload-artifact@v4
-        with: { name: builds, path: "builds.json
-cli.log" }
+        with: { name: builds, path: |
+            builds.json
+            cli.log }
