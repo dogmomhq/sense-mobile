@@ -1,0 +1,35 @@
+# Happy path: home -> PRACTICE FREE -> countdown -> question -> answer -> results -> HOME
+appId: com.dogmomhq.sensemobile
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "PRACTICE FREE"
+    timeout: 45000
+- takeScreenshot: shots/01-home
+- tapOn: "PRACTICE FREE"
+- extendedWaitUntil:
+    visible: "PRACTICE.*FREE"
+    timeout: 10000
+- takeScreenshot: shots/02-countdown
+- waitForAnimationToEnd:
+    timeout: 9000
+- takeScreenshot: shots/03-question
+# 2x2 answer grid sits in the bottom fade — tap all four cells; first hit locks, rest are ignored
+- tapOn:
+    point: "30%,75%"
+- tapOn:
+    point: "70%,75%"
+- tapOn:
+    point: "30%,84%"
+- tapOn:
+    point: "70%,84%"
+- extendedWaitUntil:
+    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|PLAY AGAIN"
+    timeout: 40000
+- takeScreenshot: shots/04-results
+- tapOn: "HOME"
+- extendedWaitUntil:
+    visible: "PRACTICE FREE"
+    timeout: 15000
+- takeScreenshot: shots/05-back-home
