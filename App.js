@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, getReasonText, generatePlayerName } from './gameEngine.js';
-import { setServerUrl, connectWS, wsSend, isConnected, disconnectWS, onConnState } from './websocket.js';
+import { setServerUrl, connectWS, wsSend, isConnected, isDialing, forceReconnect, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
@@ -339,6 +339,7 @@ export default function App() {
   // replays (RUN IT BACK / swipe-up) are intentionally NOT guarded. Resets on a real question.
   const autoRequeueRef = useRef({ n: 0, t: 0 });
   const gpsRetryRef = useRef(0);        // GPS gate (2026-07-15): one re-queue per PLAY tap, no loops
+  const joinWatchRef = useRef({ timer: null, strikes: 0 }); // B58: join-ack watchdog — silence stopwatch for the matching screen
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
@@ -467,9 +468,10 @@ export default function App() {
   // ===== ONLINE (live server — reuses the same Play + Results screens) =====
   function myName() { if (!myNameRef.current) myNameRef.current = generatePlayerName() + '#' + Math.floor(100 + Math.random() * 900); return myNameRef.current; }
   function showToast(m, kind) { setToast(m); setToastKind(kind === 'error' ? 'error' : 'info'); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3000); } // 3s transient (matches web)
-  function bailHome(msg) { setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { setOnline(false); setMode(null); setTab('home'); }); } // B44: setOnline moved into the fade callback (same flash as goHome)
+  function bailHome(msg) { clearJoinWatch(true); setNotice(msg || null); try { disconnectWS(); } catch (e) {} onlineRef.current = false; isChallengeRef.current = false; matchIdRef.current = null; activeMatchRef.current = null; /* BUG 2 FIX: clear the foreground match too */ fadeTo(() => { setOnline(false); setMode(null); setTab('home'); }); } // B44: setOnline moved into the fade callback (same flash as goHome)
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
+    clearJoinWatch(true); // B58: join acked with a real question — the watchdog stands down
     const img = HTTPS_BASE + '/img/' + question.imageToken;
     // #50: time the image download (receipt -> prefetch resolved) and report it with the
     // answer so the server can tell slow downloads from time-shaving. Guarded by matchId:
@@ -803,8 +805,8 @@ export default function App() {
         // instead of booting the player — gps-result re-queues automatically.
         // DOB GATE (B44): age-rule states (Artaev memo) need a stored birthday. Show the
         // modal over the joining screen; dob-result re-queues automatically on success.
-        if (msg.needDob) { setDobErr(null); setDobAsk(true); break; }
-        if (msg.needGps) { handleGpsCheck(); break; }
+        if (msg.needDob) { clearJoinWatch(true); setDobErr(null); setDobAsk(true); break; } // B58: server answered = line alive; pause while they type — dob-result's re-queue re-arms
+        if (msg.needGps) { clearJoinWatch(true); handleGpsCheck(); break; } // B58: same — the GPS fix is phone-side and can take >4s; not server silence
         // CANCEL pass: defensively swallow a stale "Not in this match" (server now sends the clean
         // 'match-unavailable' instead, but an in-flight old message must never boot the player with
         // a scary "NOT IN THIS MATCH" banner — symptoms 4 & 5). Treat it as a soft re-queue.
@@ -851,7 +853,35 @@ export default function App() {
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       wsSend({ type: 'gps-check', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+      armJoinWatch(); // B58: gps-check is a queue-flow send — silence after it = the same stuck-matching risk
     } catch (e) { bailHome('Couldn\u2019t get your location \u2014 try again'); }
+  }
+  // B58: JOIN-ACK WATCHDOG. The gap that froze CJ on "matching..." for 9 minutes (7/20 00:06 UTC):
+  // a zombie socket — dead TCP but readyState still OPEN, no close event yet — passes isConnected(),
+  // so ensureConn never redials, wsSend "sends" the queue join into the void, and B54's ladder never
+  // wakes because onclose never fires. Nothing was watching the OUTCOME of the join. Now:
+  // every queue-flow SEND arms a 4s stopwatch; every queue-flow RECEIPT clears it. 4s of silence
+  // while still on 'joining':
+  //   strike 1  — assume the JOIN died in transit: re-send it (existing guarded autoRequeue, 3/60s budget)
+  //   strike 2+ — assume the SOCKET is a zombie: forceReconnect() (B54 ladder redials) then re-send.
+  // Budget exhausted -> autoRequeue's own "tap Play to try again" + home. A CONNECTING dial at fire
+  // time only re-arms: the join is already queued/armed on that dial — resending would double-queue (B43).
+  function clearJoinWatch(resetStrikes) {
+    const w = joinWatchRef.current;
+    if (w.timer) { clearTimeout(w.timer); w.timer = null; }
+    if (resetStrikes) w.strikes = 0;
+  }
+  function armJoinWatch() {
+    const w = joinWatchRef.current;
+    if (w.timer) clearTimeout(w.timer);
+    w.timer = setTimeout(() => {
+      w.timer = null;
+      if (modeRef.current !== 'joining') return;   // question landed / cancelled / bailed — stand down
+      if (isDialing()) { armJoinWatch(); return; } // dial in flight — B42's 4s connect watchdog owns it; look again
+      w.strikes += 1;
+      if (w.strikes === 1) autoRequeue();          // join lost in transit — cheap fix first
+      else { forceReconnect(); setTimeout(() => { if (modeRef.current === 'joining') autoRequeue(); }, 250); } // zombie pipe — fresh socket, then fresh join
+    }, 4000);
   }
   async function sendQueueMsg(src) {
     let supaTok = supabaseTokenRef.current || undefined;
@@ -863,6 +893,7 @@ export default function App() {
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
     wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap', attestKeyId: getAttestKeyId() || undefined }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    armJoinWatch(); // B58: the join is in flight — start the silence stopwatch
   }
   // Supabase email one-time-code sign-in
   async function sendCode() { const em = (signinEmail || '').trim(); if (!em) { showToast('Enter your email first', 'error'); return; } if (!supabase) { showToast('Sign-in unavailable in this preview build', 'error'); return; } setSigninBusy(true); try { const { error } = await supabase.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } }); if (error) showToast(error.message || 'Could not send code', 'error'); else { setSigninStep('code'); showToast('Code sent to ' + em); } } catch (e) { showToast((e && e.message) || 'Could not send code', 'error'); } setSigninBusy(false); }
@@ -933,6 +964,8 @@ export default function App() {
   async function changeEmail() { const em = (newEmail || '').trim(); if (!em) return; setEmailBusy(true); try { const { error } = await supabase.auth.updateUser({ email: em }); if (error) showToast(error.message); else { showToast('Check your new email to confirm'); setChangingEmail(false); setNewEmail(''); } } catch (e) { showToast('Could not update email'); } setEmailBusy(false); }
   function startQueue(src) {
     gpsRetryRef.current = 0;   // fresh PLAY tap = fresh GPS retry budget
+    if (src === 'tap' || src === 'runback') joinWatchRef.current.strikes = 0; // B58: fresh user intent = fresh escalation ladder
+    armJoinWatch(); // B58: covers the register-first path too; sendQueueMsg re-arms when the join actually sends
     ensureConn(() => {
       if (accountRef.current && accountRef.current.token) sendQueueMsg(src);
       else { pendingAfterReg.current = () => sendQueueMsg(src); wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue

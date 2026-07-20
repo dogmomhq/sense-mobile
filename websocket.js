@@ -258,6 +258,12 @@ export function isConnected() {
   return ws && ws.readyState === WebSocket.OPEN;
 }
 
+// B58: true while a dial is in flight — the join-ack watchdog must NOT resend during a
+// dial (the join is already queued/armed on that dial; a resend would double-queue — B43 vector).
+export function isDialing() {
+  return !!(ws && ws.readyState === WebSocket.CONNECTING);
+}
+
 export function disconnectWS() {
   intentionalClose = true;  // B43: tell onclose this hangup is on purpose
   onOpenHandler = null;     // B43: drop any armed intent (e.g. a queue send) so nothing can replay it
@@ -267,4 +273,23 @@ export function disconnectWS() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   stopKeepalive();
   if (ws) { ws.close(); ws = null; }
+}
+
+// B58: kill a ZOMBIE socket — readyState says OPEN but the line is dead (carrier drop,
+// background suspend) and no close event has fired yet, so isConnected() lies, wsSend
+// keeps "sending" into the void, and the B54 ladder never wakes (it only runs on close).
+// Detach the zombie completely FIRST — its eventual late close callback must not null a
+// future socket or start a rival ladder (the B43/B54 ghost vectors) — then hand the line
+// to scheduleReconnect. Deliberately NOT intentionalClose: we WANT the redial.
+// No-op unless OPEN: a CONNECTING dial belongs to the B42 watchdog, and a running ladder
+// already owns the line (scheduleReconnect self-guards regardless).
+export function forceReconnect() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const zombie = ws;
+  ws = null;
+  zombie.onclose = null; zombie.onerror = () => {}; zombie.onmessage = null; zombie.onopen = null;
+  try { zombie.close(); } catch (e) {}
+  stopKeepalive();
+  notifyConn(false);
+  scheduleReconnect();
 }
