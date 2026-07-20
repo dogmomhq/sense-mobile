@@ -1,0 +1,44 @@
+name: Team Invite / Internal Tester
+on:
+  workflow_dispatch:
+    inputs:
+      action: { description: "invite | add_internal", required: true, default: "invite" }
+      email: { description: "email", required: true }
+      first_name: { description: "first name", required: false, default: "Tester" }
+      last_name: { description: "last name", required: false, default: "" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ASC API call
+        env:
+          ASC_KEY_B64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          ACTION: ${{ github.event.inputs.action }}
+          EMAIL: ${{ github.event.inputs.email }}
+          FN: ${{ github.event.inputs.first_name }}
+          LN: ${{ github.event.inputs.last_name }}
+        run: |
+          python3 -m pip install --quiet pyjwt cryptography requests
+          python3 - <<'PY'
+          import os, time, json, base64, requests, jwt
+          KID="47N638GLZG"; ISS="b26d5075-81df-418d-93b6-a3dd7be13e0c"; APP="6775628110"
+          INTERNAL_GROUP="1c7b477e-a97b-4e15-85a7-e3f3363ffa1c"
+          key=base64.b64decode(os.environ["ASC_KEY_B64"]).decode()
+          tok=jwt.encode({"iss":ISS,"iat":int(time.time()),"exp":int(time.time())+1000,"aud":"appstoreconnect-v1"},
+                         key, algorithm="ES256", headers={"kid":KID,"typ":"JWT"})
+          h={"Authorization":f"Bearer {tok}","Content-Type":"application/json"}
+          B="https://api.appstoreconnect.apple.com/v1"
+          act=os.environ["ACTION"]; em=os.environ["EMAIL"]
+          if act=="invite":
+              body={"data":{"type":"userInvitations","attributes":{
+                      "email":em,"firstName":os.environ["FN"],"lastName":os.environ["LN"] or "Tester",
+                      "roles":["CUSTOMER_SUPPORT"],"allAppsVisible":False,"provisioningAllowed":False},
+                    "relationships":{"visibleApps":{"data":[{"type":"apps","id":APP}]}}}}
+              r=requests.post(f"{B}/userInvitations",headers=h,data=json.dumps(body))
+              print("invite status",r.status_code); print(r.text[:800])
+          elif act=="add_internal":
+              body={"data":{"type":"betaTesters","attributes":{"email":em,"firstName":os.environ["FN"],"lastName":os.environ["LN"] or "Tester"},
+                    "relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":INTERNAL_GROUP}]}}}}
+              r=requests.post(f"{B}/betaTesters",headers=h,data=json.dumps(body))
+              print("add_internal status",r.status_code); print(r.text[:800])
+          PY
