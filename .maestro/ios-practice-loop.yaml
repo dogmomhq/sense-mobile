@@ -1,0 +1,29 @@
+appId: com.dogmomhq.sensemobile
+---
+- launchApp:
+    clearState: false
+- repeat:
+    times: 5
+    commands:
+      - extendedWaitUntil:
+          visible: "PRACTICE FREE"
+          timeout: 45000
+      - tapOn: "PRACTICE FREE"
+      - waitForAnimationToEnd:
+          timeout: 9000
+      - tapOn:
+          point: "30%,75%"
+      - tapOn:
+          point: "70%,75%"
+      - tapOn:
+          point: "30%,84%"
+      - tapOn:
+          point: "70%,84%"
+      - extendedWaitUntil:
+          visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN|PLAY NOW"
+          timeout: 40000
+      - tapOn: "HOME"
+- extendedWaitUntil:
+    visible: "PRACTICE FREE"
+    timeout: 20000
+- takeScreenshot: shots/loop-done
