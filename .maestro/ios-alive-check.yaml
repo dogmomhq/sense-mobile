@@ -1,0 +1,9 @@
+# After kill/background abuse: app must render a sane screen (home or results)
+appId: com.dogmomhq.sensemobile
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "PRACTICE FREE|PLAY AGAIN|YOU WIN|SO CLOSE|YOU LOST|HOME"
+    timeout: 30000
+- takeScreenshot: shots/${TAG}-02-alive
