@@ -89,6 +89,9 @@ jobs:
           kill -INT $(cat /tmp/vid.pid) 2>/dev/null || true
           sleep 5
           kill $(cat /tmp/log.pid) 2>/dev/null || true
+          # collect Maestro screenshots wherever they landed
+          { find . -maxdepth 2 -name "*.png" -not -path "./shots/*" -not -path "./node_modules/*" 2>/dev/null; find "$HOME/.maestro" -name "*.png" 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
+          ls -la shots/
           echo "VERDICT: $([ "$FAIL" = 0 ] && echo GREEN || echo RED)"
           exit $FAIL
 
@@ -98,6 +101,8 @@ jobs:
           DEST="maestro-shots/ios/run-${{ github.run_number }}"
           mkdir -p "$DEST"
           cp -R shots/* "$DEST"/ 2>/dev/null || true
+          rm -f "$DEST/run.mp4"
+          find "$DEST" -size +90M -delete 2>/dev/null || true
           git config user.name "sense-e2e-bot"
           git config user.email "e2e@sense.local"
           git add "$DEST"
