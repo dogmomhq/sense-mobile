@@ -1,0 +1,112 @@
+name: ios-maestro-e2e
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "EAS simulator .tar.gz URL (blank = latest finished simulator build)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  e2e:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reskin-ui
+
+      - name: Resolve simulator build URL
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          INPUT_URL: ${{ github.event.inputs.app_url }}
+        run: |
+          set -e
+          if [ -n "$INPUT_URL" ]; then
+            echo "APP_URL=$INPUT_URL" >> "$GITHUB_ENV"
+          else
+            npx --yes eas-cli@latest build:list --platform ios --status finished --limit 20 --json --non-interactive > builds.json
+            URL=$(jq -r '[.[] | select(.buildProfile=="simulator")][0].artifacts.applicationArchiveUrl // empty' builds.json)
+            if [ -z "$URL" ]; then echo "NO FINISHED SIMULATOR BUILD"; jq -r '.[] | "\(.buildProfile) \(.status) \(.createdAt)"' builds.json | head; exit 1; fi
+            echo "APP_URL=$URL" >> "$GITHUB_ENV"
+            echo "using: $URL"
+          fi
+
+      - name: Download + unpack .app
+        run: |
+          set -e
+          curl -sL "$APP_URL" -o app.tar.gz
+          mkdir -p simapp && tar -xzf app.tar.gz -C simapp
+          APP_PATH=$(find simapp -maxdepth 2 -name "*.app" | head -1)
+          [ -n "$APP_PATH" ] || { echo "no .app in archive"; ls -laR simapp | head -50; exit 1; }
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+      - name: Boot simulator + install
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.isAvailable) | select(.name | test("^iPhone 1[5-9]"))] | last | .udid')
+          [ -n "$UDID" ] && [ "$UDID" != "null" ] || { xcrun simctl list devices available; exit 1; }
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP_PATH"
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run E2E (practice + evil scenarios)
+        run: |
+          mkdir -p shots
+          xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/run.mp4 & echo $! > /tmp/vid.pid
+          xcrun simctl spawn "$UDID" log stream --style compact --predicate 'process == "sensemobile"' > shots/app.log 2>&1 & echo $! > /tmp/log.pid
+
+          FAIL=0
+          echo "=== flow 1: practice happy path ==="
+          maestro test .maestro/ios-practice.yaml || FAIL=1
+
+          echo "=== flow 2: kill mid-question, relaunch ==="
+          maestro test -e TAG=kill .maestro/ios-enter-question.yaml || FAIL=1
+          xcrun simctl terminate "$UDID" com.dogmomhq.sensemobile || true
+          sleep 2
+          xcrun simctl launch "$UDID" com.dogmomhq.sensemobile || true
+          sleep 4
+          maestro test -e TAG=kill .maestro/ios-alive-check.yaml || FAIL=1
+
+          echo "=== flow 3: background mid-question, return ==="
+          maestro test -e TAG=bg .maestro/ios-enter-question.yaml || FAIL=1
+          xcrun simctl launch "$UDID" com.apple.Preferences || true
+          sleep 6
+          xcrun simctl launch "$UDID" com.dogmomhq.sensemobile || true
+          sleep 4
+          maestro test -e TAG=bg .maestro/ios-alive-check.yaml || FAIL=1
+
+          kill -INT $(cat /tmp/vid.pid) 2>/dev/null || true
+          sleep 5
+          kill $(cat /tmp/log.pid) 2>/dev/null || true
+          echo "VERDICT: $([ "$FAIL" = 0 ] && echo GREEN || echo RED)"
+          exit $FAIL
+
+      - name: Commit shots + video
+        if: always()
+        run: |
+          DEST="maestro-shots/ios/run-${{ github.run_number }}"
+          mkdir -p "$DEST"
+          cp -R shots/* "$DEST"/ 2>/dev/null || true
+          git config user.name "sense-e2e-bot"
+          git config user.email "e2e@sense.local"
+          git add "$DEST"
+          git commit -m "ios maestro e2e run ${{ github.run_number }}" || echo "nothing to commit"
+          git pull --rebase origin reskin-ui || true
+          git push origin HEAD:reskin-ui || true
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-e2e-run-${{ github.run_number }}
+          path: shots
