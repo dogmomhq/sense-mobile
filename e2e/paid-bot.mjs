@@ -10,6 +10,24 @@ const SUPABASE_URL = 'https://nexpzwfemjcqdrljrfjy.supabase.co';
 const SR = process.env.SUPABASE_SERVICE_ROLE;
 const ctx = JSON.parse(readFileSync('/tmp/e2e-ctx.json', 'utf8'));
 
+// Queue-busy pre-check: never join a real player's waiting open game. Poll up to 90s, then abort
+// BEFORE any wager. Exit 5 = QUEUE-BUSY (distinct from real failures).
+if (process.env.SENSE_DB_URL) {
+  const { Client } = (await import('pg')).default;
+  const db = new Client({ connectionString: process.env.SENSE_DB_URL.replace(':5432', ':6543'), ssl: { rejectUnauthorized: false } });
+  await db.connect();
+  let busy = true;
+  for (let i = 0; i < 10; i++) {
+    const r = await db.query("select count(*)::int as n from game_queue where status='open' and player_b is null");
+    if (r.rows[0].n === 0) { busy = false; break; }
+    console.log(`[bot] QUEUE-BUSY: ${r.rows[0].n} real open game(s) waiting — sleep 9s (${i + 1}/10)`);
+    await new Promise(s => setTimeout(s, 9000));
+  }
+  await db.end();
+  if (busy) { console.log('[bot] QUEUE-BUSY after 90s — aborting paid phase before any wager (exit 5)'); process.exit(5); }
+  console.log('[bot] queue clear — proceeding');
+}
+
 const grant = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
   method: 'POST',
   headers: { apikey: SR, 'Content-Type': 'application/json' },
