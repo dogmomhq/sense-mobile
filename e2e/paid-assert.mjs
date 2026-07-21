@@ -1,5 +1,11 @@
 // paid-assert.mjs — ground truth for the paid E2E. Polls the DB until the robot's
-// match settles, then asserts money conservation. Exits 0 = PAID GREEN.
+// match settles, then asserts money conservation AND that the robot actually
+// answered via UI taps. Exits 0 = PAID GREEN.
+//
+// Run-8 lesson: don't assume rows[0] is THE match — a stray tap on PLAY AGAIN can
+// leave a NEWER open row for the robot. Find the settled row, then fail loudly if
+// any stray open/matched rows exist (that means the flow tapped something it
+// shouldn't have).
 import pg from 'pg';
 import { readFileSync } from 'fs';
 
@@ -9,23 +15,39 @@ const c = new pg.Client({ connectionString: DB_URL, ssl: { rejectUnauthorized: f
 await c.connect();
 const fail = async (msg, extra) => { console.error('ASSERT FAIL:', msg, extra || ''); await c.end(); process.exit(1); };
 
-// 1. the robot's match: created this run, settled
+// 1. the robot's match: created this run, settled (draws settle too — settleAsync
+//    always ends at status 'settled'; refund legs keep the sum at zero)
 let match = null;
 for (let i = 0; i < 12; i++) {
   const { rows } = await c.query(
     `SELECT match_id, status, tier, payment_mode, player_a, player_b, answer_a, answer_b
      FROM game_queue
      WHERE (player_a = $1 OR player_b = $1) AND payment_mode = 'credits'
-     ORDER BY id DESC LIMIT 3`, [ctx.robotHandle]);
-  if (rows.length && rows[0].status === 'settled') { match = rows[0]; break; }
-  if (rows.length) console.log(`waiting for settle... status=${rows[0].status} (${i})`);
+     ORDER BY id DESC LIMIT 5`, [ctx.robotHandle]);
+  const settledRow = rows.find(r => r.status === 'settled');
+  if (settledRow) { match = settledRow; break; }
+  if (rows.length) console.log(`waiting for settle... newest status=${rows[0].status} (${i})`);
   else console.log(`waiting for match row... (${i})`);
   await new Promise(r => setTimeout(r, 5000));
 }
 if (!match) await fail('no settled credits match for robot handle', ctx.robotHandle);
 console.log('match:', JSON.stringify(match));
 
-// 2. conservation: all ledger legs for this match sum to zero
+// 2. the robot must have ANSWERED via taps (that is the point of the rig).
+//    -1 / null = timed out -> the UI flow failed even if money is clean.
+const side = match.player_a === ctx.robotHandle ? 'a' : 'b';
+const robotAnswer = match['answer_' + side];
+if (robotAnswer === null || Number(robotAnswer) === -1)
+  await fail(`robot (player_${side}) never answered — answer=${robotAnswer} (UI taps missed the window)`);
+console.log(`robot answered: player_${side} idx=${robotAnswer}`);
+
+// 3. no stray open/matched rows for the robot (a late tap on PLAY AGAIN creates one)
+const { rows: strays } = await c.query(
+  `SELECT match_id, status FROM game_queue
+   WHERE (player_a = $1 OR player_b = $1) AND status IN ('open','matched')`, [ctx.robotHandle]);
+if (strays.length) await fail(`stray non-terminal game(s) for robot — flow tapped something it shouldn't: ${JSON.stringify(strays)}`);
+
+// 4. conservation: all ledger legs for this match sum to zero
 const { rows: legs } = await c.query(
   `SELECT account_id, type, amount FROM credit_ledger WHERE match_id = $1 ORDER BY id`, [match.match_id]);
 const sum = legs.reduce((s, l) => s + Number(l.amount), 0);
@@ -33,7 +55,7 @@ console.log('legs:', JSON.stringify(legs), 'sum:', sum);
 if (sum !== 0) await fail(`match legs sum ${sum}c != 0`, match.match_id);
 if (!legs.some(l => l.type === 'entry')) await fail('no entry legs', match.match_id);
 
-// 3. per-account: stored balance == ledger sum for both e2e accounts
+// 5. per-account: stored balance == ledger sum for both e2e accounts
 for (const id of [ctx.robotId, ctx.botId]) {
   const { rows: [{ bal }] } = await c.query(`SELECT COALESCE((SELECT balance FROM credit_accounts WHERE account_id=$1),0) AS bal`, [id]);
   const { rows: [{ ls }] } = await c.query(`SELECT COALESCE(SUM(amount),0) AS ls FROM credit_ledger WHERE account_id=$1`, [id]);
@@ -41,4 +63,4 @@ for (const id of [ctx.robotId, ctx.botId]) {
   if (Number(bal) !== Number(ls)) await fail(`account ${id} stored ${bal} != ledger ${ls}`);
 }
 await c.end();
-console.log('PAID ASSERT: GREEN — settled match, legs sum 0, balances consistent');
+console.log('PAID ASSERT: GREEN — settled match, robot answered, no strays, legs sum 0, balances consistent');
