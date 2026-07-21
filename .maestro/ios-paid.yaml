@@ -1,6 +1,13 @@
-# Paid path: injected signed-in session -> PLAY NOW -> real $0.50 credits match vs harness bot -> results -> HOME
+# Paid path: injected signed-in session -> PLAY NOW -> real $0.50 credits match -> results -> HOME
+# ROLE FLIP (2026-07-21): the ROBOT is the CREATOR (bot joins its game) so this flow has the
+# exact proven practice-flow shape: the 8s creator countdown absorbs waitForAnimationToEnd and
+# the answer taps land at question start with the full 10s window. Run 8 (robot as joiner)
+# timed out: question appeared instantly, the 9s wait ate the window, and the late grid taps
+# hit PLAY AGAIN on the results screen (stray requeued open game).
 # NOTE: Maestro visible: strings are FULL-MATCH regexes. Always escape $ (unescaped = end-anchor,
 # matches nothing — burned runs 6+7). Stake pill text is "$0.50 · WIN $0.95", so trail with .*
+# NOTE: outcome regex must NOT include PLAY AGAIN — the post-answer waiting screen has that
+# button too, and matching it there would leave before the real result arrives.
 appId: com.dogmomhq.sensemobile
 ---
 - launchApp:
@@ -13,7 +20,7 @@ appId: com.dogmomhq.sensemobile
     timeout: 20000
 - takeScreenshot: shots/paid-01-home
 - tapOn: "PLAY NOW"
-# stake pill appears on countdown AND question screens ("$0.50 · WIN $0.95")
+# stake pill on the countdown screen ("$0.50 · WIN $0.95")
 - extendedWaitUntil:
     visible: '\$0\.50.*'
     timeout: 30000
@@ -30,9 +37,11 @@ appId: com.dogmomhq.sensemobile
     point: "30%,84%"
 - tapOn:
     point: "70%,84%"
+# after locking, the app sits on the waiting screen until the harness bot's answer settles
+# the match (~10-20s), then auto-advances to results
 - extendedWaitUntil:
-    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN"
-    timeout: 90000
+    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT"
+    timeout: 120000
 - takeScreenshot: shots/paid-04-outcome
 - tapOn: "HOME"
 - extendedWaitUntil:
