@@ -1,0 +1,12 @@
+[bot 2026-07-21T22:37:05.332Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-21T22:37:05.567Z] sent queue tier1 credits
+[bot 2026-07-21T22:37:05.568Z] recv {"type":"rtt-ping","nonce":"mrv8h8bb6xon"}
+[bot 2026-07-21T22:37:06.177Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-21T22:37:06.448Z] recv {"type":"async-opponent-found","opponentName":"Camp"}
+[bot 2026-07-21T22:37:06.448Z] STRANGER-PAIRED opponent=Camp expected=E2ERobot6xh0go — playing out, will exit 4
+[bot 2026-07-21T22:37:06.448Z] recv {"type":"rtt-ping","nonce":"mrv8h938vjh8"}
+[bot 2026-07-21T22:37:06.448Z] recv {"type":"async-question","matchId":"tm252h84","question":{"text":"What animal is this?","imageToken":"shxftcb3fp7x8seu","options":["Badger","Moose","Wolverine","Bear"]}}
+[bot 2026-07-21T22:37:12.454Z] sent async-answer match=tm252h84 idx=0 t=6000
+[bot 2026-07-21T22:37:12.569Z] recv {"type":"answer-ack","matchId":"tm252h84","serverTime":3600,"questionIdx":18}
+[bot 2026-07-21T22:37:12.612Z] recv {"type":"async-result","matchId":"tm252h84","tier":"credits:1","you":{"answer":0,"answerText":"Badger","time":6000,"serverTime":6000,"result":"loss"},"opponent":{"answer":3,"answerText":"Bear","time":1283,"serverTime":1283,"result":"win","name":"Camp"},"correctIdx":3,"correctAnswer":"Bear","options":["Badger","Moose","Wolverine","Bear"],"reason":"correct_answer","questionIdx":18}
+[bot 2026-07-21T22:37:12.612Z] SETTLED loss
