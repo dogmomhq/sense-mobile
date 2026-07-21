@@ -1,0 +1,14 @@
+[bot] queue clear — proceeding
+[bot 2026-07-21T23:35:15.904Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-21T23:35:15.917Z] sent queue tier1 credits
+[bot 2026-07-21T23:35:16.003Z] recv {"type":"rtt-ping","nonce":"mrvak1mijp3t"}
+[bot 2026-07-21T23:35:16.521Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-21T23:35:16.794Z] recv {"type":"rtt-ping","nonce":"mrvak28ihhs5"}
+[bot 2026-07-21T23:35:16.801Z] recv {"type":"async-question","matchId":"c6dfsa6e","question":{"text":"What animal is this?","imageToken":"zy6yawg4fdqicat6","options":["Mouse","Gerbil","Guinea Pig","Hamster"]}}
+[bot 2026-07-21T23:35:22.803Z] sent async-answer match=c6dfsa6e idx=0 t=6000
+[bot 2026-07-21T23:35:22.894Z] recv {"type":"answer-ack","matchId":"c6dfsa6e","serverTime":3600,"questionIdx":12}
+[bot 2026-07-21T23:35:22.912Z] recv {"type":"async-waiting","matchId":"c6dfsa6e","message":"Searching for opponent..."}
+[bot 2026-07-21T23:36:11.689Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot8xjt84"}
+[bot 2026-07-21T23:36:11.730Z] paired opponent=E2ERobot8xjt84 (robot, as planned)
+[bot 2026-07-21T23:36:24.503Z] recv {"type":"async-result","matchId":"c6dfsa6e","tier":"credits:1","you":{"answer":0,"answerText":"Mouse","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":-1,"answerText":"Time expired","time":10000,"serverTime":10000,"result":"draw","name":"E2ERobot8xjt84"},"correctIdx":3,"correctAnswer":"Hamster","options":["Mouse","Gerbil","Guinea Pig","Hamster"],"reason":"both_wrong","questionIdx":12}
+[bot 2026-07-21T23:36:24.503Z] SETTLED draw
