@@ -59,7 +59,7 @@ function initAnalytics() {
   if (PH || Platform.OS === 'web') return;
   try {
     const lib = require('posthog-react-native');
-    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: true });
+    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: true, sessionReplayConfig: { maskAllImages: false, maskAllTextInputs: true } }); // v19: replay live (native module added)
     PHProvider = lib.PostHogProvider || null;
   } catch (e) { PH = null; }
 }
