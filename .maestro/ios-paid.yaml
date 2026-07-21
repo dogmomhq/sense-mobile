@@ -1,4 +1,6 @@
 # Paid path: injected signed-in session -> PLAY NOW -> real $0.50 credits match vs harness bot -> results -> HOME
+# NOTE: Maestro visible: strings are FULL-MATCH regexes. Always escape $ (unescaped = end-anchor,
+# matches nothing — burned runs 6+7). Stake pill text is "$0.50 · WIN $0.95", so trail with .*
 appId: com.dogmomhq.sensemobile
 ---
 - launchApp:
@@ -11,12 +13,14 @@ appId: com.dogmomhq.sensemobile
     timeout: 20000
 - takeScreenshot: shots/paid-01-home
 - tapOn: "PLAY NOW"
+# stake pill appears on countdown AND question screens ("$0.50 · WIN $0.95")
 - extendedWaitUntil:
-    visible: "$0.50"
+    visible: '\$0\.50.*'
     timeout: 30000
-- takeScreenshot: shots/paid-02-question
+- takeScreenshot: shots/paid-02-countdown
 - waitForAnimationToEnd:
     timeout: 9000
+- takeScreenshot: shots/paid-03-question
 # 2x2 answer grid in the bottom fade — tap all four cells; first hit locks, rest ignored
 - tapOn:
     point: "30%,75%"
@@ -29,9 +33,9 @@ appId: com.dogmomhq.sensemobile
 - extendedWaitUntil:
     visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN"
     timeout: 90000
-- takeScreenshot: shots/paid-03-outcome
+- takeScreenshot: shots/paid-04-outcome
 - tapOn: "HOME"
 - extendedWaitUntil:
     visible: "PLAY NOW"
     timeout: 15000
-- takeScreenshot: shots/paid-04-home
+- takeScreenshot: shots/paid-05-home
