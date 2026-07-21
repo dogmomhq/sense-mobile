@@ -1,0 +1,37 @@
+# Paid path: injected signed-in session -> PLAY NOW -> real $0.50 credits match vs harness bot -> results -> HOME
+appId: com.dogmomhq.sensemobile
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "PLAY NOW"
+    timeout: 45000
+- extendedWaitUntil:
+    visible: "$3.00"
+    timeout: 20000
+- takeScreenshot: shots/paid-01-home
+- tapOn: "PLAY NOW"
+- extendedWaitUntil:
+    visible: "$0.50"
+    timeout: 30000
+- takeScreenshot: shots/paid-02-question
+- waitForAnimationToEnd:
+    timeout: 9000
+# 2x2 answer grid in the bottom fade — tap all four cells; first hit locks, rest ignored
+- tapOn:
+    point: "30%,75%"
+- tapOn:
+    point: "70%,75%"
+- tapOn:
+    point: "30%,84%"
+- tapOn:
+    point: "70%,84%"
+- extendedWaitUntil:
+    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN"
+    timeout: 90000
+- takeScreenshot: shots/paid-03-outcome
+- tapOn: "HOME"
+- extendedWaitUntil:
+    visible: "PLAY NOW"
+    timeout: 15000
+- takeScreenshot: shots/paid-04-home
