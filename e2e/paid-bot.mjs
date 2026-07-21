@@ -19,7 +19,7 @@ if (!grant.access_token) { console.error('BOT GRANT FAILED', JSON.stringify(gran
 const supabaseToken = grant.access_token;
 
 const ws = new WebSocket(WS_URL);
-let answered = false, settled = false;
+let answered = false, settled = false, stranger = false;
 const say = (o) => ws.send(JSON.stringify(o));
 const log = (tag, o) => console.log(`[bot ${new Date().toISOString()}] ${tag} ${typeof o === 'string' ? o : JSON.stringify(o)}`);
 
@@ -32,6 +32,13 @@ ws.on('open', () => {
 ws.on('message', (buf) => {
   let m; try { m = JSON.parse(buf.toString()); } catch { return; }
   log('recv', m);
+  if (m.type === 'async-opponent-found') {
+    const opp = m.opponent && m.opponent.name || m.opponentName || m.name || '?';
+    if (String(opp) !== String(ctx.robotHandle)) {
+      stranger = true;
+      log('STRANGER-PAIRED', `opponent=${opp} expected=${ctx.robotHandle} — playing out, will exit 4`);
+    } else log('paired', `opponent=${opp} (robot, as planned)`);
+  }
   if (m.type === 'async-question' && !answered) {
     answered = true;
     setTimeout(() => {
@@ -40,10 +47,10 @@ ws.on('message', (buf) => {
       log('sent', `async-answer match=${m.matchId} idx=0 t=6000`);
     }, 6000);
   }
-  if (m.type === 'async-result') { settled = true; log('SETTLED', m.you && m.you.result); setTimeout(() => process.exit(0), 1500); }
+  if (m.type === 'async-result') { settled = true; log('SETTLED', m.you && m.you.result); setTimeout(() => process.exit(stranger ? 4 : 0), 1500); }
   if (m.type === 'error') log('SERVER-ERROR', m.message || m.code);
 });
-ws.on('close', (c) => { log('close', c); if (!settled) process.exit(answered ? 0 : 2); });
+ws.on('close', (c) => { log('close', c); if (!settled) process.exit(stranger ? 4 : (answered ? 0 : 2)); });
 ws.on('error', (e) => log('ws-error', e.message));
 setInterval(() => { if (ws.readyState === WebSocket.OPEN) say({ type: 'keepalive' }); }, 25000);
-setTimeout(() => { log('timeout', `answered=${answered} settled=${settled}`); process.exit(answered ? 0 : 3); }, 300000);
+setTimeout(() => { log('timeout', `answered=${answered} settled=${settled} stranger=${stranger}`); process.exit(stranger ? 4 : (answered ? 0 : 3)); }, 300000);
