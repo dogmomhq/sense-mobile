@@ -7,7 +7,7 @@ appId: com.dogmomhq.sensemobile
     visible: "PLAY NOW"
     timeout: 45000
 - extendedWaitUntil:
-    visible: "$3.00"
+    visible: '\$\d+\.\d\d'
     timeout: 20000
 - takeScreenshot: shots/paid-01-home
 - tapOn: "PLAY NOW"
