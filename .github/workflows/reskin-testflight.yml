@@ -4,7 +4,12 @@ name: Reskin TestFlight (build + submit from reskin-ui)
 # Workflow file lives on main (workflow_dispatch requirement) but checks out reskin-ui;
 # no app code on main is touched. Mirrors eas-build-ios.yml + eas-submit-ios.yml.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      ipa_url:
+        description: 'Optional: existing EAS .ipa artifact URL — skips the build and submits this file'
+        required: false
+        default: ''
 
 concurrency:
   group: reskin-testflight
@@ -38,12 +43,23 @@ jobs:
           }
           JSON
       - name: Build iOS (.ipa) on EAS (waits for completion)
+        if: github.event.inputs.ipa_url == ''
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive
+        run: |
+          npx --yes eas-cli@latest build -p ios --profile testflight --non-interactive --json > /tmp/build.json
+          jq -r '.[0].id' /tmp/build.json > /tmp/build_id
+          echo "built id: $(cat /tmp/build_id)"
       - name: Restore ASC API key
         run: printf '%s' "${{ secrets.ASC_API_KEY_BASE64 }}" | base64 -d > asc_key.p8
-      - name: Submit latest iOS build to TestFlight
+      - name: Submit iOS build to TestFlight
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@latest submit -p ios --profile testflight --latest --non-interactive
+        # NEVER --latest: a parallel simulator build can become "latest" (tar.gz -> submit fails).
+        run: |
+          if [ -n "${{ github.event.inputs.ipa_url }}" ]; then
+            curl -fsSL -o /tmp/app.ipa "${{ github.event.inputs.ipa_url }}"
+            npx --yes eas-cli@latest submit -p ios --profile testflight --path /tmp/app.ipa --non-interactive
+          else
+            npx --yes eas-cli@latest submit -p ios --profile testflight --id "$(cat /tmp/build_id)" --non-interactive
+          fi
