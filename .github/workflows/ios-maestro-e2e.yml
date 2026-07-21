@@ -136,6 +136,12 @@ jobs:
           python3 -c "import json,os,sys; d,key,h=sys.argv[1],sys.argv[2],sys.argv[3]; mf=os.path.join(d,'manifest.json'); m=json.load(open(mf)) if os.path.exists(mf) else {}; m.update({key: None, 'sense_balance': '300', 'sense_handle': h}); json.dump(m, open(mf,'w'))" "$D" "$KEY" "$HANDLE"
           echo "injected session, handle=$HANDLE"
 
+      - name: Paid queue gate (no real players waiting)
+        if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
+        env:
+          SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
+        run: node e2e/paid-precheck.mjs   # exit 5 = QUEUE-BUSY, aborts before any wager
+
       - name: Paid match (bot vs robot, real $0.50)
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
         env:
@@ -144,8 +150,10 @@ jobs:
         run: |
           mkdir -p shots
           xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/paid.mp4 & echo $! > /tmp/pvid.pid
+          # ROLE FLIP (post-run-8): the ROBOT creates the game (practice-flow timing);
+          # the bot polls the DB and joins once the robot's open game is at the FIFO head.
           node e2e/paid-bot.mjs > shots/bot.log 2>&1 & echo $! > /tmp/bot.pid
-          sleep 10   # bot queues FIRST so the robot pairs with it
+          sleep 2
           PFAIL=0
           maestro test .maestro/ios-paid.yaml || PFAIL=1
           wait $(cat /tmp/bot.pid) || PFAIL=1
@@ -198,3 +206,4 @@ jobs:
         with:
           name: ios-e2e-run-${{ github.run_number }}
           path: shots
+
