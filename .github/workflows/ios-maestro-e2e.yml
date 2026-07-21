@@ -140,6 +140,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
         env:
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+          SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
         run: |
           mkdir -p shots
           xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/paid.mp4 & echo $! > /tmp/pvid.pid
