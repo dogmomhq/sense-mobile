@@ -18,7 +18,8 @@ appId: com.dogmomhq.sensemobile
 #    NEVER tap the 84% row in this flow: that row sits inside PLAY AGAIN on
 #    both the waiting and results screens — it created the stray re-queued
 #    games that broke runs 8 and 9.
-#  * Outcome regex: DEAD HEAT is the draw eyebrow (ResultsScreen.js:571). Bot
+#  * Outcome regex: the draw layout renders a big 'DRAW' stamp (ResultsScreen.js:849)
+#    and does NOT render the DEAD HEAT eyebrow — run-10 screenshot proved it. Bot
 #    and robot both answer idx 0, so the two expected endings are a both-wrong
 #    draw or a robot win. PLAY AGAIN must NOT be in this regex (the post-answer
 #    waiting screen shows it while the match is still unsettled).
@@ -44,7 +45,7 @@ appId: com.dogmomhq.sensemobile
                 point: "30%,75%"
 - takeScreenshot: shots/paid-02-post-volley
 - extendedWaitUntil:
-    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT"
+    visible: "YOU WIN|SO CLOSE|YOU LOST|DRAW"
     timeout: 120000
 - takeScreenshot: shots/paid-03-outcome
 - tapOn: "HOME"
