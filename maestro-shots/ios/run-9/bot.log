@@ -1,0 +1,13 @@
+[bot 2026-07-22T00:09:01.791Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-22T00:09:01.882Z] recv {"type":"rtt-ping","nonce":"mrvbrgnjsinc"}
+[bot 2026-07-22T00:10:00.806Z] sent queue tier1 credits (robot game 5fyr4wkt at head)
+[bot 2026-07-22T00:10:01.301Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-22T00:10:01.587Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot9xr8sz"}
+[bot 2026-07-22T00:10:01.587Z] paired opponent=E2ERobot9xr8sz (robot, as planned)
+[bot 2026-07-22T00:10:01.587Z] recv {"type":"rtt-ping","nonce":"mrvbsqwhu945"}
+[bot 2026-07-22T00:10:02.163Z] recv {"type":"async-question","matchId":"5fyr4wkt","question":{"text":"What animal is this?","imageToken":"62v7hrwktpjsxqh9","options":["Whale Shark","Hammerhead Shark","Dolphin","Great White Shark"]}}
+[bot 2026-07-22T00:10:08.166Z] sent async-answer match=5fyr4wkt idx=0 t=6000
+[bot 2026-07-22T00:10:08.261Z] recv {"type":"answer-ack","matchId":"5fyr4wkt","serverTime":3600,"questionIdx":58}
+[bot 2026-07-22T00:10:08.284Z] recv {"type":"async-waiting","matchId":"5fyr4wkt","message":"Waiting for opponent to answer..."}
+[bot 2026-07-22T00:10:08.480Z] recv {"type":"async-result","matchId":"5fyr4wkt","tier":"credits:1","you":{"answer":0,"answerText":"Whale Shark","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":-1,"answerText":"Time expired","time":10000,"serverTime":10000,"result":"draw","name":"E2ERobot9xr8sz"},"correctIdx":3,"correctAnswer":"Great White Shark","options":["Whale Shark","Hammerhead Shark","Dolphin","Great White Shark"],"reason":"both_wrong","questionIdx":58}
+[bot 2026-07-22T00:10:08.480Z] SETTLED draw
