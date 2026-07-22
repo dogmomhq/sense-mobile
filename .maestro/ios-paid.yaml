@@ -1,14 +1,27 @@
-# Paid path: injected signed-in session -> PLAY NOW -> real $0.50 credits match -> results -> HOME
-# ROLE FLIP (2026-07-21): the ROBOT is the CREATOR (bot joins its game) so this flow has the
-# exact proven practice-flow shape: the 8s creator countdown absorbs waitForAnimationToEnd and
-# the answer taps land at question start with the full 10s window. Run 8 (robot as joiner)
-# timed out: question appeared instantly, the 9s wait ate the window, and the late grid taps
-# hit PLAY AGAIN on the results screen (stray requeued open game).
-# NOTE: Maestro visible: strings are FULL-MATCH regexes. Always escape $ (unescaped = end-anchor,
-# matches nothing — burned runs 6+7). Stake pill text is "$0.50 · WIN $0.95", so trail with .*
-# NOTE: outcome regex must NOT include PLAY AGAIN — the post-answer waiting screen has that
-# button too, and matching it there would leave before the real result arrives.
 appId: com.dogmomhq.sensemobile
+# PAID E2E — robot side (CREATOR). Run-10 shape, forensics from runs 8+9:
+#  * A paid async creator gets NO practice-style countdown. The server opens the
+#    10s answer window ~3s after the queue message lands (run 9: settle fired at
+#    queue+13.0s exactly). Every Maestro step between PLAY NOW and the answer
+#    taps eats that window (run 9 burned it on a 5.2s stake-pill assert plus
+#    waitForAnimationToEnd 9000, which NEVER returns early — the timer ring
+#    animates continuously). So: ZERO steps between PLAY NOW and the volley.
+#  * Volley = 14 guarded taps at (30%,75%) = answer idx 0 (grid row 1 spans
+#    74.5-82% of screen height). Safe on every screen it can land on:
+#      joining    Cancel link is centered; 30% x misses it. Worst case a hit
+#                 cancels the queue -> bot exits 5, no wager, clean abort.
+#      countdown  zero tappables (CountdownScreen.js verified).
+#      question   first tap locks idx 0; the grid disables after lock.
+#      waiting    its PLAY AGAIN tops at 76.3% height — 75% stays above it,
+#                 and the notVisible guard skips taps once it is on screen.
+#      results    its PLAY AGAIN spans 82.9-89.7% — 75% is well clear.
+#    NEVER tap the 84% row in this flow: that row sits inside PLAY AGAIN on
+#    both the waiting and results screens — it created the stray re-queued
+#    games that broke runs 8 and 9.
+#  * Outcome regex: DEAD HEAT is the draw eyebrow (ResultsScreen.js:571). Bot
+#    and robot both answer idx 0, so the two expected endings are a both-wrong
+#    draw or a robot win. PLAY AGAIN must NOT be in this regex (the post-answer
+#    waiting screen shows it while the match is still unsettled).
 ---
 - launchApp:
     clearState: false
@@ -20,31 +33,22 @@ appId: com.dogmomhq.sensemobile
     timeout: 20000
 - takeScreenshot: shots/paid-01-home
 - tapOn: "PLAY NOW"
-# stake pill on the countdown screen ("$0.50 · WIN $0.95")
-- extendedWaitUntil:
-    visible: '\$0\.50.*'
-    timeout: 30000
-- takeScreenshot: shots/paid-02-countdown
-- waitForAnimationToEnd:
-    timeout: 9000
-- takeScreenshot: shots/paid-03-question
-# 2x2 answer grid in the bottom fade — tap all four cells; first hit locks, rest ignored
-- tapOn:
-    point: "30%,75%"
-- tapOn:
-    point: "70%,75%"
-- tapOn:
-    point: "30%,84%"
-- tapOn:
-    point: "70%,84%"
-# after locking, the app sits on the waiting screen until the harness bot's answer settles
-# the match (~10-20s), then auto-advances to results
+- repeat:
+    times: 14
+    commands:
+      - runFlow:
+          when:
+            notVisible: "PLAY AGAIN"
+          commands:
+            - tapOn:
+                point: "30%,75%"
+- takeScreenshot: shots/paid-02-post-volley
 - extendedWaitUntil:
     visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT"
     timeout: 120000
-- takeScreenshot: shots/paid-04-outcome
+- takeScreenshot: shots/paid-03-outcome
 - tapOn: "HOME"
 - extendedWaitUntil:
     visible: "PLAY NOW"
     timeout: 15000
-- takeScreenshot: shots/paid-05-home
+- takeScreenshot: shots/paid-04-home
