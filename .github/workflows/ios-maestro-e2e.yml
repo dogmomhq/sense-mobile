@@ -164,7 +164,10 @@ jobs:
           exit $PFAIL
 
       - name: Paid assert (DB ground truth)
-        if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
+        # !cancelled(): run even when the Maestro step failed — the DB verdict
+        # (settled? robot answered? strays?) is the diagnosis we need on RED
+        # (run 9 skipped this step and hid the ground truth).
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event.inputs.run_paid == 'true') }}
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
         run: node e2e/paid-assert.mjs
