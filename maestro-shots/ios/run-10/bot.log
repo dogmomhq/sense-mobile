@@ -1,0 +1,12 @@
+[bot 2026-07-22T00:47:14.617Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-22T00:47:14.707Z] recv {"type":"rtt-ping","nonce":"mrvd4mep4zfa"}
+[bot 2026-07-22T00:48:33.154Z] sent queue tier1 credits (robot game r99kvzw5 at head)
+[bot 2026-07-22T00:48:33.645Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-22T00:48:33.913Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot10x4c7d"}
+[bot 2026-07-22T00:48:33.913Z] paired opponent=E2ERobot10x4c7d (robot, as planned)
+[bot 2026-07-22T00:48:33.913Z] recv {"type":"rtt-ping","nonce":"mrvd6bihzbk9"}
+[bot 2026-07-22T00:48:33.928Z] recv {"type":"async-question","matchId":"r99kvzw5","question":{"text":"What animal is this?","imageToken":"c8ftrqif64w3m58z","options":["Turkey","Pheasant","Chicken","Quail"]}}
+[bot 2026-07-22T00:48:40.800Z] sent async-answer match=r99kvzw5 idx=0 t=6000
+[bot 2026-07-22T00:48:40.931Z] recv {"type":"answer-ack","matchId":"r99kvzw5","serverTime":3600,"questionIdx":8}
+[bot 2026-07-22T00:48:41.241Z] recv {"type":"async-result","matchId":"r99kvzw5","tier":"credits:1","you":{"answer":0,"answerText":"Turkey","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Turkey","time":2064,"serverTime":2064,"result":"draw","name":"E2ERobot10x4c7d"},"correctIdx":2,"correctAnswer":"Chicken","options":["Turkey","Pheasant","Chicken","Quail"],"reason":"both_wrong","questionIdx":8}
+[bot 2026-07-22T00:48:41.242Z] SETTLED draw
