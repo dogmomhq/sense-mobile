@@ -1,0 +1,12 @@
+[bot 2026-07-22T11:32:20.910Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-22T11:32:21.009Z] recv {"type":"rtt-ping","nonce":"mrw067x6ik1c"}
+[bot 2026-07-22T11:33:12.619Z] sent queue tier1 credits (robot game 4tdc74xs at head)
+[bot 2026-07-22T11:33:14.092Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-22T11:33:14.494Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot12x5wvv"}
+[bot 2026-07-22T11:33:14.494Z] paired opponent=E2ERobot12x5wvv (robot, as planned)
+[bot 2026-07-22T11:33:14.494Z] recv {"type":"rtt-ping","nonce":"mrw07cmhkzfg"}
+[bot 2026-07-22T11:33:15.621Z] recv {"type":"async-question","matchId":"4tdc74xs","question":{"text":"What animal is this?","imageToken":"nvic9yc9tjjbs6nw","options":["Orangutan","Chimpanzee","Gorilla","Monkey"]}}
+[bot 2026-07-22T11:33:26.443Z] sent async-answer match=4tdc74xs idx=0 t=6000
+[bot 2026-07-22T11:33:27.326Z] recv {"type":"answer-ack","matchId":"4tdc74xs","serverTime":3600,"questionIdx":52}
+[bot 2026-07-22T11:33:27.439Z] recv {"type":"async-result","matchId":"4tdc74xs","tier":"credits:1","you":{"answer":0,"answerText":"Orangutan","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Orangutan","time":555,"serverTime":555,"result":"draw","name":"E2ERobot12x5wvv"},"correctIdx":1,"correctAnswer":"Chimpanzee","options":["Orangutan","Chimpanzee","Gorilla","Monkey"],"reason":"timing_review","questionIdx":52}
+[bot 2026-07-22T11:33:27.449Z] SETTLED draw
