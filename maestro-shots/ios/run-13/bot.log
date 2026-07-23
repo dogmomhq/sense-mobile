@@ -1,0 +1,23 @@
+[bot 2026-07-23T11:34:49.639Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-23T11:34:50.003Z] recv {"type":"rtt-ping","nonce":"mrxfp9b9fpt7"}
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: Connection terminated unexpectedly
+    at Connection.<anonymous> (/Users/runner/work/sense-mobile/sense-mobile/e2e/node_modules/pg/lib/client.js:199:73)
+    at Object.onceWrapper (node:events:630:28)
+    at Connection.emit (node:events:509:28)
+    at Socket.<anonymous> (/Users/runner/work/sense-mobile/sense-mobile/e2e/node_modules/pg/lib/connection.js:63:12)
+    at Socket.emit (node:events:521:24)
+    at TCP.<anonymous> (node:net:351:12)
+Emitted 'error' event on Client instance at:
+    at Client._handleErrorEvent (/Users/runner/work/sense-mobile/sense-mobile/e2e/node_modules/pg/lib/client.js:417:10)
+    at Connection.<anonymous> (/Users/runner/work/sense-mobile/sense-mobile/e2e/node_modules/pg/lib/client.js:217:16)
+    at Object.onceWrapper (node:events:630:28)
+    at Connection.emit (node:events:509:28)
+    at Socket.<anonymous> (/Users/runner/work/sense-mobile/sense-mobile/e2e/node_modules/pg/lib/connection.js:63:12)
+    at Socket.emit (node:events:521:24)
+    at TCP.<anonymous> (node:net:351:12)
+
+Node.js v24.18.0
