@@ -1,0 +1,13 @@
+[bot 2026-07-24T11:30:23.590Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-24T11:30:23.691Z] recv {"type":"rtt-ping","nonce":"mryuzetqxl43"}
+[bot 2026-07-24T11:31:30.940Z] sent queue tier1 credits (robot game tbj9nx5k at head)
+[bot 2026-07-24T11:31:31.416Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-24T11:31:31.592Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot14xz5ui"}
+[bot 2026-07-24T11:31:31.592Z] paired opponent=E2ERobot14xz5ui (robot, as planned)
+[bot 2026-07-24T11:31:31.592Z] recv {"type":"rtt-ping","nonce":"mryv0v58phrb"}
+[bot 2026-07-24T11:31:31.627Z] recv {"type":"async-question","matchId":"tbj9nx5k","question":{"text":"What animal is this?","imageToken":"h2ytau3bxh6g4n98","options":["Donkey","Alpaca","Llama","Camel"]}}
+[bot 2026-07-24T11:31:37.630Z] sent async-answer match=tbj9nx5k idx=0 t=6000
+[bot 2026-07-24T11:31:37.740Z] recv {"type":"answer-ack","matchId":"tbj9nx5k","serverTime":3600,"questionIdx":41}
+[bot 2026-07-24T11:31:37.757Z] recv {"type":"async-waiting","matchId":"tbj9nx5k","message":"Waiting for opponent to answer..."}
+[bot 2026-07-24T11:31:42.383Z] recv {"type":"async-result","matchId":"tbj9nx5k","tier":"credits:1","you":{"answer":0,"answerText":"Donkey","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":-1,"answerText":"Time expired","time":10000,"serverTime":10000,"result":"draw","name":"E2ERobot14xz5ui"},"correctIdx":3,"correctAnswer":"Camel","options":["Donkey","Alpaca","Llama","Camel"],"reason":"both_wrong","questionIdx":41}
+[bot 2026-07-24T11:31:42.389Z] SETTLED draw
