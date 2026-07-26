@@ -1,0 +1,12 @@
+[bot 2026-07-26T11:04:07.117Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-26T11:04:07.209Z] recv {"type":"rtt-ping","nonce":"ms1oxbophiwq"}
+[bot 2026-07-26T11:05:38.880Z] sent queue tier1 credits (robot game gcvrxrqn at head)
+[bot 2026-07-26T11:05:39.238Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-26T11:05:39.425Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot16xwvby"}
+[bot 2026-07-26T11:05:39.425Z] paired opponent=E2ERobot16xwvby (robot, as planned)
+[bot 2026-07-26T11:05:39.425Z] recv {"type":"rtt-ping","nonce":"ms1ozau3hctl"}
+[bot 2026-07-26T11:05:39.430Z] recv {"type":"async-question","matchId":"gcvrxrqn","question":{"text":"What animal is this?","imageToken":"9c248jfmsqbfsy4z","options":["Koala","Sloth","Tamandua","Anteater"]}}
+[bot 2026-07-26T11:05:47.167Z] sent async-answer match=gcvrxrqn idx=0 t=6000
+[bot 2026-07-26T11:05:47.266Z] recv {"type":"answer-ack","matchId":"gcvrxrqn","serverTime":3600,"questionIdx":9}
+[bot 2026-07-26T11:05:47.323Z] recv {"type":"async-result","matchId":"gcvrxrqn","tier":"credits:1","you":{"answer":0,"answerText":"Koala","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Koala","time":471,"serverTime":471,"result":"draw","name":"E2ERobot16xwvby"},"correctIdx":1,"correctAnswer":"Sloth","options":["Koala","Sloth","Tamandua","Anteater"],"reason":"both_wrong","questionIdx":9}
+[bot 2026-07-26T11:05:47.323Z] SETTLED draw
