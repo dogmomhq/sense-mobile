@@ -1,0 +1,13 @@
+[bot 2026-07-27T12:43:46.208Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-27T12:43:46.309Z] recv {"type":"rtt-ping","nonce":"ms37xbwxsrd8"}
+[bot 2026-07-27T12:44:41.465Z] sent queue tier1 credits (robot game k92qsrwd at head)
+[bot 2026-07-27T12:44:41.862Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-07-27T12:44:42.032Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot17xx3ds"}
+[bot 2026-07-27T12:44:42.032Z] paired opponent=E2ERobot17xx3ds (robot, as planned)
+[bot 2026-07-27T12:44:42.032Z] recv {"type":"rtt-ping","nonce":"ms37yivsclnb"}
+[bot 2026-07-27T12:44:42.049Z] recv {"type":"async-question","matchId":"k92qsrwd","question":{"text":"What animal is this?","imageToken":"ppxmmhywa8q635n2","options":["Guinea Pig","Hare","Rabbit","Jackrabbit"]}}
+[bot 2026-07-27T12:44:48.051Z] sent async-answer match=k92qsrwd idx=0 t=6000
+[bot 2026-07-27T12:44:48.162Z] recv {"type":"answer-ack","matchId":"k92qsrwd","serverTime":3600,"questionIdx":35}
+[bot 2026-07-27T12:44:48.170Z] recv {"type":"async-waiting","matchId":"k92qsrwd","message":"Waiting for opponent to answer..."}
+[bot 2026-07-27T12:44:52.028Z] recv {"type":"async-result","matchId":"k92qsrwd","tier":"credits:1","you":{"answer":0,"answerText":"Guinea Pig","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Guinea Pig","time":9573,"serverTime":9573,"result":"draw","name":"E2ERobot17xx3ds"},"correctIdx":2,"correctAnswer":"Rabbit","options":["Guinea Pig","Hare","Rabbit","Jackrabbit"],"reason":"both_wrong","questionIdx":35}
+[bot 2026-07-27T12:44:52.033Z] SETTLED draw
