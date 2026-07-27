@@ -44,12 +44,43 @@ appId: com.dogmomhq.sensemobile
             - tapOn:
                 point: "30%,75%"
 - takeScreenshot: shots/paid-02-post-volley
+# B61: act 1 ends at PLAY AGAIN (visible on BOTH waiting and results screens), not
+# the outcome stamp — when the runback tap beats the settle (the target race),
+# match 1's results screen NEVER renders (banner instead) and an outcome wait here
+# would hang 120s. Match 1's settle is verified in the DB assert, not on screen.
+- takeScreenshot: shots/paid-03-outcome
+# ===== ACT 2 (B61 regression net): RUNBACK AT SETTLE =====
+# Reproduces the 2026-07-27 live glitch: PLAY AGAIN tapped the moment it appears —
+# on the WAITING screen that is BEFORE the settle lands, so match 1's result arrives
+# while we're joining match 2 (the exact hijack race). Post-B61 the result must
+# banner, the fresh queue must survive, and a full second match must play out.
+# A client that dies home here can never show outcome 2 -> timeout RED; DB assert
+# (EXPECT_MATCHES=2, zero strays) is the deterministic backstop. Bot loops with
+# MATCHES=2. NOTE: the outcome regex above may have matched match 1's results if
+# settle beat our tap — then this taps PLAY AGAIN on results instead: a looser
+# race, still a valid runback-at-settle.
+- extendedWaitUntil:
+    visible: "PLAY AGAIN"
+    timeout: 15000
+- tapOn: "PLAY AGAIN"
+- assertNotVisible: "PLAY NOW"
+- takeScreenshot: shots/paid-05-runback
+- repeat:
+    times: 14
+    commands:
+      - runFlow:
+          when:
+            notVisible: "PLAY AGAIN"
+          commands:
+            - tapOn:
+                point: "30%,75%"
+- takeScreenshot: shots/paid-06-post-volley-2
 - extendedWaitUntil:
     visible: "YOU WIN|SO CLOSE|YOU LOST|DRAW"
     timeout: 120000
-- takeScreenshot: shots/paid-03-outcome
+- takeScreenshot: shots/paid-07-outcome-2
 - tapOn: "HOME"
 - extendedWaitUntil:
     visible: "PLAY NOW"
     timeout: 15000
-- takeScreenshot: shots/paid-04-home
+- takeScreenshot: shots/paid-08-home
