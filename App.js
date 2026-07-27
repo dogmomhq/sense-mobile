@@ -536,7 +536,17 @@ export default function App() {
     setResult({ result: msg.you.result, reason: msg.reason });
     setQ(prev => prev ? { ...prev, correctIdx: msg.correctIdx } : prev);
     setShowActions(false);
-    setTimeout(() => fadeTo(() => setMode('results')), 1200);
+    // B62 STALE-FLIP GUARD (2026-07-27, CJ live, match y5vedu3v): this delayed flip used to be
+    // unconditional. PLAY AGAIN tapped inside the 1.2s window ran requeueOnline + loadQuestion
+    // (which null result/comp and re-point the refs at the NEW match) — then this timer fired
+    // anyway and slammed mode back to 'results'. With result null, ReskinApp fell through to the
+    // Home branch while the fresh round ran headless underneath (mode leaving 'play' killed the
+    // countdown flip + the answer tick), so the screen looked dead and the server swept the match
+    // as a creator timeout 57s later. Capture the foreground match at arm time; if it changed by
+    // fire time (runback, home, new question), this flip belongs to a dead screen — drop it.
+    // ('room' challenge results keep working: matchIdRef stays 'room' across the window.)
+    const flipMid = matchIdRef.current;
+    setTimeout(() => { if (matchIdRef.current !== flipMid) return; fadeTo(() => setMode('results')); }, 1200);
   }
   function pushBanner(res, oppNm, mid) {
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
