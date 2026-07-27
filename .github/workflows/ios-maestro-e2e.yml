@@ -142,11 +142,12 @@ jobs:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
         run: node e2e/paid-precheck.mjs   # exit 5 = QUEUE-BUSY, aborts before any wager
 
-      - name: Paid match (bot vs robot, real $0.50)
+      - name: Paid match (bot vs robot, real $0.50 x2 — runback scenario)
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
         env:
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
+          MATCHES: "2"           # B61: flow taps PLAY AGAIN at settle — bot must play the re-queued game too
         run: |
           mkdir -p shots
           xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/paid.mp4 & echo $! > /tmp/pvid.pid
@@ -170,6 +171,7 @@ jobs:
         if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event.inputs.run_paid == 'true') }}
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
+          EXPECT_MATCHES: "2"    # B61: both the first match AND the runback re-queue must settle; 1 settled + 1 orphan = the 2026-07-27 glitch
         run: node e2e/paid-assert.mjs
 
       - name: Paid cleanup (always)
