@@ -672,6 +672,16 @@ export default function App() {
           refreshServerBalance();
           break;
         }
+        // B61 STRAY GUARD: online, but this question belongs to a DIFFERENT match than the one
+        // on screen (playing or reading results). Every legit join clears/loads the active refs
+        // first (requeueOnline nulls, loadQuestion sets), so a mismatched id here can only be a
+        // stray — duplicate queue, runback-race leftover. Same-id re-delivery (B54 reconnect
+        // resend) passes through untouched. Cancel it for an instant refund and stay put.
+        if (activeMatchRef.current && msg.matchId !== activeMatchRef.current && (modeRef.current === 'play' || modeRef.current === 'results')) {
+          try { markCancelledId(msg.matchId); wsSend(cancelMatch(msg.matchId, wsIdentity())); } catch (e) {}
+          refreshServerBalance();
+          break;
+        }
         autoRequeueRef.current.n = 0; loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // a real question = we matched; clear the auto-requeue guard. server escrowed the stake before sending the question.
       case 'answer-ack': { // local time already frozen on tap — the echo never touches timing.
         // 2026-07-17: questionIdx now rides the ack (post-answer) — capture it and heal the
@@ -1042,6 +1052,7 @@ export default function App() {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
     if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
+    activeMatchRef.current = null; matchIdRef.current = null; // B61: runback = the old game stops being "current" NOW. Its result often races this very tap (2026-07-27: settle + runback in the same second); with the ref cleared the late result takes the async-result else-branch (banner) instead of re-foregrounding over the joining screen — the hijack that orphaned a fresh queue into a 50c timeout loss.
     setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(src || 'runback');
   }
   function cancelOnline() { try { if (matchIdRef.current) { markCancelledId(matchIdRef.current); wsSend(cancelMatch(matchIdRef.current)); } } catch (e) {} bailHome(null); }
