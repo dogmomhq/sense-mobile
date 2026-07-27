@@ -29,20 +29,22 @@ const grant = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
 if (!grant.access_token) { console.error('BOT GRANT FAILED', JSON.stringify(grant).slice(0, 200)); process.exit(1); }
 const supabaseToken = grant.access_token;
 
+const MATCHES = Math.max(1, parseInt(process.env.MATCHES || '1', 10)); // B61: 2 = runback scenario (play the robot's re-queued game too)
 const ws = new WebSocket(WS_URL);
-let answered = false, settled = false, stranger = false, queued = false;
+let answered = false, settled = false, stranger = false, queued = false, settledCount = 0;
 const say = (o) => ws.send(JSON.stringify(o));
 const log = (tag, o) => console.log(`[bot ${new Date().toISOString()}] ${tag} ${typeof o === 'string' ? o : JSON.stringify(o)}`);
 
 // Wait for the ROBOT's open game to reach the FIFO head, then queue as guest.
 // If a stranger's game is at the head, queuing would FIFO-join THEIRS — never do that.
-async function waitForRobotGameThenQueue() {
+async function waitForRobotGameThenQueue(iters, noShowExit) {
+  iters = iters || 75; noShowExit = noShowExit == null ? 5 : noShowExit;   // 75 x 2s = 150s default budget
   const db = new pg.Client({
     connectionString: (process.env.SENSE_DB_URL || '').replace(':5432', ':6543'),
     ssl: { rejectUnauthorized: false },
   });
   await db.connect();
-  for (let i = 0; i < 75; i++) {                     // 75 x 2s = 150s budget
+  for (let i = 0; i < iters; i++) {
     const { rows } = await db.query(
       "select player_a, match_id from game_queue where status='open' and player_b is null order by id asc limit 1");
     if (rows.length && rows[0].player_a === ctx.robotHandle) {
@@ -50,15 +52,16 @@ async function waitForRobotGameThenQueue() {
       say({ type: 'queue', name: ctx.botHandle, tier: 1, paymentMode: 'credits', wallet: null, onChainGameId: null,
             supabaseToken, preferredHandle: ctx.botHandle, src: 'tap' });
       queued = true;
-      log('sent', `queue tier1 credits (robot game ${rows[0].match_id} at head)`);
+      log('sent', `queue tier1 credits (robot game ${rows[0].match_id} at head, match ${settledCount + 1}/${MATCHES})`);
       return;
     }
     if (rows.length) log('waiting', `FIFO head is ${rows[0].player_a} (not robot) — hold (${i})`);
     await new Promise(s => setTimeout(s, 2000));
   }
   await db.end();
-  log('timeout', 'robot open game never reached FIFO head in 150s — no wager made (exit 5)');
-  process.exit(5);
+  if (noShowExit === 6) log('timeout', 'robot RUNBACK game never appeared — client likely died at the runback race (B61 regression) (exit 6)');
+  else log('timeout', `robot open game never reached FIFO head in ${iters * 2}s — no wager made (exit 5)`);
+  process.exit(noShowExit);
 }
 
 ws.on('open', () => {
@@ -83,7 +86,15 @@ ws.on('message', (buf) => {
       log('sent', `async-answer match=${m.matchId} idx=0 t=6000`);
     }, 6000);
   }
-  if (m.type === 'async-result') { settled = true; log('SETTLED', m.you && m.you.result); setTimeout(() => process.exit(stranger ? 4 : 0), 1500); }
+  if (m.type === 'async-result') {
+    settledCount += 1;
+    log('SETTLED', `${m.you && m.you.result} (${settledCount}/${MATCHES})`);
+    if (settledCount >= MATCHES) { settled = true; setTimeout(() => process.exit(stranger ? 4 : 0), 1500); }
+    else { // B61 runback: robot is re-queueing RIGHT NOW (it tapped PLAY AGAIN before this settle) — go find its new game
+      answered = false;
+      waitForRobotGameThenQueue(30, 6).catch(e => { log('poll-error', e.message); process.exit(1); }); // 60s: the runback game usually already exists
+    }
+  }
   if (m.type === 'error') log('SERVER-ERROR', m.message || m.code);
 });
 ws.on('close', (c) => { log('close', c); if (!settled) process.exit(stranger ? 4 : (queued ? (answered ? 0 : 2) : 5)); });
