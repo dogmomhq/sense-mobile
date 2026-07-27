@@ -141,19 +141,27 @@ jobs:
           sleep 30
           xcrun simctl terminate "$UDID" com.dogmomhq.sensemobile || true
           CONT=$(xcrun simctl get_app_container "$UDID" com.dogmomhq.sensemobile data)
-          # The warm-up launch created AsyncStorage's manifest.json; once a manifest
-          # exists, RN ignores session files injected out-of-band (run 20: robot ran
-          # logged-out, bot exit 5, zero wagers). Wipe JS storage so the inject lands
-          # on a virgin store like a fresh install. expo-updates state (the downloaded
-          # OTA) lives in .expo-internal, not here — it survives this wipe.
-          rm -rf "$CONT/Documents/RCTAsyncLocalStorage_V1"
-          D="$CONT/Documents/RCTAsyncLocalStorage_V1"
-          mkdir -p "$D"
+          # @react-native-async-storage keeps its LIVE store under Library/Application
+          # Support/<bundle>/RCTAsyncLocalStorage_V1 once the app has launched — NOT
+          # Documents/. Pre-warm-up the inject worked because the app had never run
+          # and first-init adopted the Documents seed. Post-warm-up (runs 20+21) the
+          # Documents inject landed in a dead directory while the app read its live
+          # AppSupport manifest → SIGN IN screen, bot exit 5, zero wagers. Fix: find
+          # every store the warm-up created (plus the legacy Documents path) and
+          # rebuild EACH as a virgin store = hashed session file + manifest pointing
+          # the supabase key at it. expo-updates keeps the downloaded OTA elsewhere
+          # (.expo-internal) — untouched by this.
           KEY="sb-nexpzwfemjcqdrljrfjy-auth-token"
           H=$(md5 -qs "$KEY")
-          cp /tmp/e2e-session.json "$D/$H"
           HANDLE=$(jq -r .robotHandle /tmp/e2e-ctx.json)
-          python3 -c "import json,os,sys; d,key,h=sys.argv[1],sys.argv[2],sys.argv[3]; mf=os.path.join(d,'manifest.json'); m=json.load(open(mf)) if os.path.exists(mf) else {}; m.update({key: None, 'sense_balance': '300', 'sense_handle': h}); json.dump(m, open(mf,'w'))" "$D" "$KEY" "$HANDLE"
+          { find "$CONT" -type d -name RCTAsyncLocalStorage_V1; echo "$CONT/Documents/RCTAsyncLocalStorage_V1"; } | sort -u | while IFS= read -r D; do
+            [ -n "$D" ] || continue
+            rm -rf "$D"
+            mkdir -p "$D"
+            cp /tmp/e2e-session.json "$D/$H"
+            python3 -c "import json,os,sys; d,key,h=sys.argv[1],sys.argv[2],sys.argv[3]; json.dump({key: None, 'sense_balance': '300', 'sense_handle': h}, open(os.path.join(d,'manifest.json'),'w'))" "$D" "$KEY" "$HANDLE"
+            echo "seeded store: $D"
+          done
           echo "injected session, handle=$HANDLE"
 
       - name: Paid queue gate (no real players waiting)
