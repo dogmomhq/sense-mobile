@@ -1,0 +1,3 @@
+[bot 2026-07-27T20:21:09.903Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-07-27T20:21:10.002Z] recv {"type":"rtt-ping","nonce":"ms3o9jjgwvdf"}
+[bot 2026-07-27T20:23:44.325Z] timeout robot open game never reached FIFO head in 150s — no wager made (exit 5)
