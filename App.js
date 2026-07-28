@@ -548,14 +548,17 @@ export default function App() {
     const flipMid = matchIdRef.current;
     setTimeout(() => { if (matchIdRef.current !== flipMid) return; fadeTo(() => setMode('results')); }, 1200);
   }
-  function pushBanner(res, oppNm, mid) {
+  function pushBanner(res, oppNm, mid, stakeC) {
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
     // BUG 2 FIX (2026-06-13): a backlog of background results used to stack one full-width
     // banner PER match with no cap/dedup, covering the screen and blocking the Home/nav
     // taps underneath. Collapse to ONE banner per match (replace any existing one for the
     // same mid) and keep at most the 3 most recent so the UI under them stays reachable.
-    setBanners(prev => [...prev.filter(b => b.mid !== mid), { id, result:res, text:`${word} vs ${oppNm}`, mid }].slice(-3));
-    setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 4000);
+    // B63 (2026-07-27, CJ): banner carries the stake so the render layer (ReskinApp, where
+    // the prize ladder lives) can show the AMOUNT WON on win banners; shown 1s pinned to
+    // the very top of the app (was 4s mid-screen). `text` stays as loss/draw + legacy-UI copy.
+    setBanners(prev => [...prev.filter(b => b.mid !== mid), { id, result:res, text:`${word} vs ${oppNm}`, mid, stake: stakeC }].slice(-3));
+    setTimeout(() => setBanners(prev => prev.filter(b => b.id !== id)), 1000);
   }
   async function hydrateHistory(name) {
     if (!name) return;
@@ -719,7 +722,7 @@ export default function App() {
         cancelledIdsRef.current.delete(msg.matchId); // it settled (race-loss: A was already told it went live) — stop suppressing
         // foreground only if this is the match currently on the Play screen — else a background banner
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) showResultsFor(msg, oppT);
-        else pushBanner(res, oppNm, msg.matchId);
+        else pushBanner(res, oppNm, msg.matchId, (pending[msg.matchId] && pending[msg.matchId].stake) || stakeRef.current);
         refreshServerBalance();   // settle wrote win/refund/rake rows — sync balance + ledger feed
         setTimeout(() => { try { refreshServerBalance(); } catch (e) {} }, 4000); // AUDIT #4: retry — hydrateHistory swallows fetch failures, one late re-sync self-heals a missed payout
         reconcilePending();       // drop the now-settled card from PENDING / fix the strip count
