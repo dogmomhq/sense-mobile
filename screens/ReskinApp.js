@@ -704,11 +704,15 @@ export default function ReskinApp({ g }) {
             }} />
         </View>
       ) : null}
-      {/* background-result banners (never during the countdown/question takeover) */}
-      {!inMatch || !cdOverlay ? (
-        <ReskinBanners banners={g.banners}
-          onPress={(b) => { g.setBanners((prev) => prev.filter((x) => x.id !== b.id)); g.navTo('history'); }} />
-      ) : null}
+      {/* background-result banners — ALWAYS rendered (B65, 2026-07-27, CJ). The old
+          `!inMatch || !cdOverlay` gate hid them during the countdown takeover — but in the
+          runback flow the previous match settles EXACTLY during the next countdown, and the
+          1s banner lived and died entirely behind it (CJ: "the custom bar should show in the
+          countdown screen thats the issue"). The bar is a slim top strip at zIndex 120, above
+          the countdown (80), so it never blocks gameplay; its container is box-none so answer
+          taps pass through everywhere else. */}
+      <ReskinBanners banners={g.banners}
+        onPress={(b) => { g.setBanners((prev) => prev.filter((x) => x.id !== b.id)); g.navTo('history'); }} />
       {g.dobAsk ? <DobModal error={g.dobErr} onSubmit={g.submitDob} onCancel={g.cancelDob} /> : null}
       {g.toast ? <ReskinToast text={String(g.toast).toUpperCase()} kind={g.toastKind} /> : null}
       {g.notice && !g.mode ? <ReskinToast text={String(g.notice).toUpperCase()} /> : null}
