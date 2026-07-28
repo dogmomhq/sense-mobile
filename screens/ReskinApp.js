@@ -21,7 +21,7 @@ import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
 import AppShell from './AppShell';
 import { avatarSource, DEFAULT_AVATAR_KEY } from './avatars';
-import { COLORS, FONTS, useScale, useSenseFonts } from './theme';
+import { COLORS, FONTS, useScale, useSenseFonts, getSafeTop } from './theme';
 
 // DOB MODAL (B44, B48): shown when the server answers needDob — first DEPOSIT (universal
 // 18+ floor) or a paid queue for accounts that got credits before the floor. Pure input
@@ -205,21 +205,24 @@ function ReskinToast({ text, kind = 'info' }) {
 function ReskinBanners({ banners, onPress }) {
   const s = useScale();
   if (!banners || banners.length === 0) return null;
+  // B63 (2026-07-27, CJ): sticky bar pinned to the VERY top of the app (was a floating
+  // card at 280*s). One dark slab extends under the status bar (getSafeTop() added RAW
+  // per theme.js contract); win banners show the AMOUNT WON from the fixed-prize ladder
+  // ("WON $0.95"), loss/draw keep their vs-name text. Display is 1s (App.js pushBanner),
+  // so the VIEW cta is gone — a tap still deep-links to history. zIndex above toast (90)
+  // and countdown (80) so it is never buried.
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', top: 280 * s, left: 22 * s,
-      right: 22 * s, zIndex: 95 }}>
+    <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0,
+      zIndex: 120, paddingTop: getSafeTop(), backgroundColor: 'rgba(16,20,13,0.96)' }}>
       {banners.map((b) => {
         const c = b.result === 'win' ? COLORS.lime : b.result === 'loss' ? '#FF5A48' : COLORS.cream;
+        const txt = b.result === 'win' && b.stake ? `WON ${fmtMoney(winCents(b.stake))}` : String(b.text || '').toUpperCase();
         return (
           <Pressable key={b.id} onPress={() => onPress(b)}
-            style={{ backgroundColor: 'rgba(16,20,13,0.94)', borderWidth: 2 * s, borderColor: c,
-              borderRadius: 24 * s, paddingVertical: 24 * s, paddingHorizontal: 36 * s,
-              marginBottom: 14 * s, flexDirection: 'row', justifyContent: 'space-between',
-              alignItems: 'center' }}>
+            style={{ borderBottomWidth: 2 * s, borderColor: c, paddingVertical: 18 * s,
+              paddingHorizontal: 36 * s, alignItems: 'center' }}>
             <Text style={{ color: c, fontFamily: FONTS.interExtra, fontSize: 32 * s,
-              letterSpacing: 0.05 * 32 * s }}>{String(b.text || '').toUpperCase()}</Text>
-            <Text style={{ color: COLORS.creamDim, fontFamily: FONTS.interBold,
-              fontSize: 26 * s }}>VIEW ›</Text>
+              letterSpacing: 0.05 * 32 * s }}>{txt}</Text>
           </Pressable>
         );
       })}
