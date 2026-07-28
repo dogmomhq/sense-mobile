@@ -16,13 +16,26 @@ import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handl
 import { supabase } from './supabaseClient';
 import { runAttestation, assertAnswer, getAttestKeyId, loadAttestKey } from './attest'; // P2 attest-once + P3 per-answer assertions — silent, never block
 import { ensurePushRegistration, getPushStatus, requestPushPermission } from './push'; // P2 ask-after-answer + B35 waiting-screen enable button
+// B64 (2026-07-27, CJ): show a REAL Apple banner for background WINS while the app is
+// open. iOS only presents notifications in the foreground if a handler opts in — we opt
+// in ONLY for our own local win notifications (data.localWin). The server's remote
+// "Result is in" pushes stay suppressed in the foreground exactly as before (the server
+// comment counts on this: no redundant popup over a live results screen). Guarded
+// require: if the native module were ever missing, the app must not crash at launch.
+try {
+  const N = require('expo-notifications');
+  N.setNotificationHandler({ handleNotification: async (n) => {
+    const w = !!(n && n.request && n.request.content && n.request.content.data && n.request.content.data.localWin);
+    return { shouldShowAlert: w, shouldShowBanner: w, shouldShowList: w, shouldPlaySound: w, shouldSetBadge: false };
+  } });
+} catch (e) {}
 
 // ===== RESKIN feature flag (branch reskin-ui) ================================
 // true  -> render the new pixel-locked UI (screens/ReskinApp.js) on top of the
 //          UNCHANGED state machine below. Every WS handler / logic function in
 //          this file stays byte-identical; ReskinApp is a pure render layer.
 // false -> the original UI below renders exactly as on main.
-import ReskinApp from './screens/ReskinApp';
+import ReskinApp, { fmtMoney, winCents } from './screens/ReskinApp'; // B64: prize formatting for the Apple win notification (ladder lives there)
 import { setSfxEnabled } from './screens/sfx';
 const RESKIN = true;
 // RESKIN_CREDITS: flip online matches to SERVER-SIDE credits. The server escrows the stake at
@@ -548,7 +561,24 @@ export default function App() {
     const flipMid = matchIdRef.current;
     setTimeout(() => { if (matchIdRef.current !== flipMid) return; fadeTo(() => setMode('results')); }, 1200);
   }
-  function pushBanner(res, oppNm, mid, stakeC) {
+  // B64: background WIN with the app open -> real Apple banner with the amount. Returns
+  // false (-> custom-bar fallback) unless: iOS + app ACTIVE (backgrounded players already
+  // get the server's remote push — firing here too would double-notify the tray) +
+  // permission granted (asked by the existing P2 flow after the first async answer).
+  async function tryLocalWinNotification(stakeC, oppNm) {
+    try {
+      if (Platform.OS !== 'ios') return false;
+      if (AppState.currentState !== 'active') return false;
+      let N; try { N = require('expo-notifications'); } catch (e) { return false; }
+      const perm = await N.getPermissionsAsync();
+      if (!perm || perm.status !== 'granted') return false;
+      await N.scheduleNotificationAsync({ content: { title: `WON ${fmtMoney(winCents(stakeC))}`,
+        body: `vs ${oppNm}`, sound: 'default', data: { localWin: 1 } }, trigger: null });
+      return true;
+    } catch (e) { return false; }
+  }
+  async function pushBanner(res, oppNm, mid, stakeC) {
+    if (res === 'win' && await tryLocalWinNotification(stakeC, oppNm)) return; // B64: Apple banner shown — skip the custom bar
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
     // BUG 2 FIX (2026-06-13): a backlog of background results used to stack one full-width
     // banner PER match with no cap/dedup, covering the screen and blocking the Home/nav
