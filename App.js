@@ -561,24 +561,31 @@ export default function App() {
     const flipMid = matchIdRef.current;
     setTimeout(() => { if (matchIdRef.current !== flipMid) return; fadeTo(() => setMode('results')); }, 1200);
   }
-  // B64: background WIN with the app open -> real Apple banner with the amount. Returns
-  // false (-> custom-bar fallback) unless: iOS + app ACTIVE (backgrounded players already
-  // get the server's remote push — firing here too would double-notify the tray) +
+  // B64/B66: background result with the app open -> real Apple banner. CJ's rule
+  // (2026-07-27): "if they have no notifications just show normal, if they have
+  // notifications on show as apple" — ALL results, not just wins. Returns false
+  // (-> custom-bar fallback) unless: iOS + app ACTIVE (backgrounded players already get
+  // the server's remote push — firing here too would double-notify the tray) +
   // permission granted (asked by the existing P2 flow after the first async answer).
-  async function tryLocalWinNotification(stakeC, oppNm) {
+  // Win = amount in the title + ding; loss/draw = silent banner (no celebratory sound
+  // for bad news). data.localWin tags ALL local result notifs for the foreground handler.
+  async function tryLocalResultNotification(res, stakeC, oppNm) {
     try {
       if (Platform.OS !== 'ios') return false;
       if (AppState.currentState !== 'active') return false;
       let N; try { N = require('expo-notifications'); } catch (e) { return false; }
       const perm = await N.getPermissionsAsync();
       if (!perm || perm.status !== 'granted') return false;
-      await N.scheduleNotificationAsync({ content: { title: `WON ${fmtMoney(winCents(stakeC))}`,
-        body: `vs ${oppNm}`, sound: 'default', data: { localWin: 1 } }, trigger: null });
+      const nm = String(oppNm || 'OPPONENT').toUpperCase();
+      const title = res === 'win' ? `WON ${fmtMoney(winCents(stakeC))}` : res === 'loss' ? `LOST VS ${nm}` : `DRAW VS ${nm}`;
+      await N.scheduleNotificationAsync({ content: { title,
+        body: res === 'win' ? `vs ${oppNm}` : 'Tap to see the final times.',
+        sound: res === 'win' ? 'default' : false, data: { localWin: 1 } }, trigger: null });
       return true;
     } catch (e) { return false; }
   }
   async function pushBanner(res, oppNm, mid, stakeC) {
-    if (res === 'win' && await tryLocalWinNotification(stakeC, oppNm)) return; // B64: Apple banner shown — skip the custom bar
+    if (await tryLocalResultNotification(res, stakeC, oppNm)) return; // notifications ON -> Apple for EVERY result; the custom bar is the no-permission fallback only (B66)
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
     // BUG 2 FIX (2026-06-13): a backlog of background results used to stack one full-width
     // banner PER match with no cap/dedup, covering the screen and blocking the Home/nav
