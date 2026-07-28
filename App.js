@@ -569,22 +569,27 @@ export default function App() {
   // permission granted (asked by the existing P2 flow after the first async answer).
   // Win = amount in the title + ding; loss/draw = silent banner (no celebratory sound
   // for bad news). data.localWin tags ALL local result notifs for the foreground handler.
+  // B67: every exit tracked to PostHog (notif_gate) — CJ reports zero Apple banners on
+  // device despite granted perms; this tells us in ONE test which gate eats it.
   async function tryLocalResultNotification(res, stakeC, oppNm) {
     try {
-      if (Platform.OS !== 'ios') return false;
-      if (AppState.currentState !== 'active') return false;
-      let N; try { N = require('expo-notifications'); } catch (e) { return false; }
+      if (Platform.OS !== 'ios') { track('notif_gate', { step: 'not_ios', res }); return false; }
+      if (AppState.currentState !== 'active') { track('notif_gate', { step: 'not_active', st: AppState.currentState, res }); return false; }
+      let N; try { N = require('expo-notifications'); } catch (e) { track('notif_gate', { step: 'no_module', res }); return false; }
       const perm = await N.getPermissionsAsync();
-      if (!perm || perm.status !== 'granted') return false;
+      if (!perm || perm.status !== 'granted') { track('notif_gate', { step: 'perm_' + String(perm && perm.status), res }); return false; }
+      const iosSt = perm.ios && perm.ios.status; // 3=PROVISIONAL (Deliver Quietly: NO banner!), 2=AUTHORIZED
       const nm = String(oppNm || 'OPPONENT').toUpperCase();
       const title = res === 'win' ? `WON ${fmtMoney(winCents(stakeC))}` : res === 'loss' ? `LOST VS ${nm}` : `DRAW VS ${nm}`;
-      await N.scheduleNotificationAsync({ content: { title,
+      const nid = await N.scheduleNotificationAsync({ content: { title,
         body: res === 'win' ? `vs ${oppNm}` : 'Tap to see the final times.',
         sound: res === 'win' ? 'default' : false, data: { localWin: 1 } }, trigger: null });
+      track('notif_gate', { step: 'scheduled', res, nid: String(nid), iosStatus: iosSt, alerts: perm.ios && perm.ios.allowsAlert });
       return true;
-    } catch (e) { return false; }
+    } catch (e) { track('notif_gate', { step: 'threw', res, err: String((e && e.message) || e) }); return false; }
   }
   async function pushBanner(res, oppNm, mid, stakeC) {
+    track('push_banner', { res, mid }); // B67: proves the background-result path ran at all
     if (await tryLocalResultNotification(res, stakeC, oppNm)) return; // notifications ON -> Apple for EVERY result; the custom bar is the no-permission fallback only (B66)
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
     // BUG 2 FIX (2026-06-13): a backlog of background results used to stack one full-width
