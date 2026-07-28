@@ -160,7 +160,7 @@ const WAIT_RESULT_CAP_MS = 5000; // B59: until the server CONFIRMS a real wait (
 
 export const fmtMoney = (cents) => '$' + (Math.abs(cents || 0) / 100).toFixed(2);
 const fmtSigned = (cents) => (cents < 0 ? '-' : '+') + fmtMoney(cents);
-const winCents = (stakeCents) => { const t = tierFor(stakeCents); return t ? t.prizeCents : Math.round((stakeCents || 0) * 2 * 0.95); }; // fixed prize from ladder; fallback keeps legacy $5/$100 history rows correct
+export const winCents = (stakeCents) => { const t = tierFor(stakeCents); return t ? t.prizeCents : Math.round((stakeCents || 0) * 2 * 0.95); }; // fixed prize from ladder; fallback keeps legacy $5/$100 history rows correct
 const fmtSecs = (ms) => (ms == null ? '—' : (Math.min(ms, TIME_LIMIT) / 1000).toFixed(2) + 's');
 const stakeLabel = (stakeCents) => `${fmtMoney(stakeCents)} · WIN ${fmtMoney(winCents(stakeCents))}`;
 // BUG 1 FIX (2026-06-13): the PENDING card must show the TRUE staked tier, not the raw
