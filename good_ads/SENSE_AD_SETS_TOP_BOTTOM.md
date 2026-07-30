@@ -97,3 +97,46 @@ Top is someone playing mid-absurd-activity; the activity peaks exactly on the wi
 5. **B4 Ice bath** — max-wow physical peak with a built-in temperature-mirror detail.
 
 Production notes: reactor girls face-locked from our existing refs (braids girl + 2 new). Bottom clips: 1.5s of intentional bad-framing jank before UI entry. Win sync law unchanged: top peak = win burst = tap/cheer/impact same frame. Each TOP is written to be shot standalone so it can be re-paired with 2-3 alternate bottom animals for cheap variants.
+
+---
+
+# UPDATE — FORMAT LAWS v3 (locked)
+
+1. **NO SPOKEN LINES. EVER.** Reactions are cheers, screams, gasps, roars only. Kills lip-sync risk completely, works in every language, and Veo renders wordless screaming flawlessly. Any words live in captions.
+2. **PERFECT-STILL FIRST FRAME.** Every ad opens on a thumbnail-grade insane still (frame one must work as a poster). Generated first, approved, then animated with first-frame lock.
+3. **Casting:** male streamers allowed; if it's a girl, she's hot AND mid-something-crazy. No one sits on a couch.
+4. Win sync law unchanged: top reaction peak = win burst = tap/cheer/impact, same frame.
+
+## LOCKED — B2 "Coaster Crest" (first frame generated ✅)
+- FIRST FRAME: front row at the crest, phone held high, piglet in a chest harness (keeping the accident — it's better), park panorama behind.
+- TOP: crest hold → tap → the DROP hits exactly on the win burst; pure scream, hair vertical, piglet ears flapping.
+- BOTTOM: emu chasing a golf cart. EMU / OSTRICH / RHEA / CASSOWARY.
+- AUDIO: coaster clacks → silence at the crest → tap → drop + cheer + impact. Zero voice.
+
+## LOCKED — B6 v2 "Eagle Dive" (first frame generated ✅)
+- FIRST FRAME: freefall, BACK of her phone to camera, bald eagle diving in formation inches from her shoulder.
+- TOP: wind-hammered freefall, she taps; on the win she throws both arms wide (starfish) while the eagle screeches past the lens.
+- BOTTOM: her SCREEN — the max-viral eagle round: golden eagle snatching a GoPro mid-air (the clip plays as the question footage). BALD EAGLE / GOLDEN EAGLE / OSPREY / HAWK.
+- The gag: an eagle is racing her while she answers an eagle question. Top and bottom are the same species war.
+- AUDIO: roaring wind → tap → eagle screech AS the win impact + cheer. Zero voice.
+
+## SET D — VOICE-FREE ADDITIONS (cheers only)
+
+**D1. Stadium Roar (male).** TOP first frame: guy in a packed stadium crowd, face painted, phone up, goal about to happen behind him. He taps — the STADIUM erupts for the goal at the exact moment his win bursts: 60,000 people are his cheer track. BOTTOM: falcon that landed on the goalpost. FALCON / KESTREL / MERLIN / HOBBY. *No voice needed — the crowd IS the audio.*
+
+**D2. Cliff Jumper.** TOP first frame: hot girl mid-backflip off a cliff over turquoise water, phone visibly in hand. She answers ON THE CLIFF EDGE (tension), taps, jumps — hits the water exactly on the win burst, surfaces screaming with joy. BOTTOM: goat standing on the same cliff face judging her. Splash = impact sound.
+
+**D3. Male Streamer Meltdown.** TOP first frame: jacked streamer mid-keyboard-smash, headset flying off, RGB room. Round plays, he wins, crushes an energy can on his forehead and ROARS (no words). BOTTOM: bear opening a car door (classic viral genre). *Male-energy variant of the reaction cam — same beat, more chaos.*
+
+**D4. Surf Lineup.** TOP first frame: girl sitting on her board in glassy ocean at sunrise, phone in a waterproof pouch, a wave building behind her. Taps, wins, catches the wave celebrating the whole ride — whoops and ocean roar only. BOTTOM: dolphin that photobombs a surf cam. DOLPHIN / PORPOISE / ORCA CALF / PILOT WHALE.
+
+**D5. Bungee Answer.** TOP first frame: girl UPSIDE DOWN mid-bungee rebound, hair hanging, phone gripped two-handed. She answers inverted; win burst on the second bounce; upside-down double fist pump. BOTTOM: sloth hanging right-side-up (the mirror joke). SLOTH / ANTEATER / TAMANDUA / KINKAJOU.
+
+**D6. Ski Lift Drop Zone.** TOP first frame: snow bunny on a chairlift, goggles mirrored, blizzard, phone bare-handed (commitment). Taps with frozen fingers, wins, screams into the mountain void — echo IS the cheer. BOTTOM: moose walking up the piste like it owns the resort (callback to our moose franchise).
+
+**D7. Male Barber Chair (brainrot crossover).** TOP first frame: guy mid-fade, barber's clippers frozen an inch from his head, both staring at the phone. Win: barber and client chest-bump, cape flying — cheering only. BOTTOM: the deer-in-barbershop clip. *Two-man cheer, zero dialogue.*
+
+**D8. Trampoline Mirror.** TOP first frame: hot girl frozen at the apex of a trampoline bounce, phone in hand, suburban golden hour. Taps at apex; win burst as she lands. BOTTOM: our proven bear-on-trampoline clip. *Human and bear bouncing in sync, top and bottom — the most loopable mirror gag we have.*
+
+## Voice-free audio kit (applies to all)
+Wind/ambient → tap SFX → impact + crowd cheer + scream (wordless, Veo-native or our sfx_cheer) → money-rain shimmer → pulse-button hum on closer. The ElevenLabs SFX endpoint generates any of these on demand; no cloned voice needed anywhere in this set.
