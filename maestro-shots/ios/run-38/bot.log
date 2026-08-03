@@ -1,0 +1,21 @@
+[bot 2026-08-03T12:46:38.784Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-08-03T12:46:38.890Z] recv {"type":"rtt-ping","nonce":"msd83zshy7jr"}
+[bot 2026-08-03T12:47:43.030Z] sent queue tier1 credits (robot game 8hyt8q9u at head, match 1/2)
+[bot 2026-08-03T12:47:43.569Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-08-03T12:47:43.651Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot38x2yra"}
+[bot 2026-08-03T12:47:43.651Z] paired opponent=E2ERobot38x2yra (robot, as planned)
+[bot 2026-08-03T12:47:43.651Z] recv {"type":"rtt-ping","nonce":"msd85dp689h8"}
+[bot 2026-08-03T12:47:43.846Z] recv {"type":"async-question","matchId":"8hyt8q9u","question":{"text":"What animal is this?","imageToken":"j768bpkmapra97xg","options":["Echidna","Porcupine","Hedgehog","Beaver"]}}
+[bot 2026-08-03T12:47:50.125Z] sent async-answer match=8hyt8q9u idx=0 t=6000
+[bot 2026-08-03T12:47:50.394Z] recv {"type":"answer-ack","matchId":"8hyt8q9u","serverTime":3600,"questionIdx":56}
+[bot 2026-08-03T12:47:50.396Z] recv {"type":"async-result","matchId":"8hyt8q9u","tier":"credits:1","you":{"answer":0,"answerText":"Echidna","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Echidna","time":7625,"serverTime":7625,"result":"draw","name":"E2ERobot38x2yra"},"correctIdx":1,"correctAnswer":"Porcupine","options":["Echidna","Porcupine","Hedgehog","Beaver"],"reason":"both_wrong","questionIdx":56}
+[bot 2026-08-03T12:47:50.396Z] SETTLED draw (1/2)
+[bot 2026-08-03T12:48:19.095Z] sent queue tier1 credits (robot game etays9ea at head, match 2/2)
+[bot 2026-08-03T12:48:19.867Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot38x2yra"}
+[bot 2026-08-03T12:48:19.868Z] paired opponent=E2ERobot38x2yra (robot, as planned)
+[bot 2026-08-03T12:48:19.868Z] recv {"type":"rtt-ping","nonce":"msd865hdt8ah"}
+[bot 2026-08-03T12:48:19.888Z] recv {"type":"async-question","matchId":"etays9ea","question":{"text":"What animal is this?","imageToken":"inn2v53p9y5fxvfc","options":["Lion","Tiger","Cat","Dog"]}}
+[bot 2026-08-03T12:48:25.894Z] sent async-answer match=etays9ea idx=0 t=6000
+[bot 2026-08-03T12:48:25.981Z] recv {"type":"answer-ack","matchId":"etays9ea","serverTime":3600,"questionIdx":6}
+[bot 2026-08-03T12:48:26.068Z] recv {"type":"async-result","matchId":"etays9ea","tier":"credits:1","you":{"answer":0,"answerText":"Lion","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Lion","time":1845,"serverTime":1845,"result":"draw","name":"E2ERobot38x2yra"},"correctIdx":2,"correctAnswer":"Cat","options":["Lion","Tiger","Cat","Dog"],"reason":"both_wrong","questionIdx":6}
+[bot 2026-08-03T12:48:26.069Z] SETTLED draw (2/2)
