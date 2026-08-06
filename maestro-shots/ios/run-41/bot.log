@@ -1,0 +1,21 @@
+[bot 2026-08-06T11:46:45.813Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-08-06T11:46:45.931Z] recv {"type":"rtt-ping","nonce":"mshgajktq5g7"}
+[bot 2026-08-06T11:48:06.147Z] sent queue tier1 credits (robot game umnqxp5e at head, match 1/2)
+[bot 2026-08-06T11:48:06.817Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-08-06T11:48:06.817Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot41x9cv7"}
+[bot 2026-08-06T11:48:06.817Z] paired opponent=E2ERobot41x9cv7 (robot, as planned)
+[bot 2026-08-06T11:48:06.817Z] recv {"type":"rtt-ping","nonce":"mshgc9w30rpg"}
+[bot 2026-08-06T11:48:06.827Z] recv {"type":"async-question","matchId":"umnqxp5e","question":{"text":"What animal is this?","imageToken":"zfkesvs8z2nucnpe","options":["Iguana","Gecko","Monitor Lizard","Chameleon"]}}
+[bot 2026-08-06T11:48:15.475Z] sent async-answer match=umnqxp5e idx=0 t=6000
+[bot 2026-08-06T11:48:19.515Z] recv {"type":"answer-ack","matchId":"umnqxp5e","serverTime":3600,"questionIdx":65}
+[bot 2026-08-06T11:48:19.543Z] recv {"type":"async-result","matchId":"umnqxp5e","tier":"credits:1","you":{"answer":0,"answerText":"Iguana","time":6000,"serverTime":6000,"result":"win"},"opponent":{"answer":0,"answerText":"Iguana","time":8834,"serverTime":8834,"result":"loss","name":"E2ERobot41x9cv7"},"correctIdx":0,"correctAnswer":"Iguana","options":["Iguana","Gecko","Monitor Lizard","Chameleon"],"reason":"faster","questionIdx":65}
+[bot 2026-08-06T11:48:19.543Z] SETTLED win (1/2)
+[bot 2026-08-06T11:48:44.510Z] sent queue tier1 credits (robot game kcsj5a45 at head, match 2/2)
+[bot 2026-08-06T11:48:45.091Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot41x9cv7"}
+[bot 2026-08-06T11:48:45.092Z] paired opponent=E2ERobot41x9cv7 (robot, as planned)
+[bot 2026-08-06T11:48:45.092Z] recv {"type":"rtt-ping","nonce":"mshgd3fqpa83"}
+[bot 2026-08-06T11:48:45.093Z] recv {"type":"async-question","matchId":"kcsj5a45","question":{"text":"What animal is this?","imageToken":"gfvp2u3vjv2647b4","options":["Jackal","Coyote","Dingo","Fox"]}}
+[bot 2026-08-06T11:48:51.168Z] sent async-answer match=kcsj5a45 idx=0 t=6000
+[bot 2026-08-06T11:48:51.266Z] recv {"type":"answer-ack","matchId":"kcsj5a45","serverTime":3600,"questionIdx":48}
+[bot 2026-08-06T11:48:51.279Z] recv {"type":"async-result","matchId":"kcsj5a45","tier":"credits:1","you":{"answer":0,"answerText":"Jackal","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Jackal","time":1801,"serverTime":1801,"result":"draw","name":"E2ERobot41x9cv7"},"correctIdx":3,"correctAnswer":"Fox","options":["Jackal","Coyote","Dingo","Fox"],"reason":"both_wrong","questionIdx":48}
+[bot 2026-08-06T11:48:51.280Z] SETTLED draw (2/2)
