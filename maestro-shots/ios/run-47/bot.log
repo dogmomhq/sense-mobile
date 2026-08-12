@@ -1,0 +1,3 @@
+[bot 2026-08-12T10:26:04.559Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-08-12T10:26:04.665Z] recv {"type":"rtt-ping","nonce":"mspy1w6r47v2"}
+[bot 2026-08-12T10:26:29.424Z] close 1006
