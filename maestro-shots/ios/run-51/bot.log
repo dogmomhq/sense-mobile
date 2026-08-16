@@ -1,0 +1,12 @@
+[bot 2026-08-16T09:49:57.425Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-08-16T09:49:57.524Z] recv {"type":"rtt-ping","nonce":"msvmiuj72f6l"}
+[bot 2026-08-16T09:51:27.554Z] sent queue tier1 credits (robot game b7bvh4dn at head, match 1/2)
+[bot 2026-08-16T09:51:27.845Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-08-16T09:51:28.004Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot51xhwd2"}
+[bot 2026-08-16T09:51:28.004Z] paired opponent=E2ERobot51xhwd2 (robot, as planned)
+[bot 2026-08-16T09:51:28.004Z] recv {"type":"rtt-ping","nonce":"msvmksciwf47"}
+[bot 2026-08-16T09:51:28.008Z] recv {"type":"async-question","matchId":"b7bvh4dn","question":{"text":"What animal is this?","imageToken":"ck8jwzpgahgnmyhi","options":["Elk","Horse","Deer","Moose"]}}
+[bot 2026-08-16T09:51:34.103Z] sent async-answer match=b7bvh4dn idx=0 t=6000
+[bot 2026-08-16T09:51:34.122Z] recv {"type":"answer-ack","matchId":"b7bvh4dn","serverTime":3600,"questionIdx":30}
+[bot 2026-08-16T09:51:34.150Z] recv {"type":"async-waiting","matchId":"b7bvh4dn","message":"Waiting for opponent to answer..."}
+[bot 2026-08-16T09:54:57.452Z] timeout queued=true answered=true settled=false stranger=false
