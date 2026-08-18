@@ -1,0 +1,21 @@
+[bot 2026-08-18T09:53:35.377Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-08-18T09:53:35.477Z] recv {"type":"rtt-ping","nonce":"msyhj7rryhcv"}
+[bot 2026-08-18T09:54:31.519Z] sent queue tier1 credits (robot game gnbuhkbm at head, match 1/2)
+[bot 2026-08-18T09:54:31.894Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-08-18T09:54:32.027Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot53xi67t"}
+[bot 2026-08-18T09:54:32.028Z] paired opponent=E2ERobot53xi67t (robot, as planned)
+[bot 2026-08-18T09:54:32.028Z] recv {"type":"rtt-ping","nonce":"msyhkfe84fyh"}
+[bot 2026-08-18T09:54:32.199Z] recv {"type":"async-question","matchId":"gnbuhkbm","question":{"text":"What animal is this?","imageToken":"iuyqm6yr462u4uj8","options":["Sea Lion","Walrus","Elephant Seal","Manatee"]}}
+[bot 2026-08-18T09:54:39.265Z] sent async-answer match=gnbuhkbm idx=0 t=6000
+[bot 2026-08-18T09:54:42.272Z] recv {"type":"answer-ack","matchId":"gnbuhkbm","serverTime":3600,"questionIdx":26}
+[bot 2026-08-18T09:54:42.273Z] recv {"type":"async-result","matchId":"gnbuhkbm","tier":"credits:1","you":{"answer":0,"answerText":"Sea Lion","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Sea Lion","time":2113,"serverTime":2113,"result":"draw","name":"E2ERobot53xi67t"},"correctIdx":1,"correctAnswer":"Walrus","options":["Sea Lion","Walrus","Elephant Seal","Manatee"],"reason":"both_wrong","questionIdx":26}
+[bot 2026-08-18T09:54:42.273Z] SETTLED draw (1/2)
+[bot 2026-08-18T09:55:05.891Z] sent queue tier1 credits (robot game zp5baa7f at head, match 2/2)
+[bot 2026-08-18T09:55:06.360Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot53xi67t"}
+[bot 2026-08-18T09:55:06.360Z] paired opponent=E2ERobot53xi67t (robot, as planned)
+[bot 2026-08-18T09:55:06.360Z] recv {"type":"rtt-ping","nonce":"msyhl5w8z7vj"}
+[bot 2026-08-18T09:55:06.360Z] recv {"type":"async-question","matchId":"zp5baa7f","question":{"text":"What animal is this?","imageToken":"qb8s5magw3kk375n","options":["Rhinoceros","Elephant","Hippopotamus","Mammoth"]}}
+[bot 2026-08-18T09:55:12.378Z] sent async-answer match=zp5baa7f idx=0 t=6000
+[bot 2026-08-18T09:55:12.486Z] recv {"type":"answer-ack","matchId":"zp5baa7f","serverTime":3600,"questionIdx":2}
+[bot 2026-08-18T09:55:12.561Z] recv {"type":"async-result","matchId":"zp5baa7f","tier":"credits:1","you":{"answer":0,"answerText":"Rhinoceros","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Rhinoceros","time":676,"serverTime":676,"result":"draw","name":"E2ERobot53xi67t"},"correctIdx":1,"correctAnswer":"Elephant","options":["Rhinoceros","Elephant","Hippopotamus","Mammoth"],"reason":"both_wrong","questionIdx":2}
+[bot 2026-08-18T09:55:12.561Z] SETTLED draw (2/2)
