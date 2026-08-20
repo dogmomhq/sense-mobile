@@ -1,0 +1,22 @@
+[bot 2026-08-20T09:58:29.323Z] open wss://web-production-c6ec6.up.railway.app
+[bot 2026-08-20T09:58:29.422Z] recv {"type":"rtt-ping","nonce":"mt1cl84m0ys3"}
+[bot 2026-08-20T09:59:13.680Z] sent queue tier1 credits (robot game 6rzhfgmt at head, match 1/2)
+[bot 2026-08-20T09:59:14.041Z] recv {"type":"daily-bonus","amountCents":25,"balanceCents":325}
+[bot 2026-08-20T09:59:14.220Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot55xkcaz"}
+[bot 2026-08-20T09:59:14.220Z] paired opponent=E2ERobot55xkcaz (robot, as planned)
+[bot 2026-08-20T09:59:14.220Z] recv {"type":"rtt-ping","nonce":"mt1cm6oj1xxd"}
+[bot 2026-08-20T09:59:14.261Z] recv {"type":"async-question","matchId":"6rzhfgmt","question":{"text":"What animal is this?","imageToken":"pxgny35vp9qup7fn","options":["Pheasant","Peahen","Peacock","Turkey"]}}
+[bot 2026-08-20T09:59:20.293Z] sent async-answer match=6rzhfgmt idx=0 t=6000
+[bot 2026-08-20T09:59:20.392Z] recv {"type":"answer-ack","matchId":"6rzhfgmt","serverTime":3600,"questionIdx":38}
+[bot 2026-08-20T09:59:20.406Z] recv {"type":"async-waiting","matchId":"6rzhfgmt","message":"Waiting for opponent to answer..."}
+[bot 2026-08-20T09:59:24.573Z] recv {"type":"async-result","matchId":"6rzhfgmt","tier":"credits:1","you":{"answer":0,"answerText":"Pheasant","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Pheasant","time":8904,"serverTime":8904,"result":"draw","name":"E2ERobot55xkcaz"},"correctIdx":2,"correctAnswer":"Peacock","options":["Pheasant","Peahen","Peacock","Turkey"],"reason":"both_wrong","questionIdx":38}
+[bot 2026-08-20T09:59:24.573Z] SETTLED draw (1/2)
+[bot 2026-08-20T09:59:48.178Z] sent queue tier1 credits (robot game y6qcup7r at head, match 2/2)
+[bot 2026-08-20T09:59:48.647Z] recv {"type":"async-opponent-found","opponentName":"E2ERobot55xkcaz"}
+[bot 2026-08-20T09:59:48.647Z] paired opponent=E2ERobot55xkcaz (robot, as planned)
+[bot 2026-08-20T09:59:48.647Z] recv {"type":"rtt-ping","nonce":"mt1cmx8rn7wy"}
+[bot 2026-08-20T09:59:48.647Z] recv {"type":"async-question","matchId":"y6qcup7r","question":{"text":"What animal is this?","imageToken":"vv3awgiqc7pmmwvp","options":["Cassowary","Emu","Ostrich","Rhea"]}}
+[bot 2026-08-20T09:59:55.069Z] sent async-answer match=y6qcup7r idx=0 t=6000
+[bot 2026-08-20T09:59:55.171Z] recv {"type":"answer-ack","matchId":"y6qcup7r","serverTime":3600,"questionIdx":27}
+[bot 2026-08-20T09:59:55.238Z] recv {"type":"async-result","matchId":"y6qcup7r","tier":"credits:1","you":{"answer":0,"answerText":"Cassowary","time":6000,"serverTime":6000,"result":"draw"},"opponent":{"answer":0,"answerText":"Cassowary","time":153,"serverTime":153,"result":"draw","name":"E2ERobot55xkcaz"},"correctIdx":2,"correctAnswer":"Ostrich","options":["Cassowary","Emu","Ostrich","Rhea"],"reason":"both_wrong","questionIdx":27}
+[bot 2026-08-20T09:59:55.242Z] SETTLED draw (2/2)
