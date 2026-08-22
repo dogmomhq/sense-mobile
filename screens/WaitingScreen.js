@@ -77,7 +77,7 @@ export default function WaitingScreen({
       try {
         const t = wplayer.currentTime || 0;
         if (!wplayer.playing) wplayer.play();
-        if (t === last) { stuck++; if (stuck >= 2) { wplayer.replay(); stuck = 0; } } else { stuck = 0; }
+        if (t === last) { stuck++; if (stuck >= 3) { wplayer.replay(); stuck = -2; } } else { stuck = 0; } // B74: 3s + grace — don't restart a clip that's merely janked
         last = t;
       } catch (e) {}
     }, 1000);

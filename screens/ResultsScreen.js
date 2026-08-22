@@ -287,7 +287,7 @@ export default function ResultsScreen({
       try {
         const t = vplayer.currentTime || 0;
         if (!vplayer.playing) vplayer.play();
-        if (t === last) { stuck++; if (stuck >= 2) { vplayer.replay(); stuck = 0; } } else { stuck = 0; }
+        if (t === last) { stuck++; if (stuck >= 3) { vplayer.replay(); stuck = -2; } } else { stuck = 0; } // B74: 3s + grace — don't restart a clip that's merely janked
         last = t;
       } catch (e) {}
     }, 1000);

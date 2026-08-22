@@ -74,7 +74,7 @@ function initAnalytics() {
   if (PH || Platform.OS === 'web') return;
   try {
     const lib = require('posthog-react-native');
-    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: true, sessionReplayConfig: { maskAllImages: false, maskAllTextInputs: true } }); // v19: replay live (native module added)
+    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: false, sessionReplayConfig: { maskAllImages: false, maskAllTextInputs: true } }); // B74: replay OFF — screenshot capture janked the main thread once video rounds shipped (timer stalls + frozen clips, CJ recording 8/22). Re-enable throttled only if we can prove it's smooth.
     PHProvider = lib.PostHogProvider || null;
   } catch (e) { PH = null; }
 }
