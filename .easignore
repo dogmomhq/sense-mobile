@@ -1,0 +1,29 @@
+# .easignore replaces .gitignore for the EAS build archive — keep the two in sync.
+# Added 2026-08-21: repo carries ~1.9GB of E2E/CI screenshots + videos that pushed
+# the archive past EAS's 2GB cap. None of them are needed to compile the app.
+maestro-shots/
+snapshots/
+sim-shots/
+buildlog/
+
+# ── mirror of .gitignore ──
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.key
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env*.local
+*.tsbuildinfo
+/ios
+/android
