@@ -518,7 +518,7 @@ export default function App() {
     // no watchdog; paid round renders the still image exactly like practice.
     // Sticks with this ON  -> video 100% innocent, hunt moves to online machinery.
     // Clean with this ON   -> video convicted, next: strip clip audio server-side.
-    const VIDEO_KILL_B85 = true;
+    const VIDEO_KILL_B85 = false; // B85 verdict: paid round CLEAN with video off -> video stack convicted, online machinery innocent
     if (!VIDEO_KILL_B85 && question.videoToken) {
       try {
         const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }

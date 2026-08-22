@@ -84,16 +84,17 @@ export default function QuestionScreen({
       if (!videoUri || !vidReady) return;
       if (concealed) { player.volume = 0; } // silent while masked — audio would leak the animal
       else {
-        // B84 reveal: player is ALREADY playing (silent, primed since download).
-        // Seek to 0 (start-at-GO contract) + unmute. Deliberately NO play() —
-        // the rate transition was the ~800ms main-thread block (see header).
-        player.currentTime = 0;
-        player.volume = 1;
-        if (!player.playing) player.play(); // safety only — should never fire
+        // B86 DIAGNOSTIC: ZERO player interaction at reveal. B85 convicted the
+        // video stack (paid round clean with video off; online machinery innocent).
+        // This splits the stack: if B86 is clean, the at-reveal touch (seek and/or
+        // unmute in B84) is the trigger; if it still sticks, a merely-playing
+        // video is enough and the hunt moves to the render/audio pipeline itself.
+        // Clip stays SILENT and lands MID-LOOP on purpose — diagnostic only.
       }
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
-  useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
+  useEffect(() => { // B72 watchdog — B86: OFF (its 1s player reads/play() are player touches; zero-touch test)
+    if (true) return; // B86 disable
     if (!videoUri || !vidReady || concealed) return;
     let last = -1, stuck = 0;
     const iv = setInterval(() => {
