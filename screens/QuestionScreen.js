@@ -52,13 +52,21 @@ export default function QuestionScreen({
         await player.replaceAsync(videoUri);
         if (!alive) return;
         setVidReady(true);
-        if (!concealedRef.current) player.play();
+        // B78: play IMMEDIATELY but silent while concealed — activates the iOS
+        // audio session + decoder during the masked countdown. The at-reveal
+        // cold start (audio session activation) was the per-round ~700ms freeze.
+        player.volume = concealedRef.current ? 0 : 1;
+        player.play();
       } catch (e) {}
     })();
     return () => { alive = false; };
   }, [videoUri]);
   useEffect(() => {
-    try { if (!videoUri || !vidReady) return; if (concealed) player.pause(); else player.play(); } catch (e) {}
+    try {
+      if (!videoUri || !vidReady) return;
+      if (concealed) { player.volume = 0; } // B78: silent warm-up behind the cover — no audio leak, no pause
+      else { player.replay(); player.volume = 1; } // clip restarts at 0 with sound; session already warm
+    } catch (e) {}
   }, [videoUri, vidReady, concealed]);
   useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
     if (!videoUri || !vidReady || concealed) return;
