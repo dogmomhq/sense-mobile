@@ -41,7 +41,10 @@ export default function QuestionScreen({
   // SYNCHRONOUS replace() on the main thread the moment the download landed,
   // freezing ring+UI ~700ms mid-round (B76 recording: 8.0->7.7 stick ->6.9 leap).
   // replaceAsync loads off-thread; vidReady gates the overlay so no black flash.
-  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
+  // B79 DIAGNOSTIC: muted=true — round fully silent (audio track disabled at the
+  // AVPlayer level). If the ~700ms stall vanishes, audio IS the cause; if it
+  // persists, audio is eliminated and the decoder/download path is next.
+  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = true; });
   const [vidReady, setVidReady] = useState(false);
   const concealedRef = useRef(concealed); concealedRef.current = concealed;
   useEffect(() => {
@@ -55,7 +58,7 @@ export default function QuestionScreen({
         // B78: play IMMEDIATELY but silent while concealed — activates the iOS
         // audio session + decoder during the masked countdown. The at-reveal
         // cold start (audio session activation) was the per-round ~700ms freeze.
-        player.volume = concealedRef.current ? 0 : 1;
+        player.volume = 0; // B79 DIAG: always silent
         player.play();
       } catch (e) {}
     })();
@@ -65,7 +68,7 @@ export default function QuestionScreen({
     try {
       if (!videoUri || !vidReady) return;
       if (concealed) { player.volume = 0; } // B78: silent warm-up behind the cover — no audio leak, no pause
-      else { player.replay(); player.volume = 1; } // clip restarts at 0 with sound; session already warm
+      else { player.replay(); player.volume = 0; } // B79 DIAG: reveal stays silent (was volume=1)
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
   useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart

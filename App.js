@@ -437,7 +437,7 @@ export default function App() {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
     const tAns = (pressTs && pressTs >= startRef.current && pressTs <= Date.now()) ? pressTs : Date.now();
     const playerTime = idx === -1 ? TIME_LIMIT : Math.max(0, Math.min(tAns-startRef.current, TIME_LIMIT));
-    setPicked(idx); setMyTime(playerTime); playSfx('tap');
+    setPicked(idx); setMyTime(playerTime); /* B79 DIAG: tap sfx off — round must be 100% silent */
     if (onlineRef.current) {
       // Online: the server decides the result. Send our LOCAL time; wait for the result message.
       pickedRef.current = idx; myTimeRef.current = playerTime;
