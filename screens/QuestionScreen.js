@@ -41,6 +41,11 @@ export default function QuestionScreen({
   useEffect(() => {
     try { if (!videoUri) return; if (concealed) player.pause(); else player.play(); } catch (e) {}
   }, [videoUri, concealed]);
+  useEffect(() => { // B71 watchdog: sfx/interruptions can pause the AVPlayer — resume within 1s
+    if (!videoUri || concealed) return;
+    const iv = setInterval(() => { try { if (!player.playing) player.play(); } catch (e) {} }, 1000);
+    return () => clearInterval(iv);
+  }, [videoUri, concealed]);
   const [locked, setLocked] = useState(null);
   const raf = useRef(null);
 

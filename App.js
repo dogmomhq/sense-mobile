@@ -62,7 +62,7 @@ function initSfx() {
   if (SFX || Platform.OS === 'web') return;
   try {
     const { createAudioPlayer, setAudioModeAsync } = require('expo-audio');
-    try { setAudioModeAsync({ playsInSilentMode: true, playsInSilentModeIOS: true }); } catch (e) {} // B70: force audio through the iOS silent switch (videos + sfx)
+    try { setAudioModeAsync({ playsInSilentMode: true, playsInSilentModeIOS: true, interruptionMode: 'mixWithOthers', interruptionModeAndroid: 'duckOthers' }); } catch (e) {} // B70: silent-switch bypass; B71: mixWithOthers — sfx must not pause the question video
     const base = 'https://dogmomhq.github.io/sense-react-staging/app/assets/sounds/';
     SFX = { correct: createAudioPlayer({ uri: base + 'correct.wav' }), wrong: createAudioPlayer({ uri: base + 'wrong.wav' }), win: createAudioPlayer({ uri: base + 'win.wav' }), tap: createAudioPlayer({ uri: base + 'tap.wav' }) };
   } catch (e) { SFX = null; }
