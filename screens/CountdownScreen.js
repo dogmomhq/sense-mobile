@@ -204,7 +204,12 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
       // t0 anchor: first frame where the question is visible
       goRaf.current = requestAnimationFrame(() => { if (onHandoff) onHandoff(Date.now()); });
     } });
-    stageFns.push({ at: 2550, run: () => onDone && onDone() });
+    // B82 DIAG: unmount deferred 2550 -> 5000. The overlay is transparent +
+    // pointer-transparent from 2400, so gameplay is identical — only the teardown
+    // moves. CJ's stick is at ring 7.7 (= reveal+~300ms) EVERY round, and this
+    // teardown (~reveal+150ms) is the only fixed appointment near it. If the
+    // stick moves to ~5.4 the unmount is convicted; if it stays at 7.7 it's innocent.
+    stageFns.push({ at: 5000, run: () => onDone && onDone() });
     let fired = 0; let stopped = false; let loopRaf = null;
     const step = () => {
       if (stopped) return;

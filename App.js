@@ -410,6 +410,21 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
 
+  // B82 DIAG: JS-thread stall detector. 25ms heartbeat during the live round; any
+  // gap >=200ms is reported with its offset from reveal. The visual stick is always
+  // at ring 7.7 (~300ms after reveal). If a matching gap logs here, the stall is on
+  // the JS thread (countdown-overlay unmount/reconcile suspect); if the screen
+  // sticks but nothing logs, the stall is on the native/UI thread -> Sentry build.
+  useEffect(() => {
+    if (mode !== 'play' || !q || countdown) return;
+    const t0 = Date.now(); let last = t0;
+    const iv = setInterval(() => {
+      const now = Date.now(); const gap = now - last; last = now;
+      if (gap >= 200) track('js_stall', { offset_ms: now - t0 - gap, gap_ms: gap, build: 'B82' });
+    }, 25);
+    return () => clearInterval(iv);
+  }, [q, mode, countdown]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || !window.location || !/[?&]test/.test(window.location.search || '')) return;
     window.__sense = (pp = {}) => {
