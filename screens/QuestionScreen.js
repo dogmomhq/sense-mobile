@@ -41,15 +41,27 @@ export default function QuestionScreen({
   // SYNCHRONOUS replace() on the main thread the moment the download landed,
   // freezing ring+UI ~700ms mid-round (B76 recording: 8.0->7.7 stick ->6.9 leap).
   // replaceAsync loads off-thread; vidReady gates the overlay so no black flash.
-  // B79 proved audio innocent (fully-muted round still stalled). B81: sound restored.
-  // B81 CONTRACT (CJ 2026-08-22): the clip must START at reveal ("GO"), never before,
-  // and never mid-loop. All expensive work (decoder spin-up, seek to 0) happens
-  // BEHIND the countdown cover; at reveal the only call is play() on a primed,
-  // paused-at-zero player — no seek, no cold start, nothing heavy at reveal.
+  // B84 ROOT CAUSE (frame-by-frame forensics of CJ's 8/22 recording, 60fps):
+  //   reveal 0ms -> digit ticks fine -> at +330ms MAIN THREAD blocks ~800ms
+  //   (digit stuck 7.7; video KEEPS rendering — iOS render server is separate)
+  //   -> clip audio cuts mid-block -> main thread recovers (digit leaps 7.7->6.9)
+  //   -> ~70ms later AVPlayer freezes ~1.2s, then resumes from the SAME position.
+  //   No tap involved (buttons unselected all through the stall). Source clip has
+  //   continuous motion (content-still ruled out). That signature = iOS audio-
+  //   session/rate transition triggered by play() at reveal: session work blocks
+  //   the main thread, then interrupts the player itself. Explains why sim never
+  //   reproduces (Mac audio stack) and why B74/76/77/78/79/82/83 all failed —
+  //   every build kept a play()/rate change at reveal. B79's mute didn't help
+  //   because a muted AVPlayer with an audio track still does session work.
+  // B84 FIX: the player NEVER stops. It plays silently (volume 0) under the
+  //   opaque countdown from the moment the file is ready — decoder AND audio
+  //   session fully hot. At reveal: seek to 0 + volume 1. A seek on a playing
+  //   player is no rate transition -> no session event -> nothing to block on.
+  //   B81 CONTRACT preserved: clip starts AT "GO" from 0:00 (the seek), silent
+  //   until reveal so nothing leaks the animal.
   const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
   const [vidReady, setVidReady] = useState(false);
   const concealedRef = useRef(concealed); concealedRef.current = concealed;
-  const primeT = useRef(null); // B81: conceal-phase park-at-zero timer
   useEffect(() => {
     if (!videoUri) return;
     let alive = true;
@@ -58,29 +70,26 @@ export default function QuestionScreen({
         await player.replaceAsync(videoUri);
         if (!alive) return;
         setVidReady(true);
-        // B81 prime: play silent behind the cover (spins up decoder + audio
-        // session while masked), then park paused at frame 0. Any jank from
-        // this is invisible — the cover is opaque during the countdown.
+        // B84: play silent and NEVER pause. The B81 park-at-zero let the AV
+        // pipeline go cold, so the at-reveal play() re-triggered the session
+        // work that blocks the main thread. Cover is opaque — nothing shows.
         player.volume = 0;
         player.play();
-        primeT.current = setTimeout(() => {
-          try { if (concealedRef.current) { player.pause(); player.currentTime = 0; } } catch (e) {}
-        }, 600);
       } catch (e) {}
     })();
-    return () => { alive = false; if (primeT.current) { clearTimeout(primeT.current); primeT.current = null; } };
+    return () => { alive = false; };
   }, [videoUri]);
   useEffect(() => {
     try {
       if (!videoUri || !vidReady) return;
       if (concealed) { player.volume = 0; } // silent while masked — audio would leak the animal
       else {
-        // B81 reveal: player is primed + parked at 0 by the conceal-phase timer, so
-        // play() here starts the clip AT "GO" from 0:00 with zero heavy work.
-        // Deliberately NO seek here — seeks at reveal were the B78/B79 stall suspect.
-        if (primeT.current) { clearTimeout(primeT.current); primeT.current = null; }
+        // B84 reveal: player is ALREADY playing (silent, primed since download).
+        // Seek to 0 (start-at-GO contract) + unmute. Deliberately NO play() —
+        // the rate transition was the ~800ms main-thread block (see header).
+        player.currentTime = 0;
         player.volume = 1;
-        player.play();
+        if (!player.playing) player.play(); // safety only — should never fire
       }
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
