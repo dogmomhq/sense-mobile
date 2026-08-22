@@ -71,8 +71,8 @@ export function speedLabel(ms) {
 export function buildTimeline(youT, oppT) {
   const maxT = Math.max(youT, oppT), winT = Math.min(youT, oppT);
   const CLOSE = Math.abs(youT - oppT) < 0.25;        // gap-driven, NOT outcome-driven
-  const REVEAL_OPP = 800, FLIP = 1500, RACE_START = 2400;
-  const RACE_FULL = 1800, msPerS = RACE_FULL / maxT;
+  const REVEAL_OPP = 450, FLIP = 900, RACE_START = 1400; // 2026-08-21 pace pass: was 800/1500/2400 — CJ wants TikTok pacing, less waiting
+  const RACE_FULL = 1150, msPerS = RACE_FULL / maxT; // pace pass: was 1800
   const SEGS = [];
   let t0 = RACE_START, s0 = 0;
   const add = (ds, dur, type) => { SEGS.push({ t0, dur, s0, ds, type }); t0 += dur; s0 += ds; };
@@ -92,8 +92,8 @@ export function buildTimeline(youT, oppT) {
   const LAST = SEGS[SEGS.length - 1];
   const RACE_END = LAST.t0 + LAST.dur;
   const DIL_START = CLOSE ? SEGS[1].t0 : 0, DIL_DUR = CLOSE ? RACE_END - DIL_START : 1;
-  const EXPLODE = RACE_END + 700;
-  const CYCLE = EXPLODE + 5600;
+  const EXPLODE = RACE_END + 400; // pace pass: was +700
+  const CYCLE = EXPLODE + 4000; // pace pass: was +5600 (tail still clears the payout hero at ~E+2550)
   const HIT = 520, HOLD = 90, HOLD_GAIN = HOLD * (1 - 0.08);
   const T_GAP = CLOSE ? RACE_END : RACE_START + winT * msPerS;
   const raceState = (t) => {
