@@ -82,19 +82,21 @@ export default function QuestionScreen({
   useEffect(() => {
     try {
       if (!videoUri || !vidReady) return;
-      if (concealed) { player.volume = 0; } // silent while masked — audio would leak the animal
-      else {
-        // B86 DIAGNOSTIC: ZERO player interaction at reveal. B85 convicted the
-        // video stack (paid round clean with video off; online machinery innocent).
-        // This splits the stack: if B86 is clean, the at-reveal touch (seek and/or
-        // unmute in B84) is the trigger; if it still sticks, a merely-playing
-        // video is enough and the hunt moves to the render/audio pipeline itself.
-        // Clip stays SILENT and lands MID-LOOP on purpose — diagnostic only.
+      // B87 CURE (2026-08-22): the freeze was the clips' AUDIO TRACK. iOS runs
+      // audio-session work for any playing AVPlayer that has an audio track even
+      // at volume 0 (why B79's mute failed); that work blocked the main thread at
+      // reveal+330ms and then knocked the player over. All 20 server clips are now
+      // re-muxed video-only (sense-server e58b09ce) — B86b verified CLEAN on CJ's
+      // device. player.volume stays 0 forever as belt-and-suspenders: if a future
+      // clip ships with an audio track by mistake, it must not leak the answer.
+      // NEW-CLIP RULE: every clip pushed to sense-server MUST be `-c:v copy -an`.
+      player.volume = 0;
+      if (!concealed) {
+        player.currentTime = 0; // start-at-GO contract (CJ product decision): clip runs from 0:00 exactly at reveal
       }
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
-  useEffect(() => { // B72 watchdog — B86: OFF (its 1s player reads/play() are player touches; zero-touch test)
-    if (true) return; // B86 disable
+  useEffect(() => { // B72 watchdog, re-enabled in B87 — it was the only thing that ever revived a knocked-over player (B86 proved nothing else recovers it)
     if (!videoUri || !vidReady || concealed) return;
     let last = -1, stuck = 0;
     const iv = setInterval(() => {
