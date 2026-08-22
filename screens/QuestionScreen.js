@@ -132,7 +132,14 @@ export default function QuestionScreen({
 
       {/* 1.4.0: looping clip over the still (photo stays underneath as the instant poster) */}
       {videoUri && vidReady ? (
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: concealed ? 0 : 1 }}>
+        // B83: opacity ALWAYS 1. The old `concealed ? 0 : 1` flip meant iOS wired the
+        // video layer into the render pipeline AT reveal — main-thread work landing
+        // ~300ms in = the deterministic 7.7 stick, and it knocked AVPlayer over
+        // (video stayed frozen until something called replay). The opaque countdown
+        // overlay (zIndex 80) covers this view until exactly 2400ms, so nothing
+        // leaks: the layer is composited + playing from round start, and at reveal
+        // the video layer changes NOTHING.
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: 1 }}>
           <VideoView player={player} style={{ width, height }} contentFit="cover" nativeControls={false} />
         </View>
       ) : null}
