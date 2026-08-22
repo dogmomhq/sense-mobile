@@ -30,7 +30,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg';
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
-import { VideoView, useVideoPlayer } from 'expo-video'; // 1.4.0: clip keeps looping behind results
+import { VideoView } from 'expo-video'; // 1.4.0: clip keeps looping behind results
 import ConfettiBurst from './components/ConfettiBurst';
 import { COLORS, FONTS, useScale, useVScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
 import { sfx, hapTap, hapHeartbeat } from './sfx';
@@ -275,14 +275,15 @@ export default function ResultsScreen({
   reason = null,                        // B60: server settle reason — 'timing_review' = integrity draw (explainer line)
   onPlayAgain, onHome, onCycleEnd, showClock = false,
   avatar = undefined, // B89: home avatar everywhere
+  player = null, // B90: shared player from ReskinApp — clip continues from waiting/question, never restarts
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
   // 1.4.0 video: same clip keeps looping under the results chrome; overlays/desat sit on top.
-  const vplayer = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = false; p.play(); });
-  useEffect(() => { try { if (videoUri) vplayer.play(); } catch (e) {} }, [videoUri]);
+  const vplayer = player; // B90: shared player — continues from wherever the previous screen left it (CJ: only replay after it finishes; loop=true covers that)
+  useEffect(() => { try { if (videoUri && vplayer && !vplayer.playing) vplayer.play(); } catch (e) {} }, [videoUri]); // resume-if-paused only — play() never seeks, so no restart
   useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
-    if (!videoUri) return;
+    if (!videoUri || !vplayer) return;
     let last = -1, stuck = 0;
     const iv = setInterval(() => {
       try {

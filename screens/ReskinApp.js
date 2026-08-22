@@ -16,6 +16,7 @@ import { ROUND_S } from './components/TimerRing'; // B76: single source of round
 import CountdownScreen from './CountdownScreen';
 import ResultsScreen from './ResultsScreen';
 import WaitingScreen from './WaitingScreen';
+import { useVideoPlayer } from 'expo-video'; // B90: ONE shared clip player lives here so the clip survives question->waiting->results
 import HistoryScreen from './HistoryScreen';
 import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
@@ -256,6 +257,12 @@ export default function ReskinApp({ g }) {
   // B53: chosen animal avatar — device-local (AsyncStorage), never sent to the
   // server. Opponents/leaderboard don't see it; a reinstall resets the choice.
   const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
+  // B90 (CJ 2026-08-22): the clip must NOT restart at screen changes — it keeps playing
+  // from wherever it was and only loops on natural end. Each screen used to create its
+  // own useVideoPlayer on the same file (= new player at 0:00 every mount). Now ReskinApp
+  // owns the single player and the screens just attach VideoViews to it. B87 contract
+  // (volume 0 forever, currentTime=0 at reveal, watchdog) lives on in QuestionScreen.
+  const vidPlayer = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
   useEffect(() => { AsyncStorage.getItem('sense_avatar').then((v) => { if (v) setAvatarKey(v); }).catch(() => {}); }, []);
   const pickAvatar = (k) => { setAvatarKey(k); AsyncStorage.setItem('sense_avatar', k).catch(() => {}); };
   // B49 (CJ): age + terms come BEFORE the card form — a declined card must never
@@ -516,7 +523,7 @@ export default function ReskinApp({ g }) {
       // 'results' and we'd never reach this branch — so a fast/instant result skips
       // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
-        <WaitingScreen noConn={g.wsUp === false} videoUri={g.qVid || null} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        <WaitingScreen noConn={g.wsUp === false} videoUri={g.qVid || null} player={vidPlayer} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
           avatar={avatarSource(avatarKey)}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
@@ -531,7 +538,7 @@ export default function ReskinApp({ g }) {
       body = (
         <QuestionScreen key={String(g.matchId || '') + (g.q.text || '')}
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
-          videoUri={g.qVid || null}
+          videoUri={g.qVid || null} player={vidPlayer}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE} avatar={avatarSource(avatarKey)}
           secondsLeft={g.countdown ? ROUND_S : (answered ? secLeft : null)} // B76: was baked 10 - conceal ring showed 10 then snapped to 8
@@ -579,7 +586,7 @@ export default function ReskinApp({ g }) {
           ? { w: g.onlineRec.wins, d: g.onlineRec.draws, l: g.onlineRec.losses }
           : { w: g.rec.wins, d: g.rec.draws, l: g.rec.losses }}
         photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
-        videoUri={g.qVid || null}
+        videoUri={g.qVid || null} player={vidPlayer}
         reason={g.result.reason || null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );

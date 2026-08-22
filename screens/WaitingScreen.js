@@ -12,7 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
-import { VideoView, useVideoPlayer } from 'expo-video'; // B73: question clip loops behind the wait (answer already locked - no leak)
+import { VideoView } from 'expo-video'; // B73: question clip loops behind the wait (answer already locked - no leak)
 import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 import PressBtn from './components/PressBtn';
 
@@ -47,7 +47,7 @@ function RadarPulse({ cx, cy, freeze = false }) {
 }
 
 export default function WaitingScreen({
-  noConn, videoUri = null,
+  noConn, videoUri = null, player = null, // B90: shared player from ReskinApp — clip continues from the question screen, never restarts
   streak = 8, balance = '$24.50', handle = null, signedIn = true, avatar = undefined, // B89: home avatar everywhere
   lockedTime = '1.42s', stakeText = '$1.00 · WIN $1.90',
   onPlayAgain, onHistory, onHome, showClock = false, freeze = false,
@@ -69,9 +69,9 @@ export default function WaitingScreen({
   // skips the animation for deterministic frames.
   // B73: looping clip behind the takeover. MUTED here — waits can run minutes; a
   // looping animal sound would grate. Sound stays on question + results.
-  const wplayer = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = true; p.play(); });
+  const wplayer = player; // B90: shared player — no own useVideoPlayer, no restart at mount (volume is 0 forever per B87, so 'muted here' is moot)
   useEffect(() => { // playhead watchdog (same as B72): restart on 2s frame stall
-    if (!videoUri || freeze) return;
+    if (!videoUri || !wplayer || freeze) return;
     let last = -1, stuck = 0;
     const iv = setInterval(() => {
       try {

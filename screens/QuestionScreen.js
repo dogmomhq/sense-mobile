@@ -11,7 +11,7 @@ import StakePill from './components/StakePill';
 import TimerRing, { ROUND_S } from './components/TimerRing';
 import AnswerGrid from './components/AnswerGrid';
 import CoverPhoto from './components/CoverPhoto';
-import { VideoView, useVideoPlayer } from 'expo-video'; // 1.4.0: looping UGC clip behind the question
+import { VideoView } from 'expo-video'; // 1.4.0: looping UGC clip behind the question
 import { useScale } from './theme';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
@@ -24,6 +24,7 @@ export default function QuestionScreen({
   answers = ['CHEETAH', 'LEOPARD', 'JAGUAR', 'COUGAR'],
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   videoUri = null,                          // 1.4.0: local file uri of the downloaded clip; null = still image only
+  player = null,                            // B90: the ONE shared player (owned by ReskinApp) — survives into waiting/results so the clip never restarts at screen changes
   stake = '$1.00 · WIN $1.90',
   streak = 8, balance = '$24.50', avatar = undefined, // B89: home avatar everywhere
   onAnswer, onTimeout, showClock = false,
@@ -59,11 +60,12 @@ export default function QuestionScreen({
   //   player is no rate transition -> no session event -> nothing to block on.
   //   B81 CONTRACT preserved: clip starts AT "GO" from 0:00 (the seek), silent
   //   until reveal so nothing leaks the animal.
-  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
+  // B90: player creation moved to ReskinApp (shared across screens). This screen still
+  // owns the LOAD (replaceAsync) + the B87 cure + the watchdog, since it mounts first.
   const [vidReady, setVidReady] = useState(false);
   const concealedRef = useRef(concealed); concealedRef.current = concealed;
   useEffect(() => {
-    if (!videoUri) return;
+    if (!videoUri || !player) return;
     let alive = true;
     (async () => {
       try {
@@ -78,10 +80,10 @@ export default function QuestionScreen({
       } catch (e) {}
     })();
     return () => { alive = false; };
-  }, [videoUri]);
+  }, [videoUri, player]);
   useEffect(() => {
     try {
-      if (!videoUri || !vidReady) return;
+      if (!videoUri || !player || !vidReady) return;
       // B87 CURE (2026-08-22): the freeze was the clips' AUDIO TRACK. iOS runs
       // audio-session work for any playing AVPlayer that has an audio track even
       // at volume 0 (why B79's mute failed); that work blocked the main thread at
@@ -97,7 +99,7 @@ export default function QuestionScreen({
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
   useEffect(() => { // B72 watchdog, re-enabled in B87 — it was the only thing that ever revived a knocked-over player (B86 proved nothing else recovers it)
-    if (!videoUri || !vidReady || concealed) return;
+    if (!videoUri || !player || !vidReady || concealed) return;
     let last = -1, stuck = 0;
     const iv = setInterval(() => {
       try {
