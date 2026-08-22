@@ -41,12 +41,15 @@ export default function QuestionScreen({
   // SYNCHRONOUS replace() on the main thread the moment the download landed,
   // freezing ring+UI ~700ms mid-round (B76 recording: 8.0->7.7 stick ->6.9 leap).
   // replaceAsync loads off-thread; vidReady gates the overlay so no black flash.
-  // B79 DIAGNOSTIC: muted=true — round fully silent (audio track disabled at the
-  // AVPlayer level). If the ~700ms stall vanishes, audio IS the cause; if it
-  // persists, audio is eliminated and the decoder/download path is next.
-  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = true; });
+  // B79 proved audio innocent (fully-muted round still stalled). B81: sound restored.
+  // B81 CONTRACT (CJ 2026-08-22): the clip must START at reveal ("GO"), never before,
+  // and never mid-loop. All expensive work (decoder spin-up, seek to 0) happens
+  // BEHIND the countdown cover; at reveal the only call is play() on a primed,
+  // paused-at-zero player — no seek, no cold start, nothing heavy at reveal.
+  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
   const [vidReady, setVidReady] = useState(false);
   const concealedRef = useRef(concealed); concealedRef.current = concealed;
+  const primeT = useRef(null); // B81: conceal-phase park-at-zero timer
   useEffect(() => {
     if (!videoUri) return;
     let alive = true;
@@ -55,22 +58,30 @@ export default function QuestionScreen({
         await player.replaceAsync(videoUri);
         if (!alive) return;
         setVidReady(true);
-        // B78: play IMMEDIATELY but silent while concealed — activates the iOS
-        // audio session + decoder during the masked countdown. The at-reveal
-        // cold start (audio session activation) was the per-round ~700ms freeze.
-        player.volume = 0; // B79 DIAG: always silent
+        // B81 prime: play silent behind the cover (spins up decoder + audio
+        // session while masked), then park paused at frame 0. Any jank from
+        // this is invisible — the cover is opaque during the countdown.
+        player.volume = 0;
         player.play();
+        primeT.current = setTimeout(() => {
+          try { if (concealedRef.current) { player.pause(); player.currentTime = 0; } } catch (e) {}
+        }, 600);
       } catch (e) {}
     })();
-    return () => { alive = false; };
+    return () => { alive = false; if (primeT.current) { clearTimeout(primeT.current); primeT.current = null; } };
   }, [videoUri]);
   useEffect(() => {
     try {
       if (!videoUri || !vidReady) return;
-      if (concealed) { player.volume = 0; } // B78: silent warm-up behind the cover — no audio leak, no pause
-      else { /* B80 DIAG: touch NOTHING at reveal — clip already playing from warm-up.
-        replay()/play() here spins the decoder on the main thread = the stall suspect.
-        Clip starts mid-loop instead of 0:00 — acceptable for the test. Still muted (one variable). */ }
+      if (concealed) { player.volume = 0; } // silent while masked — audio would leak the animal
+      else {
+        // B81 reveal: player is primed + parked at 0 by the conceal-phase timer, so
+        // play() here starts the clip AT "GO" from 0:00 with zero heavy work.
+        // Deliberately NO seek here — seeks at reveal were the B78/B79 stall suspect.
+        if (primeT.current) { clearTimeout(primeT.current); primeT.current = null; }
+        player.volume = 1;
+        player.play();
+      }
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
   useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
