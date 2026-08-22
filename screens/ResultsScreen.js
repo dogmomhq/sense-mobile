@@ -280,9 +280,17 @@ export default function ResultsScreen({
   // 1.4.0 video: same clip keeps looping under the results chrome; overlays/desat sit on top.
   const vplayer = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = false; p.play(); });
   useEffect(() => { try { if (videoUri) vplayer.play(); } catch (e) {} }, [videoUri]);
-  useEffect(() => { // B71 watchdog: auto-resume if an interruption pauses the loop
+  useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
     if (!videoUri) return;
-    const iv = setInterval(() => { try { if (!vplayer.playing) vplayer.play(); } catch (e) {} }, 1000);
+    let last = -1, stuck = 0;
+    const iv = setInterval(() => {
+      try {
+        const t = vplayer.currentTime || 0;
+        if (!vplayer.playing) vplayer.play();
+        if (t === last) { stuck++; if (stuck >= 2) { vplayer.replay(); stuck = 0; } } else { stuck = 0; }
+        last = t;
+      } catch (e) {}
+    }, 1000);
     return () => clearInterval(iv);
   }, [videoUri]);
   // Height-aware vertical layout (theme.useVScale): PLAY AGAIN + HOME are

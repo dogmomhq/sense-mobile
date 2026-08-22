@@ -41,9 +41,17 @@ export default function QuestionScreen({
   useEffect(() => {
     try { if (!videoUri) return; if (concealed) player.pause(); else player.play(); } catch (e) {}
   }, [videoUri, concealed]);
-  useEffect(() => { // B71 watchdog: sfx/interruptions can pause the AVPlayer — resume within 1s
+  useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
     if (!videoUri || concealed) return;
-    const iv = setInterval(() => { try { if (!player.playing) player.play(); } catch (e) {} }, 1000);
+    let last = -1, stuck = 0;
+    const iv = setInterval(() => {
+      try {
+        const t = player.currentTime || 0;
+        if (!player.playing) player.play();
+        if (t === last) { stuck++; if (stuck >= 2) { player.replay(); stuck = 0; } } else { stuck = 0; }
+        last = t;
+      } catch (e) {}
+    }, 1000);
     return () => clearInterval(iv);
   }, [videoUri, concealed]);
   const [locked, setLocked] = useState(null);
