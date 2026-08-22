@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeScreen, { BUILD_TAG } from './HomeScreen';
 import QuestionScreen from './QuestionScreen';
+import { ROUND_S } from './components/TimerRing'; // B76: single source of round length (8s)
 import CountdownScreen from './CountdownScreen';
 import ResultsScreen from './ResultsScreen';
 import WaitingScreen from './WaitingScreen';
@@ -532,7 +533,7 @@ export default function ReskinApp({ g }) {
           videoUri={g.qVid || null}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE}
-          secondsLeft={g.countdown ? 10 : (answered ? secLeft : null)}
+          secondsLeft={g.countdown ? ROUND_S : (answered ? secLeft : null)} // B76: was baked 10 - conceal ring showed 10 then snapped to 8
           startTsRef={g.startRef} timingDbgRef={timingDbg} concealed={!!g.countdown}
           onAnswer={(i, _label, pressTs) => g.submit(i, pressTs)} />
       );

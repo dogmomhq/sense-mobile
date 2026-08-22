@@ -69,7 +69,7 @@ export default function QuestionScreen({
       const left = Math.max(0, Math.min(ROUND_S, ROUND_S - (Date.now() - t0) / 1000));
       // 30Hz setState cap: the ring sweeps 36 deg/s, so 33ms steps are
       // sub-pixel; halves the JS/SVG re-render cost of the live screen
-      if (left === 0 || last - left >= 1 / 30) { last = left; setT(left); }
+      if (left === 0 || last - left >= 1 / 10) { last = left; setT(left); } // B76: 10Hz - matches the tenths display exactly; frees render budget for the video
       if (left > 0) raf.current = requestAnimationFrame(tick);
       else if (onTimeout) onTimeout();
     };

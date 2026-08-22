@@ -406,7 +406,7 @@ export default function App() {
     if (mode !== 'play' || !q || countdown) return;
     const ov = startOverrideRef.current; startOverrideRef.current = null;
     answered.current = false; startRef.current = (ov && Math.abs(Date.now() - ov) < 1000) ? ov : Date.now(); setElapsed(0);
-    timerRef.current = setInterval(() => { const e = Date.now()-startRef.current; setElapsed(e); if (e>=TIME_LIMIT){ clearInterval(timerRef.current); submit(-1); } }, 50);
+    timerRef.current = setInterval(() => { const e = Date.now()-startRef.current; setElapsed(e); if (e>=TIME_LIMIT){ clearInterval(timerRef.current); submit(-1); } }, 100); // B76: 100ms - display shows tenths; 50ms doubled re-renders vs video (freeze hunt)
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
 
