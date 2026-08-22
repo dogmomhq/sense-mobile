@@ -47,7 +47,7 @@ const RESKIN_CREDITS = RESKIN && true;
 const CHALLENGE_ENABLED = false; // 2026-07-02 CJ: friend-room/challenge mode hidden (no UI entry anyway) — may return later; flip to restore
 const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4, 200: 5, 400: 6, 800: 7, 1600: 8, 3200: 9, 6400: 10, 12800: 11 }; // fixed-prize ladder (phase 2, 2026-07-16) — mirrors server lib/economy.js TIERS. Indices are append-only wire values; 3 ($5) + 4 ($100) are retired legacy, kept so old installs still map, never reused.
 
-const TIME_LIMIT = 10000;
+const TIME_LIMIT = 8000; // 2026-08-22 (CJ): 8s round to match the 8s clips (was 10000)
 const SERVER_WS = PREVIEW_SERVER_WS;
 const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
 setServerUrl(SERVER_WS);

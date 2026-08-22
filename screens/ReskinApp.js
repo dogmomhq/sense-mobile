@@ -141,7 +141,7 @@ let LIVE_LADDER = null;                     // set from GET /api/tiers; module-l
 const ladder = () => LIVE_LADDER || TIER_LADDER;
 const firstEnabled = (l) => (l.find((t) => t.enabled) || l[0]).entryCents;
 const tierFor = (cents) => ladder().find((t) => t.entryCents === cents);
-const TIME_LIMIT = 10000;
+const TIME_LIMIT = 8000; // 2026-08-22 (CJ): 8s round (match server TIME_LIMIT_MS)
 // WAITING-SCREEN GRACE (bug fix 2026-06-13): after answering a paid online match
 // DON'T jump straight to the WaitingScreen takeover. Hold this long on the frozen
 // question ("locked / revealing") first. In the common ghost-join case the
@@ -515,7 +515,7 @@ export default function ReskinApp({ g }) {
       // 'results' and we'd never reach this branch — so a fast/instant result skips
       // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
-        <WaitingScreen noConn={g.wsUp === false} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        <WaitingScreen noConn={g.wsUp === false} videoUri={g.qVid || null} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
           pushOn={g.pushOn !== false} onEnablePush={g.enablePush}

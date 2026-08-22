@@ -12,6 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
+import { VideoView, useVideoPlayer } from 'expo-video'; // B73: question clip loops behind the wait (answer already locked - no leak)
 import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 import PressBtn from './components/PressBtn';
 
@@ -46,7 +47,7 @@ function RadarPulse({ cx, cy, freeze = false }) {
 }
 
 export default function WaitingScreen({
-  noConn,
+  noConn, videoUri = null,
   streak = 8, balance = '$24.50', handle = null, signedIn = true,
   lockedTime = '1.42s', stakeText = '$1.00 · WIN $1.90',
   onPlayAgain, onHistory, onHome, showClock = false, freeze = false,
@@ -66,6 +67,23 @@ export default function WaitingScreen({
   // B35 (CJ 2026-07-11): fade the whole takeover in over the frozen question instead of
   // hard-cutting — the grace hold now ends in one continuous motion. freeze (snapshot CI)
   // skips the animation for deterministic frames.
+  // B73: looping clip behind the takeover. MUTED here — waits can run minutes; a
+  // looping animal sound would grate. Sound stays on question + results.
+  const wplayer = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = true; p.play(); });
+  useEffect(() => { // playhead watchdog (same as B72): restart on 2s frame stall
+    if (!videoUri || freeze) return;
+    let last = -1, stuck = 0;
+    const iv = setInterval(() => {
+      try {
+        const t = wplayer.currentTime || 0;
+        if (!wplayer.playing) wplayer.play();
+        if (t === last) { stuck++; if (stuck >= 2) { wplayer.replay(); stuck = 0; } } else { stuck = 0; }
+        last = t;
+      } catch (e) {}
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [videoUri, freeze]);
+
   const fade = useRef(new Animated.Value(freeze ? 1 : 0)).current;
   useEffect(() => {
     if (freeze) return;
@@ -82,6 +100,12 @@ export default function WaitingScreen({
         <CoverPhoto source={PHOTO} naturalW={PHOTO_W} naturalH={PHOTO_H}
           boxW={width} boxH={height} />
       </View>
+      {/* B73: question clip under the dark gradient — dimmed so YOU LOCKED still pops */}
+      {videoUri ? (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, zIndex: 1, opacity: 0.5 }}>
+          <VideoView player={wplayer} style={{ width, height }} contentFit="cover" nativeControls={false} />
+        </View>
+      ) : null}
       <LinearGradient pointerEvents="none"
         colors={['rgba(11,15,10,0.55)', 'rgba(11,15,10,0.2)', 'rgba(11,15,10,0)', 'rgba(11,15,10,0)', 'rgba(11,15,10,0.8)']}
         locations={[0, 0.22, 0.45, 0.66, 0.92]}
