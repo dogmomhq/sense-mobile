@@ -25,7 +25,7 @@ export default function QuestionScreen({
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   videoUri = null,                          // 1.4.0: local file uri of the downloaded clip; null = still image only
   stake = '$1.00 · WIN $1.90',
-  streak = 8, balance = '$24.50',
+  streak = 8, balance = '$24.50', avatar = undefined, // B89: home avatar everywhere
   onAnswer, onTimeout, showClock = false,
   concealed = false,                        // countdown conceal: photo+answers render at opacity 0 (decoded, never painted) until the countdown ends
   ringMode = 'fuse',                        // 'fuse' | 'laser' — which timer-ring engine
@@ -168,7 +168,7 @@ export default function QuestionScreen({
         locations={[0, 0.55, 1]}
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.38, zIndex: 2 }} />
 
-      <GlassHeader streak={streak} balance={balance} showClock={showClock} />
+      <GlassHeader streak={streak} balance={balance} showClock={showClock} {...(avatar ? { avatar } : {})} />
       <StakePill text={stake} />
       {/* frozen (answered) readout shows hundredths so it equals the scored
           time exactly; live readout stays tenths */}

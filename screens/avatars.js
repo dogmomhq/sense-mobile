@@ -5,7 +5,10 @@
 // to the server, so opponents/leaderboard never see it and a reinstall
 // resets to the default. Swap/add animals: drop a 512x512 jpg in
 // assets/avatars/ and add one line to AVATARS.
+// B89 (2026-08-22, CJ): crown is the DEFAULT avatar for everyone who never
+// picked one; the animal picker in Profile stays.
 export const AVATARS = {
+  crown: require('../assets/avatars/crown.png'),
   cheetah: require('../assets/avatars/cheetah.jpg'),
   lion: require('../assets/avatars/lion.jpg'),
   tiger: require('../assets/avatars/tiger.jpg'),
@@ -13,7 +16,7 @@ export const AVATARS = {
   fox: require('../assets/avatars/fox.jpg'),
 };
 export const AVATAR_KEYS = Object.keys(AVATARS);
-export const DEFAULT_AVATAR_KEY = 'cheetah';
+export const DEFAULT_AVATAR_KEY = 'crown';
 export function avatarSource(key) {
   return AVATARS[key] || AVATARS[DEFAULT_AVATAR_KEY];
 }

@@ -48,7 +48,7 @@ function RadarPulse({ cx, cy, freeze = false }) {
 
 export default function WaitingScreen({
   noConn, videoUri = null,
-  streak = 8, balance = '$24.50', handle = null, signedIn = true,
+  streak = 8, balance = '$24.50', handle = null, signedIn = true, avatar = undefined, // B89: home avatar everywhere
   lockedTime = '1.42s', stakeText = '$1.00 · WIN $1.90',
   onPlayAgain, onHistory, onHome, showClock = false, freeze = false,
   pushOn = true, onEnablePush,
@@ -112,7 +112,7 @@ export default function WaitingScreen({
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 }} />
 
       <GlassHeader streak={streak} balance={balance} handle={handle}
-        signedIn={signedIn} showClock={showClock} />
+        signedIn={signedIn} showClock={showClock} {...(avatar ? { avatar } : {})} />
 
       {/* YOU LOCKED + giant lime time */}
       <View style={{ position: 'absolute', top: 350 * s * vs + headerOff, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>

@@ -517,6 +517,7 @@ export default function ReskinApp({ g }) {
       // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
         <WaitingScreen noConn={g.wsUp === false} videoUri={g.qVid || null} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+          avatar={avatarSource(avatarKey)}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
           pushOn={g.pushOn !== false} onEnablePush={g.enablePush}
@@ -532,7 +533,7 @@ export default function ReskinApp({ g }) {
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
           videoUri={g.qVid || null}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
-          streak={streakVal} balance={balanceShown} ringMode={RING_MODE}
+          streak={streakVal} balance={balanceShown} ringMode={RING_MODE} avatar={avatarSource(avatarKey)}
           secondsLeft={g.countdown ? ROUND_S : (answered ? secLeft : null)} // B76: was baked 10 - conceal ring showed 10 then snapped to 8
           startTsRef={g.startRef} timingDbgRef={timingDbg} concealed={!!g.countdown}
           onAnswer={(i, _label, pressTs) => g.submit(i, pressTs)} />
@@ -565,7 +566,7 @@ export default function ReskinApp({ g }) {
     const correctTxt = g.q.correctIdx != null ? g.q.options[g.q.correctIdx] : '—';
     body = (
       <ResultsScreen key={'res' + String(g.matchId || '')}
-        outcome={outcome}
+        outcome={outcome} avatar={avatarSource(avatarKey)}
         you={{ answer: g.picked === -1 ? 'TIMED OUT' : g.q.options[g.picked], time: youT, correct: myCorrect }}
         opp={{ answer: g.comp.isCorrect ? correctTxt
             : (g.comp.answer == null || g.comp.answer === -1 ? 'TIMED OUT' : (g.q.options[g.comp.answer] || 'WRONG')),

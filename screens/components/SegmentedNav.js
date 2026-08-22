@@ -11,21 +11,16 @@ import { COLORS, FONTS, RADII, useScale, getSafeBottom } from '../theme';
 
 function Icon({ tab, color, size }) {
   const sw = 2;
-  if (tab === 'home') return (   // paw print
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Ellipse cx={7.2} cy={8.2} rx={2.1} ry={2.9} fill={color} />
-      <Ellipse cx={16.8} cy={8.2} rx={2.1} ry={2.9} fill={color} />
-      <Ellipse cx={3.4} cy={13.2} rx={1.8} ry={2.5} fill={color} />
-      <Ellipse cx={20.6} cy={13.2} rx={1.8} ry={2.5} fill={color} />
-      <Path d="M12 11 C 15.5 11, 18.5 14.5, 18 17.5 C 17.6 20, 15 21.5, 12 21.5 C 9 21.5, 6.4 20, 6 17.5 C 5.5 14.5, 8.5 11, 12 11 Z" fill={color} />
+  if (tab === 'home') return (   // house (B89, CJ: icons should match the words)
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 11.5 L12 3.5 L21 11.5" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5.5 10 L5.5 20.5 L18.5 20.5 L18.5 10" stroke={color} strokeWidth={sw} strokeLinejoin="round" />
+      <Rect x={10} y={14.5} width={4} height={6} stroke={color} strokeWidth={sw} />
     </Svg>);
-  if (tab === 'history') return (   // paw print (batch6 nav spec: paw, same as HOME)
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Ellipse cx={7.2} cy={8.2} rx={2.1} ry={2.9} fill={color} />
-      <Ellipse cx={16.8} cy={8.2} rx={2.1} ry={2.9} fill={color} />
-      <Ellipse cx={3.4} cy={13.2} rx={1.8} ry={2.5} fill={color} />
-      <Ellipse cx={20.6} cy={13.2} rx={1.8} ry={2.5} fill={color} />
-      <Path d="M12 11 C 15.5 11, 18.5 14.5, 18 17.5 C 17.6 20, 15 21.5, 12 21.5 C 9 21.5, 6.4 20, 6 17.5 C 5.5 14.5, 8.5 11, 12 11 Z" fill={color} />
+  if (tab === 'history') return (   // clock (B89, was paw same as HOME)
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12.5} r={8.5} stroke={color} strokeWidth={sw} />
+      <Path d="M12 7.5 L12 12.5 L15.8 14.8" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>);
   if (tab === 'profile') return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

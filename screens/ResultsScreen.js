@@ -37,7 +37,7 @@ import { sfx, hapTap, hapHeartbeat } from './sfx';
 import PressBtn from './components/PressBtn';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
-const AVATAR = require('../assets/avatar_demo.png');
+const AVATAR = require('../assets/avatars/crown.png'); // B89: crown default (was avatar_demo) — opp side of DRAW uses it; your side uses your chosen avatar
 const RED = '#FF5A48';
 
 /* ── easings / helpers (verbatim from the HTML spec) ── */
@@ -274,6 +274,7 @@ export default function ResultsScreen({
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
   reason = null,                        // B60: server settle reason — 'timing_review' = integrity draw (explainer line)
   onPlayAgain, onHome, onCycleEnd, showClock = false,
+  avatar = undefined, // B89: home avatar everywhere
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
@@ -656,7 +657,7 @@ export default function ResultsScreen({
         </Animated.View>
 
         {/* header (live balance odometer nested into the pill) */}
-        <GlassHeader streak={streak} showClock={showClock}
+        <GlassHeader streak={streak} showClock={showClock} {...(avatar ? { avatar } : {})}
           balance={<BalanceOdometer subscribe={subscribe} freezeAt={FT}
             from={balanceBefore} delta={balDelta} t0={balT0} dur={620}
             style={{ fontFamily: FONTS.interBlack, fontSize: 48 * s, letterSpacing: -0.02 * 48 * s, color: COLORS.cream }} />} />
@@ -856,11 +857,11 @@ export default function ResultsScreen({
               width: 8 * s, height: 1080 * s, borderRadius: 4 * s, backgroundColor: COLORS.lime, zIndex: 20,
               opacity: splitIn, transform: [{ scaleY: splitIn }],
               shadowColor: COLORS.lime, shadowOpacity: 0.7, shadowRadius: 24 * s, shadowOffset: { width: 0, height: 0 } }} />
-            {[{ cx: 300, av: avInL, time: you.time }, { cx: 724, av: avInR, time: opp.time }].map((P, i) => (
+            {[{ cx: 300, av: avInL, time: you.time, src: avatar || AVATAR }, { cx: 724, av: avInR, time: opp.time, src: AVATAR }].map((P, i) => (
               <Animated.View key={i} style={{ position: 'absolute', left: (P.cx - 130) * s, top: sy(560),
                 alignItems: 'center', width: 260 * s, opacity: P.av, zIndex: 20,
                 transform: [{ scale: P.av.interpolate({ inputRange: [0, 1.2], outputRange: [0.4, 1.2], extrapolate: 'extend' }) }] }}>
-                <Image source={AVATAR} style={{ width: 260 * s, height: 260 * s, borderRadius: 130 * s,
+                <Image source={P.src} style={{ width: 260 * s, height: 260 * s, borderRadius: 130 * s,
                   borderWidth: 6 * s, borderColor: COLORS.lime }} />
                 <Text style={{ marginTop: 60 * s, fontFamily: FONTS.mono, fontSize: 64 * s, color: COLORS.cream }}>
                   {P.time.toFixed(2)}s</Text>
