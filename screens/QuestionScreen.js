@@ -68,7 +68,9 @@ export default function QuestionScreen({
     try {
       if (!videoUri || !vidReady) return;
       if (concealed) { player.volume = 0; } // B78: silent warm-up behind the cover — no audio leak, no pause
-      else { player.replay(); player.volume = 0; } // B79 DIAG: reveal stays silent (was volume=1)
+      else { /* B80 DIAG: touch NOTHING at reveal — clip already playing from warm-up.
+        replay()/play() here spins the decoder on the main thread = the stall suspect.
+        Clip starts mid-loop instead of 0:00 — acceptable for the test. Still muted (one variable). */ }
     } catch (e) {}
   }, [videoUri, vidReady, concealed]);
   useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
