@@ -460,7 +460,7 @@ export default function App() {
     try { AsyncStorage.setItem('sense_hist', JSON.stringify(history.current)); } catch (e) {}
     setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
     setPracLog(p => { const n = [{ result: r.result, animal: q.options[q.correctIdx], time: playerTime }, ...p].slice(0, 10); try { AsyncStorage.setItem('sense_praclog', JSON.stringify(n)); } catch (e) {} return n; });
-    setTimeout(() => fadeTo(() => setMode('results')), 800);
+    setTimeout(() => fadeTo(() => setMode('results')), 400); // pace pass 2026-08-21: was 800
   }
   function playAgain() {
     if (isChallengeRef.current) { doRematch(); return; }
@@ -559,7 +559,7 @@ export default function App() {
     // fire time (runback, home, new question), this flip belongs to a dead screen — drop it.
     // ('room' challenge results keep working: matchIdRef stays 'room' across the window.)
     const flipMid = matchIdRef.current;
-    setTimeout(() => { if (matchIdRef.current !== flipMid) return; fadeTo(() => setMode('results')); }, 1200);
+    setTimeout(() => { if (matchIdRef.current !== flipMid) return; fadeTo(() => setMode('results')); }, 700); // pace pass 2026-08-21: was 1200 (B62 guard unchanged)
   }
   // B64/B66: background result with the app open -> real Apple banner. CJ's rule
   // (2026-07-27): "if they have no notifications just show normal, if they have
