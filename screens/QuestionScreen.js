@@ -37,12 +37,31 @@ export default function QuestionScreen({
   // 1.4.0 video: player is created once (null source ok); source swaps in when the
   // download lands. Sound ON (CJ 2026-08-21). Paused while concealed — audio during
   // the countdown would leak the animal before the reveal.
-  const player = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = false; });
+  // B77: hook source pinned to null — passing videoUri made expo-video do a
+  // SYNCHRONOUS replace() on the main thread the moment the download landed,
+  // freezing ring+UI ~700ms mid-round (B76 recording: 8.0->7.7 stick ->6.9 leap).
+  // replaceAsync loads off-thread; vidReady gates the overlay so no black flash.
+  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
+  const [vidReady, setVidReady] = useState(false);
+  const concealedRef = useRef(concealed); concealedRef.current = concealed;
   useEffect(() => {
-    try { if (!videoUri) return; if (concealed) player.pause(); else player.play(); } catch (e) {}
-  }, [videoUri, concealed]);
+    if (!videoUri) return;
+    let alive = true;
+    (async () => {
+      try {
+        await player.replaceAsync(videoUri);
+        if (!alive) return;
+        setVidReady(true);
+        if (!concealedRef.current) player.play();
+      } catch (e) {}
+    })();
+    return () => { alive = false; };
+  }, [videoUri]);
+  useEffect(() => {
+    try { if (!videoUri || !vidReady) return; if (concealed) player.pause(); else player.play(); } catch (e) {}
+  }, [videoUri, vidReady, concealed]);
   useEffect(() => { // B72 watchdog: playhead-based — if frames stall for 2 ticks (any cause), force-restart
-    if (!videoUri || concealed) return;
+    if (!videoUri || !vidReady || concealed) return;
     let last = -1, stuck = 0;
     const iv = setInterval(() => {
       try {
@@ -53,7 +72,7 @@ export default function QuestionScreen({
       } catch (e) {}
     }, 1000);
     return () => clearInterval(iv);
-  }, [videoUri, concealed]);
+  }, [videoUri, vidReady, concealed]);
   const [locked, setLocked] = useState(null);
   const raf = useRef(null);
 
@@ -88,7 +107,7 @@ export default function QuestionScreen({
         style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
 
       {/* 1.4.0: looping clip over the still (photo stays underneath as the instant poster) */}
-      {videoUri ? (
+      {videoUri && vidReady ? (
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: concealed ? 0 : 1 }}>
           <VideoView player={player} style={{ width, height }} contentFit="cover" nativeControls={false} />
         </View>
