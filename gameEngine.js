@@ -2,10 +2,15 @@
 
 import { PRACTICE_QUESTIONS } from './questions.js';
 
-// Pick a practice question, avoiding recently used ones
-export function getPracticeQuestion(usedIndices) {
-  let available = PRACTICE_QUESTIONS.map((_, i) => i).filter(i => !usedIndices.includes(i));
-  if (available.length === 0) available = PRACTICE_QUESTIONS.map((_, i) => i); // reset pool
+// Pick a practice question, avoiding recently used ones.
+// B91 poolSize (2026-08-22 CJ "practice mode should be videos as well"): when set,
+// only the first N bank questions are eligible — N=20 is the set with server video
+// clips (videos/<idx>.mp4), so every practice round gets a clip. Widen/remove when
+// more clips exist. Mirrors the server's own VIDEO-ONLY picker for paid rounds.
+export function getPracticeQuestion(usedIndices, poolSize = null) {
+  const cap = poolSize && poolSize > 0 ? Math.min(poolSize, PRACTICE_QUESTIONS.length) : PRACTICE_QUESTIONS.length;
+  let available = PRACTICE_QUESTIONS.slice(0, cap).map((_, i) => i).filter(i => !usedIndices.includes(i));
+  if (available.length === 0) available = PRACTICE_QUESTIONS.slice(0, cap).map((_, i) => i); // reset pool
   const idx = available[Math.floor(Math.random() * available.length)];
   const q = PRACTICE_QUESTIONS[idx];
 

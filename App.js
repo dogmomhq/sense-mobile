@@ -50,6 +50,7 @@ const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4, 200: 5, 400: 6, 
 const TIME_LIMIT = 8000; // 2026-08-22 (CJ): 8s round to match the 8s clips (was 10000)
 const SERVER_WS = PREVIEW_SERVER_WS;
 const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
+const VIDEO_QUESTION_N = 20; // B91: first N bank questions have server clips (videos/<idx>.mp4) — practice draws only from these so every round gets video. Bump when more clips ship.
 setServerUrl(SERVER_WS);
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
 const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
@@ -270,6 +271,7 @@ export default function App() {
   const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
   const [q, setQ] = useState(null);
   const [qVid, setQVid] = useState(null); const qVidFileRef = useRef(null); // 1.4.0: local uri of the downloaded question video (null = still image only)
+  const pVidNonceRef = useRef(0); // B91: practice-round download guard (practice has no matchId)
   const [used, setUsed] = useState([]);
   const [picked, setPicked] = useState(null);
   const [oppPending, setOppPending] = useState(false); // B59: server confirmed the opponent hasn't answered yet (async-waiting) — gates the WaitingScreen takeover
@@ -428,7 +430,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.location || !/[?&]test/.test(window.location.search || '')) return;
     window.__sense = (pp = {}) => {
-      const qq = q || getPracticeQuestion([]);
+      const qq = q || getPracticeQuestion([], VIDEO_QUESTION_N);
       const ci = qq.correctIdx, wrong = (ci + 1) % qq.options.length;
       const picked = pp.myCorrect ? ci : (pp.myTimeout ? -1 : wrong);
       setQ(qq); setPicked(picked);
@@ -440,8 +442,23 @@ export default function App() {
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQVid(null); /* 1.4.0: practice has no video — clear any online leftover */ setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
-  function startPractice() { track('practice_start'); const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
+  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQVid(null);
+    // B91 (2026-08-22 CJ "practice mode should be videos as well"): download the practice
+    // clip from the token-less /pvid/<idx> route (safe: the practice bank already ships
+    // these images+answers publicly in the client). NON-GATING like online: image is the
+    // ready-gate, clip swaps in when it lands; 404/failure = still image round. Nonce
+    // guard replaces the online matchId guard; !onlineRef blocks a late practice clip
+    // from painting over an online round.
+    const pnonce = ++pVidNonceRef.current;
+    try {
+      const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
+      const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
+      FileSystem.downloadAsync(HTTPS_BASE + '/pvid/' + f.questionIdx, dest).then(r => {
+        if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current) { qVidFileRef.current = r.uri; setQVid(r.uri); }
+      }).catch(() => {});
+    } catch (e) {}
+    setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+  function startPractice() { track('practice_start'); const f = getPracticeQuestion(used, VIDEO_QUESTION_N); recordUsed(f.questionIdx); startRound(f); }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
   // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
   // the finger made contact, not from when the press gesture completed —
@@ -483,7 +500,7 @@ export default function App() {
   function playAgain() {
     if (isChallengeRef.current) { doRematch(); return; }
     if (onlineRef.current) { requeueOnline(); return; }
-    const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f);
+    const f = getPracticeQuestion(used, VIDEO_QUESTION_N); recordUsed(f.questionIdx); startRound(f);
   }
   function goHome() {
     if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }
