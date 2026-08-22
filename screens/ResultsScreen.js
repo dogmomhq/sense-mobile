@@ -30,6 +30,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg';
 import GlassHeader from './components/GlassHeader';
 import CoverPhoto from './components/CoverPhoto';
+import { VideoView, useVideoPlayer } from 'expo-video'; // 1.4.0: clip keeps looping behind results
 import ConfettiBurst from './components/ConfettiBurst';
 import { COLORS, FONTS, useScale, useVScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
 import { sfx, hapTap, hapHeartbeat } from './sfx';
@@ -269,12 +270,16 @@ export default function ResultsScreen({
   streak = 8,
   record = null,                        // AUDIT MED #8 (2026-07-02): {w,d,l} — was passed by ReskinApp but never accepted
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
+  videoUri = null,                      // 1.4.0: clip keeps looping behind the results overlay (CJ: stop the timer, not the video)
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
   reason = null,                        // B60: server settle reason — 'timing_review' = integrity draw (explainer line)
   onPlayAgain, onHome, onCycleEnd, showClock = false,
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
+  // 1.4.0 video: same clip keeps looping under the results chrome; overlays/desat sit on top.
+  const vplayer = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = false; p.play(); });
+  useEffect(() => { try { if (videoUri) vplayer.play(); } catch (e) {} }, [videoUri]);
   // Height-aware vertical layout (theme.useVScale): PLAY AGAIN + HOME are
   // bottom-anchored (safe-area aware) and the content above compresses by
   // vsC so nothing ever underlaps the buttons or the viewport. On the
@@ -605,6 +610,12 @@ export default function ResultsScreen({
         {/* photo + (loss/miss) photo-only desat — chrome stays full color */}
         <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
           style={{ position: 'absolute', top: 0, left: 0, opacity: 0.9 }} />
+        {/* 1.4.0: looping clip over the still; loss-desat + dark overlays above still apply */}
+        {videoUri ? (
+          <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: 0.9 }}>
+            <VideoView player={vplayer} style={{ width, height }} contentFit="cover" nativeControls={false} />
+          </View>
+        ) : null}
         <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: '#6E726A', opacity: desatOp, zIndex: 1 }} />
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

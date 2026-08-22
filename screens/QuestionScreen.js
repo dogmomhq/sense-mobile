@@ -11,6 +11,7 @@ import StakePill from './components/StakePill';
 import TimerRing from './components/TimerRing';
 import AnswerGrid from './components/AnswerGrid';
 import CoverPhoto from './components/CoverPhoto';
+import { VideoView, useVideoPlayer } from 'expo-video'; // 1.4.0: looping UGC clip behind the question
 import { useScale } from './theme';
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
@@ -22,6 +23,7 @@ export default function QuestionScreen({
   startTsRef = null,                        // ref holding the AUTHORITATIVE round-start t0 (App.js startRef — the same timestamp the scored clientTime subtracts from). When provided, the live ring derives secondsLeft = 10 - (Date.now()-t0)/1000 from it every frame, so display and score cannot diverge.
   answers = ['CHEETAH', 'LEOPARD', 'JAGUAR', 'COUGAR'],
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
+  videoUri = null,                          // 1.4.0: local file uri of the downloaded clip; null = still image only
   stake = '$1.00 · WIN $1.90',
   streak = 8, balance = '$24.50',
   onAnswer, onTimeout, showClock = false,
@@ -32,6 +34,13 @@ export default function QuestionScreen({
   const s = useScale();
   const { width, height } = useWindowDimensions();
   const [t, setT] = useState(10);
+  // 1.4.0 video: player is created once (null source ok); source swaps in when the
+  // download lands. Sound ON (CJ 2026-08-21). Paused while concealed — audio during
+  // the countdown would leak the animal before the reveal.
+  const player = useVideoPlayer(videoUri, (p) => { p.loop = true; p.muted = false; });
+  useEffect(() => {
+    try { if (!videoUri) return; if (concealed) player.pause(); else player.play(); } catch (e) {}
+  }, [videoUri, concealed]);
   const [locked, setLocked] = useState(null);
   const raf = useRef(null);
 
@@ -64,6 +73,13 @@ export default function QuestionScreen({
       {/* full-bleed photo (center top / cover) */}
       <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
         style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
+
+      {/* 1.4.0: looping clip over the still (photo stays underneath as the instant poster) */}
+      {videoUri ? (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: concealed ? 0 : 1 }}>
+          <VideoView player={player} style={{ width, height }} contentFit="cover" nativeControls={false} />
+        </View>
+      ) : null}
 
       {/* same olive top fade as home */}
       <LinearGradient pointerEvents="none"

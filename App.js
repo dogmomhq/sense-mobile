@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, formatTime, getReasonText, generatePlayerName } from './gameEngine.js';
+import * as FileSystem from 'expo-file-system/legacy'; // 1.4.0 video: downloadAsync for question background clips
 import { setServerUrl, connectWS, wsSend, isConnected, isDialing, forceReconnect, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
@@ -267,6 +268,7 @@ export default function App() {
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
   const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
   const [q, setQ] = useState(null);
+  const [qVid, setQVid] = useState(null); const qVidFileRef = useRef(null); // 1.4.0: local uri of the downloaded question video (null = still image only)
   const [used, setUsed] = useState([]);
   const [picked, setPicked] = useState(null);
   const [oppPending, setOppPending] = useState(false); // B59: server confirmed the opponent hasn't answered yet (async-waiting) — gates the WaitingScreen takeover
@@ -422,7 +424,7 @@ export default function App() {
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQVid(null); /* 1.4.0: practice has no video — clear any online leftover */ setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
   function startPractice() { track('practice_start'); const f = getPracticeQuestion(used); recordUsed(f.questionIdx); startRound(f); }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
   // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
@@ -488,6 +490,20 @@ export default function App() {
   function loadQuestion(mid, question) {
     clearJoinWatch(true); // B58: join acked with a real question — the watchdog stands down
     const img = HTTPS_BASE + '/img/' + question.imageToken;
+    // 1.4.0 VIDEO (2026-08-21 CJ "all 3 go"): if the server offered a videoToken, download the
+    // clip in parallel with the image prefetch. NON-GATING — the image stays the ready-gate
+    // asset; the video swaps in whenever it lands (usually inside the 3-4s preload+countdown
+    // window; clips avg 1.8MB). Any failure = still image, exactly the pre-1.4.0 round.
+    setQVid(null);
+    if (question.videoToken) {
+      try {
+        const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
+        const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
+        FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dest).then(r => {
+          if (r && r.status === 200 && matchIdRef.current === mid) { qVidFileRef.current = r.uri; setQVid(r.uri); }
+        }).catch(() => {});
+      } catch (e) {}
+    }
     // #50: time the image download (receipt -> prefetch resolved) and report it with the
     // answer so the server can tell slow downloads from time-shaving. Guarded by matchId:
     // a late resolve from a previous match must not pollute this one. Failure => null (no claim).
@@ -1133,7 +1149,7 @@ export default function App() {
   if (RESKIN) {
     const g = {
       // live state
-      tab, mode, countdown, q, picked, elapsed, result, comp, oppName, online, oppPending,
+      tab, mode, countdown, q, qVid, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,

@@ -25,7 +25,9 @@
     "posthog-react-native": "^3.3.0",
     "expo-notifications": "~0.32.17",
     "react-native-ios-appattest": "1.0.1",
-    "posthog-react-native-session-replay": "1.6.0"
+    "posthog-react-native-session-replay": "1.6.0",
+    "expo-video": "~3.0.16",
+    "expo-file-system": "~19.0.23"
   },
   "scripts": {
     "start": "expo start",

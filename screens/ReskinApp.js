@@ -529,6 +529,7 @@ export default function ReskinApp({ g }) {
       body = (
         <QuestionScreen key={String(g.matchId || '') + (g.q.text || '')}
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
+          videoUri={g.qVid || null}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE}
           secondsLeft={g.countdown ? 10 : (answered ? secLeft : null)}
@@ -576,6 +577,7 @@ export default function ReskinApp({ g }) {
           ? { w: g.onlineRec.wins, d: g.onlineRec.draws, l: g.onlineRec.losses }
           : { w: g.rec.wins, d: g.rec.draws, l: g.rec.losses }}
         photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
+        videoUri={g.qVid || null}
         reason={g.result.reason || null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );
