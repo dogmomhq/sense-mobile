@@ -511,7 +511,15 @@ export default function App() {
     // asset; the video swaps in whenever it lands (usually inside the 3-4s preload+countdown
     // window; clips avg 1.8MB). Any failure = still image, exactly the pre-1.4.0 round.
     setQVid(null);
-    if (question.videoToken) {
+    // B85 DIAGNOSTIC (2026-08-22): practice rounds NEVER stick (CJ confirmed);
+    // only paid video rounds do. Paid differs from practice by exactly two
+    // systems: (1) the whole video stack, (2) the online-match machinery.
+    // This flag removes (1) entirely — no download, no player, no VideoView,
+    // no watchdog; paid round renders the still image exactly like practice.
+    // Sticks with this ON  -> video 100% innocent, hunt moves to online machinery.
+    // Clean with this ON   -> video convicted, next: strip clip audio server-side.
+    const VIDEO_KILL_B85 = true;
+    if (!VIDEO_KILL_B85 && question.videoToken) {
       try {
         const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
         const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
