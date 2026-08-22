@@ -124,7 +124,7 @@ export default function QuestionScreen({
       const left = Math.max(0, Math.min(ROUND_S, ROUND_S - (Date.now() - t0) / 1000));
       // 30Hz setState cap: the ring sweeps 36 deg/s, so 33ms steps are
       // sub-pixel; halves the JS/SVG re-render cost of the live screen
-      if (left === 0 || last - left >= 1 / 10) { last = left; setT(left); } // B76: 10Hz - matches the tenths display exactly; frees render budget for the video
+      if (left === 0 || last - left >= 1 / 30) { last = left; setT(left); } // B88: 30Hz + hundredths readout — stopwatch spin (CJ: faster FEEL, same 8s). Render pressure proven innocent (freeze was the clips' audio track, cured B86b).
       if (left > 0) raf.current = requestAnimationFrame(tick);
       else if (onTimeout) onTimeout();
     };
@@ -172,7 +172,7 @@ export default function QuestionScreen({
       <StakePill text={stake} />
       {/* frozen (answered) readout shows hundredths so it equals the scored
           time exactly; live readout stays tenths */}
-      <TimerRing secondsLeft={tLeft} mode={ringMode} precision={secondsLeft != null ? 2 : 1} />
+      <TimerRing secondsLeft={tLeft} mode={ringMode} precision={2} />
       {/* conceal wrapper (2026-07-02): answers invisible until countdown ends — same
           geometry (full-screen absolute, box-none), zero repaint cost on reveal */}
       <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15, opacity: concealed ? 0 : 1 }}>
