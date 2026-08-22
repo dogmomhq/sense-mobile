@@ -8,7 +8,7 @@ import { View, Text, useWindowDimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
 import StakePill from './components/StakePill';
-import TimerRing from './components/TimerRing';
+import TimerRing, { ROUND_S } from './components/TimerRing';
 import AnswerGrid from './components/AnswerGrid';
 import CoverPhoto from './components/CoverPhoto';
 import { VideoView, useVideoPlayer } from 'expo-video'; // 1.4.0: looping UGC clip behind the question
@@ -20,7 +20,7 @@ const TIMEDEBUG = typeof window !== 'undefined' && window.location && /[?&]timed
 
 export default function QuestionScreen({
   secondsLeft = null,                       // freeze the ring at this time; null = run live
-  startTsRef = null,                        // ref holding the AUTHORITATIVE round-start t0 (App.js startRef — the same timestamp the scored clientTime subtracts from). When provided, the live ring derives secondsLeft = 10 - (Date.now()-t0)/1000 from it every frame, so display and score cannot diverge.
+  startTsRef = null,                        // ref holding the AUTHORITATIVE round-start t0 (App.js startRef — the same timestamp the scored clientTime subtracts from). When provided, the live ring derives secondsLeft = ROUND_S - (Date.now()-t0)/1000 from it every frame, so display and score cannot diverge.
   answers = ['CHEETAH', 'LEOPARD', 'JAGUAR', 'COUGAR'],
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   videoUri = null,                          // 1.4.0: local file uri of the downloaded clip; null = still image only
@@ -33,7 +33,7 @@ export default function QuestionScreen({
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
-  const [t, setT] = useState(10);
+  const [t, setT] = useState(ROUND_S);
   // 1.4.0 video: player is created once (null source ok); source swaps in when the
   // download lands. Sound ON (CJ 2026-08-21). Paused while concealed — audio during
   // the countdown would leak the animal before the reveal.
@@ -60,13 +60,13 @@ export default function QuestionScreen({
   useEffect(() => {
     if (secondsLeft != null) return;        // frozen mode
     const localStart = Date.now();          // fallback only (previews without a game clock)
-    let last = 10.001;
+    let last = ROUND_S + 0.001;
     const tick = () => {
       // read the scoring t0 PER TICK (App.js sets startRef in an effect that
       // runs after this child effect — raf fires after all effects, so the
       // first frame already sees the fresh value)
       const t0 = startTsRef && startTsRef.current ? startTsRef.current : localStart;
-      const left = Math.max(0, Math.min(10, 10 - (Date.now() - t0) / 1000));
+      const left = Math.max(0, Math.min(ROUND_S, ROUND_S - (Date.now() - t0) / 1000));
       // 30Hz setState cap: the ring sweeps 36 deg/s, so 33ms steps are
       // sub-pixel; halves the JS/SVG re-render cost of the live screen
       if (left === 0 || last - left >= 1 / 30) { last = left; setT(left); }
@@ -133,7 +133,7 @@ function TimeDebug({ startTsRef, secondsLeft, tLeft, timingDbgRef }) {
   useEffect(() => { const i = setInterval(() => force(n => n + 1), 100); return () => clearInterval(i); }, []);
   const t0 = startTsRef && startTsRef.current ? startTsRef.current : null;
   const scoringElapsed = t0 ? Math.max(0, (Date.now() - t0) / 1000) : null;
-  const ringElapsed = 10 - tLeft;
+  const ringElapsed = ROUND_S - tLeft;
   const dbg = (timingDbgRef && timingDbgRef.current) || {};
   const goDelta = dbg.flipTs && dbg.goTs ? dbg.goTs - dbg.flipTs : null;         // rendered GO vs scheduled flip
   const pressLat = dbg.press && dbg.press.pressTs ? dbg.press.submitTs - dbg.press.pressTs : null;

@@ -13,6 +13,7 @@
 //                 white-hot core. See <FuseSparks/> below.
 //
 // Pure render from `secondsLeft` (10.0 → 0.0); the screen drives it.
+export const ROUND_S = 8; // 2026-08-22 (CJ): 8s round — was baked-in 10s; MUST match TIME_LIMIT (App.js/ReskinApp.js) and server TIME_LIMIT_MS
 //
 // ── PERF TRADEOFF (honest) ──────────────────────────────────────────────────
 // The HTML spec runs a pooled 600-particle Canvas2D engine with additive
@@ -128,7 +129,7 @@ function FuseSparks({ tLeft }) {
   const stateRef = useRef(null);
   if (!stateRef.current) stateRef.current = {
     pool: makePool(), rnd: mulberry32(SEED * 7919 + 3),
-    spawnAcc: 0, crackleAt: 0.2, floatAcc: 0, T: Math.max(0, 10 - tLeft), prefilled: false,
+    spawnAcc: 0, crackleAt: 0.2, floatAcc: 0, T: Math.max(0, ROUND_S - tLeft), prefilled: false,
   };
   const tRef = useRef(tLeft); tRef.current = tLeft;
   const [, bump] = useState(0);
@@ -136,7 +137,7 @@ function FuseSparks({ tLeft }) {
   useEffect(() => {
     const st = stateRef.current;
     const headAt = (T) => {           // head xy (screen coords) + travel angle at sim time T
-      const a = (Math.max(0, Math.min(10, T)) / 10) * 2 * Math.PI;
+      const a = (Math.max(0, Math.min(ROUND_S, T)) / ROUND_S) * 2 * Math.PI;
       return { x: CX + R * Math.sin(a) + RING_OX, y: CY - R * Math.cos(a) + RING_OY, a };
     };
     const adiff = (a, b) => { let d = (a - b) % (Math.PI * 2);
@@ -234,12 +235,12 @@ function FuseSparks({ tLeft }) {
     // moment, so frozen previews (?t=) show a rich mid-state, not an empty head
     if (!st.prefilled) {
       st.prefilled = true;
-      const T0 = Math.max(0, 10 - tRef.current);
+      const T0 = Math.max(0, ROUND_S - tRef.current);
       for (let k = 0; k < 120; k++) step(1 / 60, Math.max(0, T0 - (119 - k) / 60));
       st.T = T0;
     }
     const id = setInterval(() => {
-      const T = Math.max(0, 10 - tRef.current);
+      const T = Math.max(0, ROUND_S - tRef.current);
       let dt = T - st.T;
       if (!(dt > 0)) dt = TICK_MS / 1000;   // frozen preview: keep crackling in place
       dt = Math.min(0.05, dt);
@@ -252,8 +253,8 @@ function FuseSparks({ tLeft }) {
 
   // render the pool + flickering core
   const st = stateRef.current;
-  const T = Math.max(0, 10 - tLeft);
-  const a = (T / 10) * 2 * Math.PI;
+  const T = Math.max(0, ROUND_S - tLeft);
+  const a = (T / ROUND_S) * 2 * Math.PI;
   const hx = (CX + R * Math.sin(a) + RING_OX), hy = (CY - R * Math.cos(a) + RING_OY);
   const f1 = 0.8 + hrand(Math.floor(T * 30), 21) * 0.45;
   const f2 = 0.75 + hrand(Math.floor(T * 30), 22) * 0.5;
@@ -295,13 +296,13 @@ function FuseSparks({ tLeft }) {
 // ── main component ──────────────────────────────────────────────────────────
 // precision: decimals on the centered readout — 1 live (tenths), 2 when the
 // ring is frozen on the answered time so it equals the scored hundredths
-export default function TimerRing({ secondsLeft = 10, mode = 'fuse', precision = 1 }) {
+export default function TimerRing({ secondsLeft = ROUND_S, mode = 'fuse', precision = 1 }) {
   const s = useScale();
   const { vs } = useVScale();   // compresses the ring's design-Y on short viewports
   const headerOff = headerOffset(s); // drop below the pushed-down glass header on device
-  const tLeft = Math.max(0, Math.min(10, secondsLeft));
-  const T = 10 - tLeft;                          // animation time for breathing/pulse
-  const headA = (T / 10) * 360;                  // head angle from top, clockwise
+  const tLeft = Math.max(0, Math.min(ROUND_S, secondsLeft));
+  const T = ROUND_S - tLeft;                          // animation time for breathing/pulse
+  const headA = (T / ROUND_S) * 360;                  // head angle from top, clockwise
   const [hx, hy] = pt(headA);
   const ha = (headA * Math.PI) / 180;
 
