@@ -442,7 +442,7 @@ export default function App() {
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); try { Image.prefetch(f.image); } catch(e){} setQVid(null);
+  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; try { Image.prefetch(f.image); } catch(e){} setQVid(null);
     // B91 (2026-08-22 CJ "practice mode should be videos as well"): download the practice
     // clip from the token-less /pvid/<idx> route (safe: the practice bank already ships
     // these images+answers publicly in the client). NON-GATING like online: image is the
@@ -457,7 +457,12 @@ export default function App() {
         if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current) { qVidFileRef.current = r.uri; setQVid(r.uri); }
       }).catch(() => {});
     } catch (e) {}
-    setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
+    // B93 home-flash fix (2026-08-22 CJ report): play-again used to clear result/q
+    // SYNCHRONOUSLY while mode was still 'results' — the render branch is
+    // (mode==='results' && result), so for the ~130ms fade window it fell through to
+    // the HOME screen for a frame. Same class as the B44 goHome flash: ALL
+    // render-visible state now flips inside the fade callback, one batched commit.
+    fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); setMode('play'); }); }
   function startPractice() { track('practice_start'); const f = getPracticeQuestion(used, VIDEO_IDXS); recordUsed(f.questionIdx); startRound(f); }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
   // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
