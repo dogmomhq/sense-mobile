@@ -48,7 +48,7 @@ function initPlayers() {
       for (const [k, mod] of Object.entries(SRC)) {
         try {
           const p = createAudioPlayer(mod);
-          players[k] = { play: (skMs = 0) => { try { p.seekTo(skMs / 1000); p.play(); } catch (e) {} } };
+          players[k] = { raw: p, play: (skMs = 0) => { try { p.seekTo(skMs / 1000); p.play(); } catch (e) {} } };
         } catch (e) {}
       }
     }
@@ -60,6 +60,30 @@ export function sfx(name, seekMs = 0) {
   if (!players) initPlayers();
   const p = players && players[name];
   if (p) p.play(seekMs);
+}
+
+// B101: clock-glued playback for the countdown track. A jammed JS thread (fast
+// PLAY AGAIN: fade + clip replaceAsync + download all landing together) can start
+// the track late — the visual beats self-correct against the wall clock, audio
+// didn't. This starts at the right offset for "now" and re-snaps at 350/1000/1700ms
+// if audio drifts >45ms from the anchor, so a late start heals inside beat one.
+export function sfxSynced(name, anchorMs) {
+  if (!enabled) return;
+  if (!players) initPlayers();
+  const p = players && players[name];
+  if (!p) return;
+  const offset = Math.max(0, Date.now() - anchorMs);
+  p.play(offset);
+  if (!p.raw) return; // web fallback: no correction handle
+  [350, 1000, 1700].forEach((at) => {
+    setTimeout(() => {
+      try {
+        const target = (Date.now() - anchorMs) / 1000;
+        const cur = p.raw.currentTime || 0;
+        if (Math.abs(cur - target) > 0.045 && target < 3.2) p.raw.seekTo(target);
+      } catch (e) {}
+    }, at - offset > 0 ? at - offset : 0);
+  });
 }
 
 // ── haptics (native only; web no-ops) ──────────────────────────────────────
