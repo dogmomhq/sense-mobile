@@ -24,8 +24,8 @@ jobs:
           printf "torch==2.4.1\ntorchvision==0.19.1\nnumpy==1.26.4\n" > /tmp/pins.txt
           pip install -q -c /tmp/pins.txt numpy==1.26.4 opencv-python-headless basicsr realesrgan
           # basicsr torchvision compat patch
-          SITE=$(python3 -c "import basicsr, os; print(os.path.dirname(basicsr.__file__))")
-          sed -i 's/torchvision.transforms.functional_tensor/torchvision.transforms.functional/' $SITE/data/degradations.py || true
+          SITE=$(pip show basicsr | awk '/^Location/{print $2}')
+          sed -i 's/torchvision.transforms.functional_tensor/torchvision.transforms.functional/' $SITE/basicsr/data/degradations.py
           curl -fsSL -o realesr-general-x4v3.pth https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth
       - name: extract frames
         run: |
