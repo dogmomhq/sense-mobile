@@ -50,7 +50,7 @@ const RESKIN_TIER_BY_CENTS = { 50: 1, 100: 2, 500: 3, 10000: 4, 200: 5, 400: 6, 
 const TIME_LIMIT = 8000; // 2026-08-22 (CJ): 8s round to match the 8s clips (was 10000)
 const SERVER_WS = PREVIEW_SERVER_WS;
 const HTTPS_BASE = SERVER_WS.replace('wss://', 'https://').replace('ws://', 'http://');
-const VIDEO_QUESTION_N = 20; // B91: first N bank questions have server clips (videos/<idx>.mp4) — practice draws only from these so every round gets video. Bump when more clips ship.
+const VIDEO_IDXS = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,24,28,36,45,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84]; // B92: bank indices with server clips (videos/<idx>.mp4) — no longer contiguous. Practice draws only from these so every round gets video. Extend when more clips ship.
 setServerUrl(SERVER_WS);
 const C = { accent:'#6C63FF', win:'#22C55E', lose:'#EF4444', draw:'#F59E0B', text:'#1A1A2E', text2:'#6B7B94', border:'rgba(0,0,0,0.08)', card:'rgba(255,255,255,0.95)', page:'#F0F0F3' };
 const F = { r:'Inter-Regular', m:'Inter-Medium', s:'Inter-SemiBold', b:'Inter-Bold', x:'Inter-ExtraBold', k:'Inter-Black' };
@@ -430,7 +430,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.location || !/[?&]test/.test(window.location.search || '')) return;
     window.__sense = (pp = {}) => {
-      const qq = q || getPracticeQuestion([], VIDEO_QUESTION_N);
+      const qq = q || getPracticeQuestion([], VIDEO_IDXS);
       const ci = qq.correctIdx, wrong = (ci + 1) % qq.options.length;
       const picked = pp.myCorrect ? ci : (pp.myTimeout ? -1 : wrong);
       setQ(qq); setPicked(picked);
@@ -458,7 +458,7 @@ export default function App() {
       }).catch(() => {});
     } catch (e) {}
     setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); fadeTo(() => setMode('play')); }
-  function startPractice() { track('practice_start'); const f = getPracticeQuestion(used, VIDEO_QUESTION_N); recordUsed(f.questionIdx); startRound(f); }
+  function startPractice() { track('practice_start'); const f = getPracticeQuestion(used, VIDEO_IDXS); recordUsed(f.questionIdx); startRound(f); }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
   // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
   // the finger made contact, not from when the press gesture completed —
@@ -500,7 +500,7 @@ export default function App() {
   function playAgain() {
     if (isChallengeRef.current) { doRematch(); return; }
     if (onlineRef.current) { requeueOnline(); return; }
-    const f = getPracticeQuestion(used, VIDEO_QUESTION_N); recordUsed(f.questionIdx); startRound(f);
+    const f = getPracticeQuestion(used, VIDEO_IDXS); recordUsed(f.questionIdx); startRound(f);
   }
   function goHome() {
     if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }

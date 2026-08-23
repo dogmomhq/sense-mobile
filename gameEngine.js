@@ -7,10 +7,15 @@ import { PRACTICE_QUESTIONS } from './questions.js';
 // only the first N bank questions are eligible — N=20 is the set with server video
 // clips (videos/<idx>.mp4), so every practice round gets a clip. Widen/remove when
 // more clips exist. Mirrors the server's own VIDEO-ONLY picker for paid rounds.
-export function getPracticeQuestion(usedIndices, poolSize = null) {
-  const cap = poolSize && poolSize > 0 ? Math.min(poolSize, PRACTICE_QUESTIONS.length) : PRACTICE_QUESTIONS.length;
-  let available = PRACTICE_QUESTIONS.slice(0, cap).map((_, i) => i).filter(i => !usedIndices.includes(i));
-  if (available.length === 0) available = PRACTICE_QUESTIONS.slice(0, cap).map((_, i) => i); // reset pool
+export function getPracticeQuestion(usedIndices, pool = null) {
+  // B92: pool may be an ARRAY of eligible question indices (video-backed set is no
+  // longer contiguous) or a number meaning "first N" (legacy B91 behavior).
+  let eligible;
+  if (Array.isArray(pool)) eligible = pool.filter(i => i >= 0 && i < PRACTICE_QUESTIONS.length);
+  else if (pool && pool > 0) eligible = PRACTICE_QUESTIONS.slice(0, Math.min(pool, PRACTICE_QUESTIONS.length)).map((_, i) => i);
+  else eligible = PRACTICE_QUESTIONS.map((_, i) => i);
+  let available = eligible.filter(i => !usedIndices.includes(i));
+  if (available.length === 0) available = eligible; // reset pool
   const idx = available[Math.floor(Math.random() * available.length)];
   const q = PRACTICE_QUESTIONS[idx];
 
