@@ -16,6 +16,7 @@ const SRC = {
   win: require('../assets/sounds/win.wav'),
   heartbeat: require('../assets/sounds/heartbeat.wav'),
   payout: require('../assets/sounds/payout.wav'),
+  riser: require('../assets/sounds/riser.wav'),
 };
 
 let enabled = false;          // mirrors the Profile Sound toggle (App.js syncs on mount)
@@ -37,7 +38,7 @@ function initPlayers() {
         try {
           const uri = Asset.fromModule(mod).uri;
           const a = new Audio(uri); a.preload = 'auto';
-          players[k] = { play: () => { try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} } };
+          players[k] = { play: (skMs = 0) => { try { a.currentTime = skMs / 1000; a.play().catch(() => {}); } catch (e) {} } };
         } catch (e) {}
       }
     } else {
@@ -45,18 +46,18 @@ function initPlayers() {
       for (const [k, mod] of Object.entries(SRC)) {
         try {
           const p = createAudioPlayer(mod);
-          players[k] = { play: () => { try { p.seekTo(0); p.play(); } catch (e) {} } };
+          players[k] = { play: (skMs = 0) => { try { p.seekTo(skMs / 1000); p.play(); } catch (e) {} } };
         } catch (e) {}
       }
     }
   } catch (e) { players = {}; }
 }
 
-export function sfx(name) {
+export function sfx(name, seekMs = 0) {
   if (!enabled) return;
   if (!players) initPlayers();
   const p = players && players[name];
-  if (p) p.play();
+  if (p) p.play(seekMs);
 }
 
 // ── haptics (native only; web no-ops) ──────────────────────────────────────

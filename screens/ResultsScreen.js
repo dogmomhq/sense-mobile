@@ -419,7 +419,13 @@ export default function ResultsScreen({
     const ts = [];
     const at = (t, fn) => ts.push(setTimeout(fn, Math.max(0, t)));
     // your answer reveal (~250ms): bright pop on correct, dull thud on wrong
-    at(250, () => { sfx(you.correct ? 'correct' : 'wrong'); hapTap(you.correct ? 'light' : 'rigid'); });
+    at(250, () => { if (!you.correct) sfx('wrong'); hapTap(you.correct ? 'light' : 'rigid'); });
+    // B96: tension riser replaces the flat page-start sting — starts quiet,
+    // builds, PEAKS exactly at the fastest-time reveal (T_GAP). Fixed 2200ms
+    // asset; when the reveal lands sooner we seek into the riser so the peak
+    // stays aligned (align-peak-to-impact, B95 rule).
+    const RISER_MS = 2200, riserT0 = Math.max(300, TL.T_GAP - RISER_MS);
+    at(riserT0, () => sfx('riser', Math.max(0, RISER_MS - (TL.T_GAP - riserT0))));
     // close-race heartbeats (the slow-mo crawl) — double thump x2
     if (TL.CLOSE) {
       at(TL.DIL_START + 0.30 * TL.DIL_DUR, () => { sfx('heartbeat'); hapHeartbeat(); });
@@ -925,11 +931,16 @@ export default function ResultsScreen({
                   <Text style={{ width: 190 * s, fontFamily: r.corr ? FONTS.interExtra : FONTS.interBlack,
                     fontSize: (r.corr ? 26 : 36) * s, letterSpacing: 0.06 * 36 * s,
                     color: r.corr ? COLORS.creamDim : COLORS.cream }}>{r.who}</Text>
-                  <Text style={{ flex: 1, fontFamily: FONTS.anton, fontSize: (r.corr ? 48 : 52) * s,
+                  {/* B96: one line always (no check-mark wrap -> card growth -> PLAY
+                      AGAIN overlap); lime = the match WINNER's row only — a loser's
+                      correct answer must not flash a green check (CJ 2026-08-23) */}
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
+                    style={{ flex: 1, fontFamily: FONTS.anton, fontSize: (r.corr ? 48 : 52) * s,
                     letterSpacing: 0.03 * 52 * s,
-                    color: r.me || r.corr ? COLORS.lime : COLORS.creamDim }}>{r.ans}</Text>
-                  <Text style={{ width: 250 * s, textAlign: 'right', fontFamily: FONTS.mono, fontSize: 42 * s,
-                    color: r.me ? COLORS.lime : COLORS.creamDim }}>{r.time}</Text>
+                    color: r.corr || (r.me ? youWins : !isDraw && !youWins) ? COLORS.lime
+                      : r.me ? COLORS.cream : COLORS.creamDim }}>{r.ans}</Text>
+                  <Text numberOfLines={1} style={{ width: 250 * s, textAlign: 'right', fontFamily: FONTS.mono, fontSize: 42 * s,
+                    color: (r.me ? youWins : !r.corr && !isDraw && !youWins) ? COLORS.lime : COLORS.creamDim }}>{r.time}</Text>
                 </View>
               ))}
               </View>
