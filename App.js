@@ -270,7 +270,8 @@ export default function App() {
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
   const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
   const [q, setQ] = useState(null);
-  const [qVid, setQVid] = useState(null); const qVidFileRef = useRef(null); // 1.4.0: local uri of the downloaded question video (null = still image only)
+  const [qVid, setQVid] = useState(null); const qVidFileRef = useRef(null); // 1.4.0: local uri of the downloaded question video (null = still image only). B100: qVid = {uri,seq} scoped to a round
+  const [qVidExp, setQVidExp] = useState(false); const roundSeqRef = useRef(0); // B100: this round EXPECTS a clip -> never render the still, even before the clip lands
   const pVidNonceRef = useRef(0); // B91: practice-round download guard (practice has no matchId)
   const [used, setUsed] = useState([]);
   const [picked, setPicked] = useState(null);
@@ -454,20 +455,24 @@ export default function App() {
     // ready-gate, clip swaps in when it lands; 404/failure = still image round. Nonce
     // guard replaces the online matchId guard; !onlineRef blocks a late practice clip
     // from painting over an online round.
-    let pBegan = false;
-    function beginPractice() { if (pBegan) return; pBegan = true;
-      try { sfx('silence'); } catch (e) {} // B99: audio-session warm-up (see loadQuestion begin)
-      fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); setMode('play'); }); }
+    // B100 (CJ: "not smooth and instant"): the B97 download gate added tap→round lag.
+    // REVERTED to an INSTANT transition — the download races the 2.53s fade+countdown
+    // instead of blocking it (1.8MB avg lands well inside). qVidExp keeps the still
+    // suppressed while the clip is in flight; worst case the reveal is briefly black
+    // and the clip pops in — never the still, never a wait.
+    const mySeq = ++roundSeqRef.current;
     const pnonce = ++pVidNonceRef.current;
+    try { sfx('silence'); } catch (e) {} // B99: audio-session warm-up
+    fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null);
+      setQVid(p => (p && p.seq === mySeq) ? p : null); setQVidExp(true); // B100: drop the OLD round's clip exactly when the new round becomes visible (no early null = no still/black flash on PLAY AGAIN)
+      setCountdown(true); setMode('play'); });
     try {
       const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
       const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
       FileSystem.downloadAsync(HTTPS_BASE + '/pvid/' + f.questionIdx, dest).then(r => {
-        if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current) { qVidFileRef.current = r.uri; setQVid(r.uri); }
-        beginPractice();
-      }).catch(() => beginPractice());
-    } catch (e) { beginPractice(); }
-    setTimeout(beginPractice, 2500); // cap: a slow clip never stalls the round past 2.5s
+        if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current && roundSeqRef.current === mySeq) { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
+      }).catch(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); }); // download failed -> allow the still fallback
+    } catch (e) { setQVidExp(false); }
     // B93 home-flash fix (2026-08-22 CJ report): play-again used to clear result/q
     // SYNCHRONOUSLY while mode was still 'results' — the render branch is
     // (mode==='results' && result), so for the ~130ms fade window it fell through to
@@ -573,25 +578,26 @@ export default function App() {
       began = true;
       if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); readySentTsRef.current = Date.now(); } catch (e) {} }
       try { sfx('silence'); } catch (e) {} // B99: warm the iOS audio session ~150ms before beat 3 (kills the cold-start latency on the first sound)
-      setCountdown(true); fadeTo(() => setMode('play'));
+      setCountdown(true); fadeTo(() => { setQVid(p => (p && p.seq === roundSeqRef.current) ? p : null); setQVidExp(wantVid); setMode('play'); }); // B100: old clip dropped only when the new round paints
     };
     // B97 (2026-08-23 CJ): for video questions the CLIP download is the ready-gate and
     // the still image is neither prefetched nor rendered — the clip's first frame is the
     // poster (kills the image flash glitch + halves per-question bandwidth). imgMs keeps
     // its anti-time-shaving meaning: ms from receipt to content ready. The photo path
     // survives untouched for questions without a videoToken or when the download fails.
+    const mySeq = ++roundSeqRef.current; // B100: scopes the clip to THIS round
     if (wantVid) {
       try {
         const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
         const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
         FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dest).then(r => {
-          if (r && r.status === 200 && matchIdRef.current === mid) {
-            qVidFileRef.current = r.uri; setQVid(r.uri);
+          if (r && r.status === 200 && matchIdRef.current === mid && roundSeqRef.current === mySeq) {
+            qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq });
             if (imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt;
           }
           begin();
-        }).catch(begin);
-      } catch (e) { begin(); }
+        }).catch(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); begin(); });
+      } catch (e) { setQVidExp(false); begin(); }
     } else {
       try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
     }
@@ -604,7 +610,7 @@ export default function App() {
     questionIdxRef.current = (question.questionIdx != null ? question.questionIdx : null);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null, questionIdx: questionIdxRef.current });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false); setOppPending(false); // B59: new round — no confirmed wait yet
-    if (mid === 'room') begin(); else setTimeout(begin, 3000); // countdown start moved into begin() (ready-gate B39)
+    if (mid === 'room') begin(); else setTimeout(begin, wantVid ? 800 : 3000); // B100: video rounds cap the gate at 800ms — tap feels instant, the clip finishes during fade+countdown
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
   function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk, qIdx) {
@@ -1218,7 +1224,7 @@ export default function App() {
   if (RESKIN) {
     const g = {
       // live state
-      tab, mode, countdown, q, qVid, picked, elapsed, result, comp, oppName, online, oppPending,
+      tab, mode, countdown, q, qVid, qVidExp, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,

@@ -523,7 +523,7 @@ export default function ReskinApp({ g }) {
       // 'results' and we'd never reach this branch — so a fast/instant result skips
       // the waiting screen entirely and goes straight to ResultsScreen.
       body = (
-        <WaitingScreen noConn={g.wsUp === false} videoUri={g.qVid || null} player={vidPlayer} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        <WaitingScreen noConn={g.wsUp === false} videoUri={g.qVid ? g.qVid.uri : null} player={vidPlayer} streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
           avatar={avatarSource(avatarKey)}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
@@ -538,7 +538,7 @@ export default function ReskinApp({ g }) {
       body = (
         <QuestionScreen key={String(g.matchId || '') + (g.q.text || '')}
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
-          videoUri={g.qVid || null} player={vidPlayer}
+          videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} player={vidPlayer}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE} avatar={avatarSource(avatarKey)}
           secondsLeft={g.countdown ? ROUND_S : (answered ? secLeft : null)} // B76: was baked 10 - conceal ring showed 10 then snapped to 8
@@ -586,7 +586,7 @@ export default function ReskinApp({ g }) {
           ? { w: g.onlineRec.wins, d: g.onlineRec.draws, l: g.onlineRec.losses }
           : { w: g.rec.wins, d: g.rec.draws, l: g.rec.losses }}
         photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
-        videoUri={g.qVid || null} player={vidPlayer}
+        videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} player={vidPlayer}
         reason={g.result.reason || null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );

@@ -272,6 +272,7 @@ export default function ResultsScreen({
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   videoUri = null,                      // 1.4.0: clip keeps looping behind the results overlay (CJ: stop the timer, not the video)
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
+  videoExpected = false,                // B100: video round — never fall back to the still
   reason = null,                        // B60: server settle reason — 'timing_review' = integrity draw (explainer line)
   onPlayAgain, onHome, onCycleEnd, showClock = false,
   avatar = undefined, // B89: home avatar everywhere
@@ -632,7 +633,7 @@ export default function ResultsScreen({
 
         {/* photo + (loss/miss) photo-only desat — chrome stays full color */}
         {/* B97: still only as no-video fallback — clip frame is the poster */}
-        {videoUri ? null : (
+        {(videoUri || videoExpected) ? null : (
           <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
             style={{ position: 'absolute', top: 0, left: 0, opacity: 0.9 }} />
         )}

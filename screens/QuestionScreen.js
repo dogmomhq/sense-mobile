@@ -24,6 +24,7 @@ export default function QuestionScreen({
   answers = ['CHEETAH', 'LEOPARD', 'JAGUAR', 'COUGAR'],
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   videoUri = null,                          // 1.4.0: local file uri of the downloaded clip; null = still image only
+  videoExpected = false,                    // B100: a clip is coming — never paint the still, even while videoUri is null
   player = null,                            // B90: the ONE shared player (owned by ReskinApp) — survives into waiting/results so the clip never restarts at screen changes
   stake = '$1.00 · WIN $1.90',
   streak = 8, balance = '$24.50', avatar = undefined, // B89: home avatar everywhere
@@ -143,7 +144,7 @@ export default function QuestionScreen({
       {/* B97: the still renders ONLY when there is no clip — the video's first frame
           is the poster now (rounds gate on the download, so videoUri is set at mount;
           the photo is the download-failure / no-video fallback, not an underlay) */}
-      {videoUri ? null : (
+      {(videoUri || videoExpected) ? null : (
         <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
           style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
       )}
