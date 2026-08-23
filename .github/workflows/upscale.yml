@@ -1,0 +1,63 @@
+name: upscale-clips
+on:
+  workflow_dispatch:
+    inputs:
+      idxs:
+        description: 'JSON array of clip indices, e.g. [0,1,2]'
+        required: true
+        default: '[0]'
+jobs:
+  upscale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        idx: ${{ fromJSON(inputs.idxs) }}
+    steps:
+      - name: fetch clip
+        run: curl -fsSL -o in.mp4 "https://web-production-c6ec6.up.railway.app/pvid/${{ matrix.idx }}"
+      - name: setup
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q basicsr realesrgan
+          # basicsr torchvision compat patch
+          SITE=$(python3 -c "import basicsr, os; print(os.path.dirname(basicsr.__file__))")
+          sed -i 's/torchvision.transforms.functional_tensor/torchvision.transforms.functional/' $SITE/data/degradations.py || true
+          curl -fsSL -o realesr-general-x4v3.pth https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth
+      - name: extract frames
+        run: |
+          mkdir frames out
+          ffmpeg -hide_banner -loglevel error -i in.mp4 frames/f%04d.png
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate -of csv=p=0 in.mp4 | tee meta.txt
+          ls frames | wc -l
+      - name: upscale
+        run: |
+          cat > up.py << 'PY'
+          import glob, cv2, time
+          from basicsr.archs.srvgg_arch import SRVGGNetCompact
+          from realesrgan import RealESRGANer
+          model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu')
+          up = RealESRGANer(scale=4, model_path='realesr-general-x4v3.pth', model=model, tile=0, half=False)
+          files = sorted(glob.glob('frames/*.png'))
+          t0 = time.time()
+          for n, f in enumerate(files):
+              img = cv2.imread(f)
+              out, _ = up.enhance(img, outscale=1.5)  # 720x1280 -> 1080x1920
+              cv2.imwrite(f.replace('frames/','out/'), out)
+              if n % 20 == 0: print(f"{n}/{len(files)} {(time.time()-t0)/(n+1):.1f}s/frame", flush=True)
+          print(f"done {len(files)} frames in {time.time()-t0:.0f}s")
+          PY
+          python3 up.py
+      - name: assemble
+        run: |
+          FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 in.mp4)
+          ffmpeg -hide_banner -loglevel error -framerate "$FPS" -i out/f%04d.png \
+            -vf scale=1080:1920 -map_metadata -1 -c:v libx264 -crf 23 -preset fast \
+            -pix_fmt yuv420p -movflags +faststart -an "${{ matrix.idx }}_upscaled.mp4"
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${{ matrix.idx }}_upscaled.mp4"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upscaled-${{ matrix.idx }}
+          path: ${{ matrix.idx }}_upscaled.mp4
