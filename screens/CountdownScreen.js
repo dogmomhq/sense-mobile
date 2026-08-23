@@ -139,7 +139,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     // four beats, instead of four independent rolls that could each land late.
     // Haptics stay per-beat (their latency is negligible).
     if (b === 'go') { hapTap('heavy'); }
-    else { if (b === 3) sfx('countdown_track'); hapHeartbeat(); } // lub-dub haptic matches the heartbeat audio (CJ, 2026-07-10)
+    else { hapHeartbeat(); } // lub-dub haptic matches the heartbeat audio (CJ, 2026-07-10); track fired at effect top (B101)
     const prev = wraps[cur.current];
     cur.current = 1 - cur.current;
     const next = wraps[cur.current];
@@ -175,6 +175,12 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
       breathe.setValue(0.15);
       return;
     }
+    // B101 (CJ: one fast play-again had silent/laggy countdown): the track fires as
+    // the effect's FIRST statement — before the breathe loop, the stage array, and
+    // beat(3)'s four Animated.timing kicks. At mount the JS thread is at its busiest
+    // (fade-callback state batch + QuestionScreen mount); every bridge call queued
+    // ahead of the audio delays or starves it. Audio goes first now.
+    try { sfx('countdown_track'); } catch (e) {}
     // idle breathing glow on whichever glyph is up
     Animated.loop(Animated.sequence([
       Animated.timing(breathe, { toValue: 0.15, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),

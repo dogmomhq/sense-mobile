@@ -68,7 +68,11 @@ export default function QuestionScreen({
   useEffect(() => {
     if (!videoUri || !player) return;
     let alive = true;
-    (async () => {
+    // B101: defer the heavy replaceAsync ~250ms — at mount it raced the countdown
+    // track's play() call on the bridge/main thread (CJ heard a silent, laggy
+    // countdown once on a fast play-again). 250 + ~300ms load lands the clip long
+    // before the 2400ms reveal; the opaque countdown covers everything meanwhile.
+    const armT = setTimeout(async () => {
       try {
         await player.replaceAsync(videoUri);
         if (!alive) return;
@@ -79,8 +83,8 @@ export default function QuestionScreen({
         player.volume = 0;
         player.play();
       } catch (e) {}
-    })();
-    return () => { alive = false; };
+    }, 250);
+    return () => { alive = false; clearTimeout(armT); };
   }, [videoUri, player]);
   useEffect(() => {
     try {
