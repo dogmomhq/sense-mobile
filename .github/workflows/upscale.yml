@@ -20,8 +20,9 @@ jobs:
       - name: setup
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q basicsr realesrgan
+          pip install -q torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
+          printf "torch==2.1.2\ntorchvision==0.16.2\nnumpy==1.26.4\n" > /tmp/pins.txt
+          pip install -q -c /tmp/pins.txt numpy==1.26.4 opencv-python-headless basicsr realesrgan
           # basicsr torchvision compat patch
           SITE=$(python3 -c "import basicsr, os; print(os.path.dirname(basicsr.__file__))")
           sed -i 's/torchvision.transforms.functional_tensor/torchvision.transforms.functional/' $SITE/data/degradations.py || true
