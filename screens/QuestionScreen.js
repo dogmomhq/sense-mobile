@@ -140,9 +140,13 @@ export default function QuestionScreen({
     <View style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
       <StatusBar barStyle="light-content" />
 
-      {/* full-bleed photo (center top / cover) */}
-      <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
-        style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
+      {/* B97: the still renders ONLY when there is no clip — the video's first frame
+          is the poster now (rounds gate on the download, so videoUri is set at mount;
+          the photo is the download-failure / no-video fallback, not an underlay) */}
+      {videoUri ? null : (
+        <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
+          style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
+      )}
 
       {/* 1.4.0: looping clip over the still (photo stays underneath as the instant poster) */}
       {videoUri && vidReady ? (

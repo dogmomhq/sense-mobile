@@ -629,8 +629,11 @@ export default function ResultsScreen({
         { scale: shakeI.c }] }}>
 
         {/* photo + (loss/miss) photo-only desat — chrome stays full color */}
-        <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
-          style={{ position: 'absolute', top: 0, left: 0, opacity: 0.9 }} />
+        {/* B97: still only as no-video fallback — clip frame is the poster */}
+        {videoUri ? null : (
+          <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
+            style={{ position: 'absolute', top: 0, left: 0, opacity: 0.9 }} />
+        )}
         {/* 1.4.0: looping clip over the still; loss-desat + dark overlays above still apply */}
         {videoUri ? (
           <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: 0.9 }}>

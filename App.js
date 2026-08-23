@@ -442,27 +442,37 @@ export default function App() {
   }, [q]);
 
   function recordUsed(idx) { setUsed(u => { const n = [...u, idx]; return n.length > 15 ? n.slice(-10) : n; }); }
-  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; try { Image.prefetch(f.image); } catch(e){} setQVid(null);
+  function startRound(f) { onlineRef.current = false; isChallengeRef.current = false; setQVid(null);
+    // B97 (2026-08-23 CJ): the still image no longer renders for video rounds — its
+    // flash-then-swap read as a glitch, and downloading image+clip doubled bandwidth.
+    // The clip's FIRST FRAME is the poster now: the round gates on the download
+    // (2.5s cap) so QuestionScreen mounts with videoUri already set. Image.prefetch
+    // removed; the photo path survives only as the download-failure fallback.
     // B91 (2026-08-22 CJ "practice mode should be videos as well"): download the practice
     // clip from the token-less /pvid/<idx> route (safe: the practice bank already ships
     // these images+answers publicly in the client). NON-GATING like online: image is the
     // ready-gate, clip swaps in when it lands; 404/failure = still image round. Nonce
     // guard replaces the online matchId guard; !onlineRef blocks a late practice clip
     // from painting over an online round.
+    let pBegan = false;
+    function beginPractice() { if (pBegan) return; pBegan = true;
+      fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); setMode('play'); }); }
     const pnonce = ++pVidNonceRef.current;
     try {
       const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
       const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
       FileSystem.downloadAsync(HTTPS_BASE + '/pvid/' + f.questionIdx, dest).then(r => {
         if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current) { qVidFileRef.current = r.uri; setQVid(r.uri); }
-      }).catch(() => {});
-    } catch (e) {}
+        beginPractice();
+      }).catch(() => beginPractice());
+    } catch (e) { beginPractice(); }
+    setTimeout(beginPractice, 2500); // cap: a slow clip never stalls the round past 2.5s
     // B93 home-flash fix (2026-08-22 CJ report): play-again used to clear result/q
     // SYNCHRONOUSLY while mode was still 'results' — the render branch is
     // (mode==='results' && result), so for the ~130ms fade window it fell through to
     // the HOME screen for a frame. Same class as the B44 goHome flash: ALL
     // render-visible state now flips inside the fade callback, one batched commit.
-    fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); setMode('play'); }); }
+  }
   function startPractice() { track('practice_start'); const f = getPracticeQuestion(used, VIDEO_IDXS); recordUsed(f.questionIdx); startRound(f); }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
   // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
@@ -541,15 +551,7 @@ export default function App() {
     // Sticks with this ON  -> video 100% innocent, hunt moves to online machinery.
     // Clean with this ON   -> video convicted, next: strip clip audio server-side.
     const VIDEO_KILL_B85 = false; // B85 verdict: paid round CLEAN with video off -> video stack convicted, online machinery innocent
-    if (!VIDEO_KILL_B85 && question.videoToken) {
-      try {
-        const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
-        const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
-        FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dest).then(r => {
-          if (r && r.status === 200 && matchIdRef.current === mid) { qVidFileRef.current = r.uri; setQVid(r.uri); }
-        }).catch(() => {});
-      } catch (e) {}
-    }
+    const wantVid = !VIDEO_KILL_B85 && !!question.videoToken; // B97: clip download moved below begin() — it IS the ready-gate now
     // #50: time the image download (receipt -> prefetch resolved) and report it with the
     // answer so the server can tell slow downloads from time-shaving. Guarded by matchId:
     // a late resolve from a previous match must not pollute this one. Failure => null (no claim).
@@ -571,7 +573,26 @@ export default function App() {
       if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); readySentTsRef.current = Date.now(); } catch (e) {} }
       setCountdown(true); fadeTo(() => setMode('play'));
     };
-    try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
+    // B97 (2026-08-23 CJ): for video questions the CLIP download is the ready-gate and
+    // the still image is neither prefetched nor rendered — the clip's first frame is the
+    // poster (kills the image flash glitch + halves per-question bandwidth). imgMs keeps
+    // its anti-time-shaving meaning: ms from receipt to content ready. The photo path
+    // survives untouched for questions without a videoToken or when the download fails.
+    if (wantVid) {
+      try {
+        const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
+        const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
+        FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dest).then(r => {
+          if (r && r.status === 200 && matchIdRef.current === mid) {
+            qVidFileRef.current = r.uri; setQVid(r.uri);
+            if (imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt;
+          }
+          begin();
+        }).catch(begin);
+      } catch (e) { begin(); }
+    } else {
+      try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
+    }
     activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
     setMatchId(mid);
     // questionIdx (2026-07-17 cheat-surface fix): the server NO LONGER sends the bank
