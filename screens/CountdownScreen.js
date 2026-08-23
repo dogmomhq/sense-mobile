@@ -133,8 +133,13 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     // heavy on the GO beat. Gated by the Sound toggle inside sfx(); haptics
     // are native-only no-ops on web. Never fires in freezeBeat previews
     // (beat() isn't called there).
-    if (b === 'go') { sfx('go'); hapTap('heavy'); }
-    else { sfx('countdown_beat'); hapHeartbeat(); } // lub-dub haptic matches the heartbeat audio (CJ, 2026-07-10)
+    // B99 (CJ 2026-08-23 "still sometimes off"): ONE pre-mixed track (beats at
+    // 0/600/1200 + roar at 1800, peaks pre-aligned to the 150ms slam landings)
+    // started once at beat 3 — a single audio-session latency roll shared by all
+    // four beats, instead of four independent rolls that could each land late.
+    // Haptics stay per-beat (their latency is negligible).
+    if (b === 'go') { hapTap('heavy'); }
+    else { if (b === 3) sfx('countdown_track'); hapHeartbeat(); } // lub-dub haptic matches the heartbeat audio (CJ, 2026-07-10)
     const prev = wraps[cur.current];
     cur.current = 1 - cur.current;
     const next = wraps[cur.current];

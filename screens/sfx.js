@@ -17,6 +17,8 @@ const SRC = {
   heartbeat: require('../assets/sounds/heartbeat.wav'),
   payout: require('../assets/sounds/payout.wav'),
   riser: require('../assets/sounds/riser.wav'),
+  countdown_track: require('../assets/sounds/countdown_track.wav'), // B99: single pre-mixed 3-2-1-GO
+  silence: require('../assets/sounds/silence.wav'),                 // B99: 60ms session warm-up
 };
 
 let enabled = false;          // mirrors the Profile Sound toggle (App.js syncs on mount)

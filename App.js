@@ -37,7 +37,7 @@ try {
 //          this file stays byte-identical; ReskinApp is a pure render layer.
 // false -> the original UI below renders exactly as on main.
 import ReskinApp, { fmtMoney, winCents } from './screens/ReskinApp'; // B64: prize formatting for the Apple win notification (ladder lives there)
-import { setSfxEnabled } from './screens/sfx';
+import { setSfxEnabled, sfx } from './screens/sfx';
 const RESKIN = true;
 // RESKIN_CREDITS: flip online matches to SERVER-SIDE credits. The server escrows the stake at
 // queue time (append-only ledger 'entry' row), refunds on cancel/expiry, pays on settle. The
@@ -456,6 +456,7 @@ export default function App() {
     // from painting over an online round.
     let pBegan = false;
     function beginPractice() { if (pBegan) return; pBegan = true;
+      try { sfx('silence'); } catch (e) {} // B99: audio-session warm-up (see loadQuestion begin)
       fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null); setCountdown(true); setMode('play'); }); }
     const pnonce = ++pVidNonceRef.current;
     try {
@@ -571,6 +572,7 @@ export default function App() {
       if (began || matchIdRef.current !== mid) return; // stale callback from an old match must not start/ready this one
       began = true;
       if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); readySentTsRef.current = Date.now(); } catch (e) {} }
+      try { sfx('silence'); } catch (e) {} // B99: warm the iOS audio session ~150ms before beat 3 (kills the cold-start latency on the first sound)
       setCountdown(true); fadeTo(() => setMode('play'));
     };
     // B97 (2026-08-23 CJ): for video questions the CLIP download is the ready-gate and
