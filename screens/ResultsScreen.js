@@ -438,6 +438,8 @@ export default function ResultsScreen({
     else if (isMiss) at(E + 140, () => { sfx('heartbeat'); hapHeartbeat(); });   // heartbreaker
     else if (isLoss) at(E + 680, () => hapTap('rigid'));                          // YOU LOST thud
     else at(E + 650, () => hapTap('medium'));                                     // draw stamp
+    // B98 (CJ 2026-08-23): a draw refund deserves the win sting too — money came back.
+    if (isDraw) { at(E + 1100, () => sfx('win')); if (!practice) at(E + 1200, () => sfx('payout')); } // refund pill in + odometer tick
     // payout odometer start (win, real stake only)
     if (isWin && !practice) at(E + HERO + 1380, () => sfx('payout'));
     return () => ts.forEach(clearTimeout);
@@ -867,16 +869,32 @@ export default function ResultsScreen({
               width: 8 * s, height: 1080 * s, borderRadius: 4 * s, backgroundColor: COLORS.lime, zIndex: 20,
               opacity: splitIn, transform: [{ scaleY: splitIn }],
               shadowColor: COLORS.lime, shadowOpacity: 0.7, shadowRadius: 24 * s, shadowOffset: { width: 0, height: 0 } }} />
-            {[{ cx: 300, av: avInL, time: you.time, src: avatar || AVATAR }, { cx: 724, av: avInR, time: opp.time, src: AVATAR }].map((P, i) => (
-              <Animated.View key={i} style={{ position: 'absolute', left: (P.cx - 130) * s, top: sy(560),
-                alignItems: 'center', width: 260 * s, opacity: P.av, zIndex: 20,
+            {/* B98 (CJ 2026-08-23): full per-player summary on draw — label, answer
+                (+correct mark) AND time, not just the bare times */}
+            {[{ cx: 300, av: avInL, who: 'YOU', time: you.time, ans: you.answer, ok: you.correct, src: avatar || AVATAR },
+              { cx: 724, av: avInR, who: 'RIVAL', time: opp.time, ans: opp.answer, ok: opp.correct, src: AVATAR }].map((P, i) => (
+              <Animated.View key={i} style={{ position: 'absolute', left: (P.cx - 150) * s, top: sy(500),
+                alignItems: 'center', width: 300 * s, opacity: P.av, zIndex: 20,
                 transform: [{ scale: P.av.interpolate({ inputRange: [0, 1.2], outputRange: [0.4, 1.2], extrapolate: 'extend' }) }] }}>
-                <Image source={P.src} style={{ width: 260 * s, height: 260 * s, borderRadius: 130 * s,
+                <Text style={{ marginBottom: 18 * s, fontFamily: FONTS.interExtra, fontSize: 28 * s,
+                  letterSpacing: 0.22 * 28 * s, color: COLORS.creamDim }}>{P.who}</Text>
+                <Image source={P.src} style={{ width: 240 * s, height: 240 * s, borderRadius: 120 * s,
                   borderWidth: 6 * s, borderColor: COLORS.lime }} />
-                <Text style={{ marginTop: 60 * s, fontFamily: FONTS.mono, fontSize: 64 * s, color: COLORS.cream }}>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}
+                  style={{ marginTop: 36 * s, maxWidth: 300 * s, fontFamily: FONTS.anton, fontSize: 46 * s,
+                  letterSpacing: 0.02 * 46 * s, color: P.ok ? COLORS.lime : RED }}>
+                  {P.ans}{P.ok ? ' ✓' : ' ✗'}</Text>
+                <Text style={{ marginTop: 12 * s, fontFamily: FONTS.mono, fontSize: 56 * s, color: COLORS.cream }}>
                   {P.time.toFixed(2)}s</Text>
               </Animated.View>
             ))}
+            {/* B98: if nobody got it, show what the answer actually was */}
+            {!you.correct && !opp.correct ? (
+              <Animated.Text style={{ position: 'absolute', top: sy(1095), left: 0, right: 0, textAlign: 'center',
+                fontFamily: FONTS.interExtra, fontSize: 30 * s, letterSpacing: 0.16 * 30 * s,
+                color: COLORS.creamDim, opacity: stampOp, zIndex: 24 }}>
+                {'CORRECT ANSWER · ' + String(correctAnswer || '').toUpperCase()}</Animated.Text>
+            ) : null}
             <Animated.Text pointerEvents="none" style={{ position: 'absolute', top: sy(1180), left: 0, right: 0,
               textAlign: 'center', fontFamily: FONTS.anton, fontSize: 240 * s, lineHeight: 1.32 * 240 * s,
               color: COLORS.cream, opacity: stampOp, zIndex: 24,
