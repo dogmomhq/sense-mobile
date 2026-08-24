@@ -24,7 +24,7 @@ const TIERS = [
   { label: '$128.00', locked: true },
 ];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B103';
+export const BUILD_TAG = 'B104';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
@@ -194,12 +194,9 @@ export default function HomeScreen({
             <Text style={{ fontFamily: FONTS.anton, fontSize: 62 * s, color: COLORS.cream,
               letterSpacing: 0.02 * 62 * s, marginBottom: 30 * s }}>HOW IT WORKS</Text>
             {[
-              'Pick your stake. You and your rival pay the same entry.',
-              'You both get the same animal \u2014 four choices, 8 seconds.',
-              'Fastest correct answer wins the prize shown up front. Every match.',
-              'No waiting around: your rival doesn\u2019t have to be online. Scores lock and match automatically \u2014 we notify you the moment each result lands.',
-              'Same speed, or both wrong? It\u2019s a tie \u2014 your full entry comes back.',
-              'Practice mode is free, forever.',
+              'It\u2019s you vs one other human. Same animal photo, four names, 8 seconds.',
+              'Fastest right answer takes the prize \u2014 the amount\u2019s printed on the tier before you ever tap PLAY. No fine print, no math.',
+              'Your rival doesn\u2019t even need to be online. Your score locks in and battles the next player who shows up \u2014 turn notifications on and you\u2019ll hear about it the second it\u2019s decided. Tie? Full entry back. Practice is free forever.',
             ].map((p, i) => (
               <Text key={i} style={{ fontFamily: FONTS.interBold, fontSize: 31 * s, lineHeight: 43 * s,
                 color: 'rgba(245,241,230,0.92)', marginBottom: 22 * s }}>{p}</Text>
