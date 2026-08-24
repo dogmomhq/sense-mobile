@@ -1,89 +1,27 @@
-// questions.js — Practice mode question bank (offline, no server needed)
+// questions.js — SNAPSHOT PLACEHOLDER ONLY. Contains no real questions and no real answers.
+//
+// 2026-08-24 (CJ: "45 videos in both, no images"). This file used to hold the entire
+// 85-question bank: text, options, a PUBLIC image URL whose filename named the animal
+// (e.g. 01_raccoon_surgeon.jpg — verified reachable), and the CORRECT ANSWER INDEX. Every
+// entry was identical to the server's PAID bank at the same index, so anyone who extracted
+// the app bundle held a complete answer key for every paid question. That was a larger
+// exposure than anything the security audit found — the clip bank was merely one way to
+// build such a table; this file handed it over.
+//
+// It existed because practice ran offline. Practice has not been offline since clips shipped
+// (every round downloads video), so shipping answers bought nothing. Practice now asks the
+// server for a question, and the server keeps the answer and grades the response —
+// /api/practice/question and /api/practice/answer. Both modes draw from the same video-backed
+// pool, so the clips serve practice and paid alike and the pool grows on its own as more ship.
+// Nothing needs to change in this file when questions are added.
+//
+// The only remaining consumer is the web `?test` snapshot hook (window.__sense), which needs
+// *a* question shape to render a screenshot. These placeholders exist purely for that.
+// NEVER put a real question or a real answer in this file again.
 
 export const PRACTICE_QUESTIONS = [
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/01_raccoon_surgeon.jpg", options: ["Badger", "Coati", "Raccoon", "Red Panda"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/02_penguin_cowboy.jpg", options: ["Puffin", "Penguin", "Auk", "Albatross"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/03_elephant_ballerina.jpg", options: ["Rhinoceros", "Hippopotamus", "Mammoth", "Elephant"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/04_lion_samurai.jpg", options: ["Lion", "Tiger", "Cougar", "Liger"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/05_goldfish_astronaut.jpg", options: ["Goldfish", "Koi", "Betta Fish", "Clownfish"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/06_gorilla_businessman.jpg", options: ["Gorilla", "Chimpanzee", "Orangutan", "Baboon"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/07_cat_lion.jpg", options: ["Lion", "Tiger", "Cat", "Dog"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/08_frog_tuxedo.jpg", options: ["Frog", "Toad", "Salamander", "Newt"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/09_chicken_football.jpg", options: ["Turkey", "Chicken", "Quail", "Pheasant"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/10_sloth_f1.jpg", options: ["Sloth", "Anteater", "Koala", "Tamandua"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/11_pug_viking.jpg", options: ["Pug", "French Bulldog", "Boston Terrier", "Bulldog"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/12_octopus_chef.jpg", options: ["Squid", "Cuttlefish", "Jellyfish", "Octopus"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/13_hamster_dj.jpg", options: ["Guinea Pig", "Gerbil", "Mouse", "Hamster"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/14_giraffe_scuba.jpg", options: ["Giraffe", "Okapi", "Llama", "Camel"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/15_parrot_judge.jpg", options: ["Toucan", "Parrot", "Parakeet", "Kingfisher"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/16_corgi_karate.jpg", options: ["Corgi", "Shiba Inu", "Dachshund", "Pomeranian"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/17_flamingo_firefighter.jpg", options: ["Spoonbill", "Stork", "Crane", "Flamingo"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/18_turtle_biker.jpg", options: ["Turtle", "Tortoise", "Snail", "Crocodile"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/19_bear_lifeguard.jpg", options: ["Bear", "Wolverine", "Badger", "Moose"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/20_deer_disco.jpg", options: ["Elk", "Deer", "Antelope", "Gazelle"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/21_koala_barista.jpg", options: ["Koala", "Wombat", "Possum", "Sloth"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/22_kangaroo_mailman.jpg", options: ["Wallaby", "Wallaroo", "Hare", "Kangaroo"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/23_owl_professor.jpg", options: ["Owl", "Hawk", "Falcon", "Nightjar"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/24_pig_pilot.jpg", options: ["Wild Boar", "Pig", "Warthog", "Tapir"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/25_squirrel_weightlifter.jpg", options: ["Squirrel", "Chipmunk", "Marmot", "Prairie Dog"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/26_alpaca_hairdresser.jpg", options: ["Llama", "Alpaca", "Sheep", "Camel"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/27_walrus_plumber.jpg", options: ["Sea Lion", "Elephant Seal", "Walrus", "Manatee"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/28_ostrich_cop.jpg", options: ["Emu", "Rhea", "Cassowary", "Ostrich"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/29_hippo_yoga.jpg", options: ["Rhinoceros", "Hippopotamus", "Capybara", "Manatee"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/30_crab_dentist.jpg", options: ["Crab", "Lobster", "Crayfish", "Hermit Crab"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/31_moose_lumberjack.jpg", options: ["Elk", "Deer", "Moose", "Horse"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/32_seal_waiter.jpg", options: ["Sea Lion", "Seal", "Otter", "Penguin"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/33_rooster_boxer.jpg", options: ["Rooster", "Hen", "Pheasant", "Turkey"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/34_skunk_perfumer.jpg", options: ["Badger", "Skunk", "Civet", "Polecat"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/35_donkey_construction.jpg", options: ["Mule", "Horse", "Donkey", "Pony"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/36_rabbit_magician.jpg", options: ["Rabbit", "Hare", "Jackrabbit", "Guinea Pig"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/37_panda_sumo.jpg", options: ["Panda", "Sun Bear", "Black Bear", "Spectacled Bear"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/38_otter_goalie.jpg", options: ["Otter", "Beaver", "Mink", "Muskrat"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/39_peacock_wedding.jpg", options: ["Pheasant", "Peacock", "Peahen", "Turkey"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/40_armadillo_knight.jpg", options: ["Pangolin", "Anteater", "Hedgehog", "Armadillo"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/41_zebra_referee.jpg", options: ["Okapi", "Donkey", "Horse", "Zebra"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/42_camel_icecream.jpg", options: ["Llama", "Alpaca", "Camel", "Donkey"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/43_hedgehog_barber.jpg", options: ["Porcupine", "Echidna", "Shrew", "Hedgehog"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/44_duck_newsanchor.jpg", options: ["Goose", "Swan", "Loon", "Duck"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/45_goat_opera.jpg", options: ["Sheep", "Ibex", "Goat", "Ram"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/47_badger_bartender.jpg", options: ["Wolverine", "Skunk", "Badger", "Marmot"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/48_mouse_librarian.jpg", options: ["Rat", "Mouse", "Hamster", "Vole"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/49_horse_busdriver.jpg", options: ["Donkey", "Horse", "Mule", "Pony"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/50_fox_skateboarder.jpg", options: ["Coyote", "Fox", "Jackal", "Dingo"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/51_cow_flightattendant.jpg", options: ["Cow", "Ox", "Bison", "Yak"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/52_sheep_painter.jpg", options: ["Goat", "Alpaca", "Sheep", "Llama"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/53_tiger_chess.jpg", options: ["Lion", "Jaguar", "Leopard", "Tiger"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/54_chimpanzee_scientist.jpg", options: ["Gorilla", "Orangutan", "Chimpanzee", "Monkey"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/55_polarbear_volleyball.jpg", options: ["Brown Bear", "Black Bear", "Grizzly Bear", "Polar Bear"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/56_cobra_charmer.jpg", options: ["Python", "Viper", "Cobra", "Mamba"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/57_eagle_rockstar.jpg", options: ["Bald Eagle", "Golden Eagle", "Hawk", "Osprey"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/59_porcupine_acupuncturist.jpg", options: ["Porcupine", "Hedgehog", "Echidna", "Beaver"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/60_beaver_carpenter.jpg", options: ["Otter", "Muskrat", "Groundhog", "Beaver"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/61_shark_lawyer.jpg", options: ["Hammerhead Shark", "Great White Shark", "Whale Shark", "Dolphin"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/62_turkey_marathon.jpg", options: ["Chicken", "Peacock", "Turkey", "Vulture"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/63_lemur_gymnast.jpg", options: ["Meerkat", "Lemur", "Monkey", "Raccoon"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/64_wolf_security.jpg", options: ["Husky", "Fox", "Bear", "Wolf"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/65_toucan_tourguide.jpg", options: ["Hornbill", "Parrot", "Pelican", "Toucan"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/66_bison_pitmaster.jpg", options: ["Bison", "Buffalo", "Cow", "Yak"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/67_ferret_electrician.jpg", options: ["Ferret", "Weasel", "Squirrel", "Rat"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/68_iguana_tourist.jpg", options: ["Gecko", "Chameleon", "Iguana", "Monitor Lizard"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/69_woodpecker_drummer.jpg", options: ["Kingfisher", "Robin", "Woodpecker", "Cardinal"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/costumes/70_capybara_spa.jpg", options: ["Guinea Pig", "Beaver", "Capybara", "Wombat"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/68_meerkat.jpg", options: ["Prairie Dog", "Meerkat", "Mongoose", "Ground Squirrel"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/69_sloth.jpg", options: ["Koala", "Sloth", "Anteater", "Lemur"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/70_grizzly.jpg", options: ["Grizzly Bear", "Black Bear", "Polar Bear", "Panda"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/71_bear.jpg", options: ["Bear", "Moose", "Wolverine", "Boar"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/72_caiman.jpg", options: ["Alligator", "Crocodile", "Caiman", "Iguana"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/73_golden_retriever.jpg", options: ["Labrador Retriever", "Golden Retriever", "Irish Setter", "Cocker Spaniel"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/74_gorilla.jpg", options: ["Chimpanzee", "Gorilla", "Orangutan", "Gibbon"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/75_gorilla2.jpg", options: ["Orangutan", "Chimpanzee", "Baboon", "Gorilla"], correct: 3 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/76_lobster.jpg", options: ["Crab", "Lobster", "Crayfish", "Shrimp"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/77_penguin.jpg", options: ["Puffin", "Auk", "Penguin", "Albatross"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/78_puffin.jpg", options: ["Penguin", "Puffin", "Auk", "Toucan"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/79_raccoon.jpg", options: ["Raccoon", "Badger", "Coati", "Red Panda"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/80_raccoon2.jpg", options: ["Coati", "Raccoon", "Badger", "Opossum"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/81_snow_leopard.jpg", options: ["Leopard", "Cheetah", "Snow Leopard", "Jaguar"], correct: 2 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/82_owl2.jpg", options: ["Owl", "Falcon", "Hawk", "Eagle"], correct: 0 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/83_hippo2.jpg", options: ["Rhinoceros", "Hippopotamus", "Walrus", "Manatee"], correct: 1 },
-  { text: "What animal is this?", image: "https://dogmomhq.github.io/sense-images/animals/84_badger2.jpg", options: ["Wolverine", "Badger", "Skunk", "Raccoon"], correct: 1 },
+  { text: 'What animal is this?', options: ['Placeholder A', 'Placeholder B', 'Placeholder C', 'Placeholder D'], correct: 0 },
+  { text: 'What animal is this?', options: ['Sample One', 'Sample Two', 'Sample Three', 'Sample Four'], correct: 1 },
+  { text: 'What animal is this?', options: ['Example W', 'Example X', 'Example Y', 'Example Z'], correct: 2 },
+  { text: 'What animal is this?', options: ['Demo Red', 'Demo Blue', 'Demo Green', 'Demo Gold'], correct: 3 },
 ];

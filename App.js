@@ -469,7 +469,13 @@ export default function App() {
     try {
       const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
       const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
-      FileSystem.downloadAsync(HTTPS_BASE + '/pvid/' + f.questionIdx, dest, {
+      // 2026-08-24: practice fetches its clip through /vid/<one-use token>, exactly like a paid
+      // round — so no route addresses clips by bare index any more, and practice inherits the
+      // per-delivery byte variance. Falls back to the legacy indexed route only if a question
+      // somehow arrived without a token.
+      const _practiceUrl = f.videoToken ? (HTTPS_BASE + '/vid/' + f.videoToken)
+                                        : (HTTPS_BASE + '/pvid/' + f.questionIdx);
+      FileSystem.downloadAsync(_practiceUrl, dest, {
         // 2026-08-24 (audit 6.1): practice clips come from the SAME pool paid questions draw
         // from, and this route served them by bare index with no auth — the whole bank was
         // downloadable by anyone with curl, which is a ready-made answer key. Identity now
@@ -486,7 +492,27 @@ export default function App() {
     // the HOME screen for a frame. Same class as the B44 goHome flash: ALL
     // render-visible state now flips inside the fade callback, one batched commit.
   }
-  function startPractice() { track('practice_start'); const f = getPracticeQuestion(used, VIDEO_IDXS); recordUsed(f.questionIdx); startRound(f); }
+  // SERVER-AUTHORITATIVE PRACTICE (2026-08-24, CJ: "45 videos in both, no images").
+  // The bundled bank carried every question's CORRECT ANSWER — plus a public image URL whose
+  // filename named the animal — and was identical to the paid bank at the same indices, so the
+  // app binary WAS an answer key for paid play. Practice hasn't been offline since clips
+  // shipped, so the server now picks the question, keeps the answer, and grades the response.
+  // Same 45 video-backed questions in both modes; the pool grows as clips are added.
+  async function fetchPracticeQuestion() {
+    const tok = (accountRef.current && accountRef.current.token) || '';
+    const r = await fetch(`${HTTPS_BASE}/api/practice/question`, { headers: tok ? { 'x-auth-token': tok } : undefined });
+    if (!r.ok) throw new Error('practice_unavailable_' + r.status);
+    const j = await r.json();
+    if (!j || !Array.isArray(j.options)) throw new Error('practice_bad_payload');
+    // correctIdx deliberately absent — it arrives only after the answer is submitted.
+    return { text: j.text, options: j.options, correctIdx: null, pid: j.pid, videoToken: j.videoToken, questionIdx: null };
+  }
+  function startPractice() {
+    track('practice_start');
+    fetchPracticeQuestion()
+      .then((f) => startRound(f))
+      .catch((e) => { console.log('[practice]', e.message); showToast('Practice needs a connection — try again.', 'error'); });
+  }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
   // TOUCH-DOWN (AnswerGrid onPressIn). clientTime is computed from the moment
   // the finger made contact, not from when the press gesture completed —
@@ -516,19 +542,38 @@ export default function App() {
       }
       return;
     }
-    const c = getComputerAnswer(q.correctIdx, q.options.length, history.current);
-    const r = determinePracticeResult(idx, playerTime, c.answer, c.time, q.correctIdx);
-    setComp({ ...c, playerTime }); setResult(r);
-    history.current = [...history.current, r.result === 'win'];
-    try { AsyncStorage.setItem('sense_hist', JSON.stringify(history.current)); } catch (e) {}
-    setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
-    setPracLog(p => { const n = [{ result: r.result, animal: q.options[q.correctIdx], time: playerTime }, ...p].slice(0, 10); try { AsyncStorage.setItem('sense_praclog', JSON.stringify(n)); } catch (e) {} return n; });
-    setTimeout(() => fadeTo(() => setMode('results')), 400); // pace pass 2026-08-21: was 800
+    // Practice grading is server-side now — the app never held the answer, so it asks for it.
+    (async () => {
+      let correctIdx = q.correctIdx;
+      if (q.pid) {
+        try {
+          const tok = (accountRef.current && accountRef.current.token) || '';
+          const gr = await fetch(`${HTTPS_BASE}/api/practice/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(tok ? { 'x-auth-token': tok } : {}) },
+            body: JSON.stringify({ pid: q.pid, answerIndex: idx }),
+          });
+          if (gr.ok) { const gj = await gr.json(); if (Number.isInteger(gj.correctIdx)) correctIdx = gj.correctIdx; }
+        } catch (e) { console.log('[practice] grade failed:', e.message); }
+      }
+      if (!Number.isInteger(correctIdx)) { showToast('Could not score that round — try again.', 'error'); bailHome(null); return; }
+      const c = getComputerAnswer(correctIdx, q.options.length, history.current);
+      const r = determinePracticeResult(idx, playerTime, c.answer, c.time, correctIdx);
+      setQ(prev => (prev ? { ...prev, correctIdx } : prev)); // the results screen reads it from q
+      setComp({ ...c, playerTime }); setResult(r);
+      history.current = [...history.current, r.result === 'win'];
+      try { AsyncStorage.setItem('sense_hist', JSON.stringify(history.current)); } catch (e) {}
+      setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
+      setPracLog(p => { const n = [{ result: r.result, animal: q.options[correctIdx], time: playerTime }, ...p].slice(0, 10); try { AsyncStorage.setItem('sense_praclog', JSON.stringify(n)); } catch (e) {} return n; });
+      setTimeout(() => fadeTo(() => setMode('results')), 400); // pace pass 2026-08-21: was 800
+    })();
   }
   function playAgain() {
     if (isChallengeRef.current) { doRematch(); return; }
     if (onlineRef.current) { requeueOnline(); return; }
-    const f = getPracticeQuestion(used, VIDEO_IDXS); recordUsed(f.questionIdx); startRound(f);
+    fetchPracticeQuestion()
+      .then((f) => startRound(f))
+      .catch((e) => { console.log('[practice]', e.message); showToast('Practice needs a connection — try again.', 'error'); });
   }
   function goHome() {
     if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }
