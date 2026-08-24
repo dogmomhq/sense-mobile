@@ -219,7 +219,7 @@ export default function WaitingScreen({
             {[
               'Your answer and time are locked in \u2014 they can\u2019t be changed.',
               'The next player who enters this tier gets the same animal. Fastest correct answer takes the prize.',
-              'You don\u2019t have to wait. Play more rounds now \u2014 every score stays locked and matches on its own. We\u2019ll notify you the moment each result lands.',
+              'You don\u2019t have to wait. Play more rounds now \u2014 every score stays locked and matches on its own. Turn notifications on and we\u2019ll tell you the moment each result lands.',
               'Same speed, or both wrong? It\u2019s a tie \u2014 your full entry comes back.',
             ].map((p, i) => (
               <Text key={i} style={{ fontFamily: FONTS.interBold, fontSize: 33 * s, lineHeight: 46 * s,
