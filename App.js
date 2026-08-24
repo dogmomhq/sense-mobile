@@ -469,7 +469,14 @@ export default function App() {
     try {
       const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
       const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
-      FileSystem.downloadAsync(HTTPS_BASE + '/pvid/' + f.questionIdx, dest).then(r => {
+      FileSystem.downloadAsync(HTTPS_BASE + '/pvid/' + f.questionIdx, dest, {
+        // 2026-08-24 (audit 6.1): practice clips come from the SAME pool paid questions draw
+        // from, and this route served them by bare index with no auth — the whole bank was
+        // downloadable by anyone with curl, which is a ready-made answer key. Identity now
+        // rides the request so the server can require (and attribute) access. Sent BEFORE the
+        // server starts requiring it, so practice video never breaks in between.
+        headers: (accountRef.current && accountRef.current.token) ? { 'x-auth-token': accountRef.current.token } : undefined,
+      }).then(r => {
         if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current && roundSeqRef.current === mySeq) { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
       }).catch(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); }); // download failed -> allow the still fallback
     } catch (e) { setQVidExp(false); }
@@ -576,7 +583,16 @@ export default function App() {
     const begin = () => {
       if (began || matchIdRef.current !== mid) return; // stale callback from an old match must not start/ready this one
       began = true;
-      if (mid !== 'room') { try { wsSend({ type: 'ready', matchId: mid, name: myName() }); readySentTsRef.current = Date.now(); } catch (e) {} }
+      if (mid !== 'room') { try {
+        // 2026-08-24: identity now rides the ready. The server stopped trusting msg.name
+        // (anyone could forge a ready and void your match); with a token, a client that
+        // reconnected between question and ready can still prove who it is and keep its
+        // download-time credit instead of silently forfeiting it.
+        wsSend({ type: 'ready', matchId: mid, name: myName(),
+          token: (accountRef.current && accountRef.current.token) || undefined,
+          supabaseToken: supabaseTokenRef.current || undefined });
+        readySentTsRef.current = Date.now();
+      } catch (e) {} }
       try { sfx('silence'); } catch (e) {} // B99: warm the iOS audio session ~150ms before beat 3 (kills the cold-start latency on the first sound)
       setCountdown(true); fadeTo(() => { setQVid(p => (p && p.seq === roundSeqRef.current) ? p : null); setQVidExp(wantVid); setMode('play'); }); // B100: old clip dropped only when the new round paints
     };
@@ -710,7 +726,8 @@ export default function App() {
     } catch (e) {}
   }
   async function hydrateOpenGames(name) {
-    if (!name) return;
+    let _lastOpenGames = null; // returned to the caller (the join watchdog needs a receipt)
+    if (!name) return null;
     try {
       const tok = (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || '';
       const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}${tok ? '?token=' + encodeURIComponent(tok) : ''}`);
@@ -723,6 +740,7 @@ export default function App() {
       // is dropped the moment we hydrate. Server /api/open-games returns only status='open'.
       if (d && Array.isArray(d.open)) {
         const open = d.open;
+        _lastOpenGames = open; // 2026-08-24 (audit 5.6): expose the server's answer to callers
         setPending(prev => {
           const next = { ...prev };
           const seen = new Set();
@@ -769,6 +787,7 @@ export default function App() {
         });
       }
     } catch (e) {}
+    return _lastOpenGames; // audit 5.6: the join watchdog uses this as an independent receipt
   }
   function doRename(name) {
     const nm = String(name || '').trim();
@@ -1044,7 +1063,25 @@ export default function App() {
       if (isDialing()) { armJoinWatch(); return; } // dial in flight — B42's 4s connect watchdog owns it; look again
       w.strikes += 1;
       if (w.strikes === 1) autoRequeue();          // join lost in transit — cheap fix first
-      else { forceReconnect(); setTimeout(() => { if (modeRef.current === 'joining') autoRequeue(); }, 250); } // zombie pipe — fresh socket, then fresh join
+      else {
+        // HARDENING 2026-08-24 (audit 5.6): every stop-signal this watchdog waits for travels
+        // on the SAME socket whose silence triggered it, so it cannot tell "my join was lost"
+        // from "the join worked and the reply was lost". On a paid tier the second reading
+        // costs another entry. Before spending again, confirm server state over HTTP — an
+        // independent channel — and stand down if the account already has an open game.
+        (async () => {
+          try {
+            const openNow = await hydrateOpenGames(myName());
+            if (Array.isArray(openNow) && openNow.length > 0 && modeRef.current === 'joining') {
+              console.log('[joinWatch] HTTP reconcile found an open game — standing down instead of re-queueing');
+              return;
+            }
+          } catch (e) {}
+          if (modeRef.current !== 'joining') return;
+          forceReconnect();
+          setTimeout(() => { if (modeRef.current === 'joining') autoRequeue(); }, 250); // zombie pipe — fresh socket, then fresh join
+        })();
+      }
     }, 4000);
   }
   async function sendQueueMsg(src) {
@@ -1201,7 +1238,26 @@ export default function App() {
     activeMatchRef.current = null; matchIdRef.current = null; // B61: runback = the old game stops being "current" NOW. Its result often races this very tap (2026-07-27: settle + runback in the same second); with the ref cleared the late result takes the async-result else-branch (banner) instead of re-foregrounding over the joining screen — the hijack that orphaned a fresh queue into a 50c timeout loss.
     setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(src || 'runback');
   }
-  function cancelOnline() { try { if (matchIdRef.current) { markCancelledId(matchIdRef.current); wsSend(cancelMatch(matchIdRef.current)); } } catch (e) {} bailHome(null); }
+  // HARDENING 2026-08-24 (audit 5.5). This used to build the message WITHOUT identity and
+  // send it straight down a socket that may already be dead (websocket.js drops sends on a
+  // closed socket silently), then immediately hide the match card and disconnect ~130ms
+  // later. If the socket was gone the cancel evaporated: the stake stayed escrowed on a
+  // match the player believes they cancelled, and the card that would have shown it was
+  // hidden. The sibling cancelPendingMatch already did this correctly — the two had drifted.
+  // Now: identity attached, sent through ensureConn (which redials if needed), and an HTTP
+  // reconcile 4s later so a missed terminal message still drops the card.
+  function cancelOnline() {
+    const mid = matchIdRef.current;
+    try {
+      if (mid) {
+        markCancelledId(mid);
+        const cxlMsg = cancelMatch(mid, wsIdentity());
+        ensureConn(() => wsSend(cxlMsg));
+        setTimeout(() => { try { hydrateOpenGames(myName()); } catch (e) {} }, 4000);
+      }
+    } catch (e) {}
+    bailHome(null);
+  }
   // ---- challenge (friend room) ----
   function doCreateChallenge() { setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => createChallenge({ tier:1, playerName: myName(), paymentMode:'none' })); }
   function doJoinChallenge() { const code = (joinCode||'').trim(); if (!code) return; setNotice(null); isChallengeRef.current = true; onlineRef.current = true; setOnline(true); ensureConn(() => acceptChallenge({ gameId: code, playerName: myName() })); }
