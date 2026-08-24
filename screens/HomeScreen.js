@@ -2,8 +2,8 @@
 // All numbers are prototype px on the 1024x2224 canvas, scaled by s.
 // Percent bands (photo / fades) stay percentages of the real screen height,
 // exactly like the CSS, so other aspect ratios degrade gracefully.
-import React from 'react';
-import { View, Text, Pressable, ScrollView, useWindowDimensions, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, ScrollView, useWindowDimensions, StatusBar, Modal } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
@@ -24,7 +24,7 @@ const TIERS = [
   { label: '$128.00', locked: true },
 ];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B101';
+export const BUILD_TAG = 'B102';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
@@ -36,6 +36,7 @@ export default function HomeScreen({
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
+  const [showHow, setShowHow] = useState(false); // B102: HOW IT WORKS modal (copy CJ-approved)
   // Height-aware vertical anchors (see theme.useVScale): nav is bottom-anchored,
   // tier row / caption / CTA stack stack upward from it with gaps that compress
   // (factor g) on short viewports; the wordmark clamps above the CTAs and the
@@ -92,6 +93,22 @@ export default function HomeScreen({
           letterSpacing: 0.22 * 32 * s,
           textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 * s }, textShadowRadius: 8 * s }}>
           WILDLIFE. INSTINCT. VICTORY.</Text>
+      </View>
+
+      {/* B102: HOW IT WORKS — slim ghost button riding above the CTA stack */}
+      <View style={{ position: 'absolute', bottom: ctaB + 318 * s, left: 0, right: 0, alignItems: 'center', zIndex: 15 }}>
+        <Pressable onPress={() => setShowHow(true)} hitSlop={10}
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(16,20,13,0.55)',
+            borderWidth: 1.5 * s, borderColor: 'rgba(245,241,230,0.3)', borderRadius: 40 * s,
+            paddingVertical: 12 * s, paddingHorizontal: 36 * s }}>
+          <View style={{ width: 34 * s, height: 34 * s, borderRadius: 17 * s, borderWidth: 2 * s,
+            borderColor: 'rgba(245,241,230,0.6)', alignItems: 'center', justifyContent: 'center', marginRight: 14 * s }}>
+            <Text style={{ fontFamily: FONTS.interBlack, fontSize: 20 * s, color: 'rgba(245,241,230,0.8)',
+              includeFontPadding: false }}>i</Text>
+          </View>
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 28 * s, letterSpacing: 0.12 * 28 * s,
+            color: 'rgba(245,241,230,0.85)', includeFontPadding: false }}>HOW IT WORKS</Text>
+        </Pressable>
       </View>
 
       {/* CTA stack — PLAY NOW (lime, h~170) + PRACTICE FREE (ghost, h~110) */}
@@ -169,6 +186,34 @@ export default function HomeScreen({
         fontFamily: FONTS.interBold, fontSize: 10, color: COLORS.cream, opacity: 0.3 }}>{`v.${BUILD_TAG}`}</Text>
 
       <SegmentedNav active={activeTab} onTab={onTab} />
+      {/* B102: HOW IT WORKS modal (copy CJ-approved 2026-08-23) */}
+      <Modal visible={showHow} transparent animationType="fade" onRequestClose={() => setShowHow(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', alignItems: 'center', justifyContent: 'center', padding: 40 * s }}>
+          <View style={{ width: '100%', maxWidth: 620 * s, backgroundColor: '#161b12', borderWidth: 2.5 * s,
+            borderColor: 'rgba(215,248,74,0.55)', borderRadius: 30 * s, padding: 52 * s }}>
+            <Text style={{ fontFamily: FONTS.anton, fontSize: 62 * s, color: COLORS.cream,
+              letterSpacing: 0.02 * 62 * s, marginBottom: 30 * s }}>HOW IT WORKS</Text>
+            {[
+              'Pick your stake. You and your rival pay the same entry.',
+              'You both get the same animal \u2014 four choices, 8 seconds.',
+              'Fastest correct answer wins the prize shown up front. Every match.',
+              'No waiting around: your rival doesn\u2019t have to be online. Scores lock and match automatically \u2014 we notify you the moment each result lands.',
+              'Same speed, or both wrong? It\u2019s a tie \u2014 your full entry comes back.',
+              'Practice mode is free, forever.',
+            ].map((p, i) => (
+              <Text key={i} style={{ fontFamily: FONTS.interBold, fontSize: 31 * s, lineHeight: 43 * s,
+                color: 'rgba(245,241,230,0.92)', marginBottom: 22 * s }}>{p}</Text>
+            ))}
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, letterSpacing: 0.1 * 24 * s,
+              color: 'rgba(245,241,230,0.5)', textAlign: 'center', marginBottom: 24 * s }}>skill-based \u00b7 1v1 \u00b7 18+</Text>
+            <Pressable onPress={() => setShowHow(false)} style={{ height: 120 * s, borderRadius: 26 * s,
+              backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: FONTS.anton, fontSize: 48 * s, color: '#10140C',
+                letterSpacing: 0.05 * 48 * s }}>LET\u2019S GO</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

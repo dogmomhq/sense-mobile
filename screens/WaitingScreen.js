@@ -6,8 +6,8 @@
 //   "AN OPPONENT IS OUT THERE" over subtle radar pulse rings → stake pill →
 //   lime PLAY AGAIN (same-tier re-queue, decision #13/Q7) + ghost HISTORY/HOME.
 // Pure presentational: no sockets, no timers beyond the radar pulse loop.
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StatusBar } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StatusBar, Modal } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassHeader from './components/GlassHeader';
@@ -54,6 +54,7 @@ export default function WaitingScreen({
   pushOn = true, onEnablePush,
 }) {
   const s = useScale();
+  const [showInfo, setShowInfo] = useState(false); // B102: how-matches-work modal (copy CJ-approved)
   const { width, height } = useWindowDimensions();
   // Height-aware anchors (theme.useVScale): buttons + stake pill stack up from
   // the bottom with compressible gaps (g); upper content compresses by vs. On
@@ -137,8 +138,19 @@ export default function WaitingScreen({
         <View style={{ backgroundColor: 'rgba(16,20,13,0.72)', borderWidth: 1.5 * s,
           borderColor: 'rgba(245,241,230,0.25)', borderRadius: RADII.stake * s,
           paddingVertical: 18 * s, paddingHorizontal: 42 * s }}>
-          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s,
-            letterSpacing: 0.1 * 36 * s, color: COLORS.cream }}>{noConn ? 'NO CONNECTION — RECONNECTING…' : 'AN OPPONENT IS OUT THERE'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s,
+              letterSpacing: 0.1 * 36 * s, color: COLORS.cream }}>{noConn ? 'NO CONNECTION — RECONNECTING…' : 'AN OPPONENT IS OUT THERE'}</Text>
+            {!noConn && (
+              <Pressable onPress={() => setShowInfo(true)} hitSlop={16}
+                style={{ marginLeft: 20 * s, width: 52 * s, height: 52 * s, borderRadius: 26 * s,
+                  borderWidth: 2.5 * s, borderColor: 'rgba(245,241,230,0.55)',
+                  alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: FONTS.interBlack, fontSize: 30 * s, color: 'rgba(245,241,230,0.8)',
+                  includeFontPadding: false }}>i</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
       </View>
 
@@ -148,7 +160,8 @@ export default function WaitingScreen({
       <View style={{ position: 'absolute', top: 1190 * s * vs + headerOff, left: 40 * s, right: 40 * s, alignItems: 'center', zIndex: 10 }}>
         <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, letterSpacing: 0.08 * 30 * s,
           color: 'rgba(245,241,230,0.85)', textAlign: 'center' }}>
-          {pushOn ? 'WE\u2019LL NOTIFY YOU WHEN THE RESULT IS IN' : 'GET NOTIFIED WHEN THE RESULT IS IN'}
+          {pushOn ? 'YOUR TIME IS LOCKED IN. KEEP PLAYING \u2014 WE\u2019LL NOTIFY YOU THE MOMENT AN OPPONENT MATCHES YOUR SCORE.'
+                  : 'YOUR TIME IS LOCKED IN. KEEP PLAYING \u2014 GET NOTIFIED THE MOMENT AN OPPONENT MATCHES YOUR SCORE.'}
         </Text>
         {!pushOn && (
           <PressBtn onPress={onEnablePush} style={{ marginTop: 28 * s, height: 100 * s,
@@ -196,6 +209,30 @@ export default function WaitingScreen({
           </PressBtn>
         ))}
       </View>
+      {/* B102: HOW MATCHES WORK (copy CJ-approved 2026-08-23) */}
+      <Modal visible={showInfo} transparent animationType="fade" onRequestClose={() => setShowInfo(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', alignItems: 'center', justifyContent: 'center', padding: 40 * s }}>
+          <View style={{ width: '100%', maxWidth: 620 * s, backgroundColor: '#161b12', borderWidth: 2.5 * s,
+            borderColor: 'rgba(215,248,74,0.55)', borderRadius: 30 * s, padding: 52 * s }}>
+            <Text style={{ fontFamily: FONTS.anton, fontSize: 62 * s, color: COLORS.cream,
+              letterSpacing: 0.02 * 62 * s, marginBottom: 34 * s }}>HOW MATCHES WORK</Text>
+            {[
+              'Your answer and time are locked in \u2014 they can\u2019t be changed.',
+              'The next player who enters this tier gets the same animal. Fastest correct answer takes the prize.',
+              'You don\u2019t have to wait. Play more rounds now \u2014 every score stays locked and matches on its own. We\u2019ll notify you the moment each result lands.',
+              'Same speed, or both wrong? It\u2019s a tie \u2014 your full entry comes back.',
+            ].map((p, i) => (
+              <Text key={i} style={{ fontFamily: FONTS.interBold, fontSize: 33 * s, lineHeight: 46 * s,
+                color: 'rgba(245,241,230,0.92)', marginBottom: 26 * s }}>{p}</Text>
+            ))}
+            <Pressable onPress={() => setShowInfo(false)} style={{ height: 120 * s, borderRadius: 26 * s,
+              backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center', marginTop: 10 * s }}>
+              <Text style={{ fontFamily: FONTS.anton, fontSize: 48 * s, color: '#10140C',
+                letterSpacing: 0.05 * 48 * s }}>GOT IT</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Animated.View>
   );
 }
