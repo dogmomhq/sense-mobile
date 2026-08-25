@@ -538,7 +538,7 @@ export default function ReskinApp({ g }) {
       body = (
         <QuestionScreen key={String(g.matchId || '') + (g.q.text || '')}
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
-          videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} player={vidPlayer}
+          videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} posterUri={g.qPoster || null} player={vidPlayer}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE} avatar={avatarSource(avatarKey)}
           secondsLeft={g.countdown ? ROUND_S : (answered ? secLeft : null)} // B76: was baked 10 - conceal ring showed 10 then snapped to 8
@@ -586,7 +586,7 @@ export default function ReskinApp({ g }) {
           ? { w: g.onlineRec.wins, d: g.onlineRec.draws, l: g.onlineRec.losses }
           : { w: g.rec.wins, d: g.rec.draws, l: g.rec.losses }}
         photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
-        videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} player={vidPlayer}
+        videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} posterUri={g.qPoster || null} player={vidPlayer}
         reason={g.result.reason || null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );

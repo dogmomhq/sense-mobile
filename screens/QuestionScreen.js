@@ -25,6 +25,7 @@ export default function QuestionScreen({
   photo = DEMO_PHOTO, photoW = 768, photoH = 1376,
   videoUri = null,                          // 1.4.0: local file uri of the downloaded clip; null = still image only
   videoExpected = false,                    // B100: a clip is coming — never paint the still, even while videoUri is null
+  posterUri = null,                         // 2026-08-24: first frame of the clip (~18-40KB) — shows instantly so a video round is never black while the ~3MB clip loads
   player = null,                            // B90: the ONE shared player (owned by ReskinApp) — survives into waiting/results so the clip never restarts at screen changes
   stake = '$1.00 · WIN $1.90',
   streak = 8, balance = '$24.50', avatar = undefined, // B89: home avatar everywhere
@@ -145,13 +146,18 @@ export default function QuestionScreen({
     <View style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
       <StatusBar barStyle="light-content" />
 
-      {/* B97: the still renders ONLY when there is no clip — the video's first frame
-          is the poster now (rounds gate on the download, so videoUri is set at mount;
-          the photo is the download-failure / no-video fallback, not an underlay) */}
-      {(videoUri || videoExpected) ? null : (
+      {/* 2026-08-24 FRAME-1 POSTER (CJ). The median clip is ~3MB and can't be guaranteed to
+          finish inside the 2.4s countdown on a slow connection, so the video layer was black
+          at reveal until it decoded. Frame 1 as a tiny jpg loads in a fraction of a second and
+          shows here instantly; the clip plays OVER the identical frame when ready — no black,
+          no jump. Always rendered for a video round (not gated by videoExpected). */}
+      {posterUri ? (
+        <CoverPhoto source={{ uri: posterUri }} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
+          style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
+      ) : ((videoUri || videoExpected) ? null : (
         <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
           style={{ position: 'absolute', top: 0, left: 0, opacity: concealed ? 0 : 1 }} />
-      )}
+      ))}
 
       {/* 1.4.0: looping clip over the still (photo stays underneath as the instant poster) */}
       {videoUri && vidReady ? (

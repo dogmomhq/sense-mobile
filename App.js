@@ -272,6 +272,7 @@ export default function App() {
   const [q, setQ] = useState(null);
   const [qVid, setQVid] = useState(null); const qVidFileRef = useRef(null); // 1.4.0: local uri of the downloaded question video (null = still image only). B100: qVid = {uri,seq} scoped to a round
   const [qVidExp, setQVidExp] = useState(false); const roundSeqRef = useRef(0); // B100: this round EXPECTS a clip -> never render the still, even before the clip lands
+  const [qPoster, setQPoster] = useState(null); // 2026-08-24: first-frame poster url (frame 1); shows instantly so a video round is never black
   const pVidNonceRef = useRef(0); // B91: practice-round download guard (practice has no matchId)
   const [used, setUsed] = useState([]);
   const [picked, setPicked] = useState(null);
@@ -467,7 +468,8 @@ export default function App() {
     const pnonce = ++pVidNonceRef.current;
     try { sfx('silence'); } catch (e) {} // B99: audio-session warm-up
     fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null);
-      setQVid(p => (p && p.seq === mySeq) ? p : null); setQVidExp(true); // B100: drop the OLD round's clip exactly when the new round becomes visible (no early null = no still/black flash on PLAY AGAIN)
+      setQVid(p => (p && p.seq === mySeq) ? p : null); setQVidExp(true); setQPoster(f.videoToken ? (HTTPS_BASE + '/vposter/' + f.videoToken) : null); // B100 + 2026-08-24 poster
+
       setCountdown(true); setMode('play'); });
     if (f.preUri) {
       // Prefetched: the clip is already on disk, so it is live from the first frame of the
@@ -721,7 +723,7 @@ export default function App() {
         readySentTsRef.current = Date.now();
       } catch (e) {} }
       try { sfx('silence'); } catch (e) {} // B99: warm the iOS audio session ~150ms before beat 3 (kills the cold-start latency on the first sound)
-      setCountdown(true); fadeTo(() => { setQVid(p => (p && p.seq === roundSeqRef.current) ? p : null); setQVidExp(wantVid); setMode('play'); }); // B100: old clip dropped only when the new round paints
+      setCountdown(true); fadeTo(() => { setQVid(p => (p && p.seq === roundSeqRef.current) ? p : null); setQVidExp(wantVid); setQPoster(wantVid && question.videoToken ? (HTTPS_BASE + '/vposter/' + question.videoToken) : null); setMode('play'); }); // B100: old clip dropped only when the new round paints
     };
     // B97 (2026-08-23 CJ): for video questions the CLIP download is the ready-gate and
     // the still image is neither prefetched nor rendered — the clip's first frame is the
@@ -1419,7 +1421,7 @@ export default function App() {
   if (RESKIN) {
     const g = {
       // live state
-      tab, mode, countdown, q, qVid, qVidExp, picked, elapsed, result, comp, oppName, online, oppPending,
+      tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions,

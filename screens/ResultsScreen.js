@@ -273,6 +273,7 @@ export default function ResultsScreen({
   videoUri = null,                      // 1.4.0: clip keeps looping behind the results overlay (CJ: stop the timer, not the video)
   freezeAt = null,                      // 'reveal'|'race'|'explode'|'burst'|'payout' or ms
   videoExpected = false,                // B100: video round — never fall back to the still
+  posterUri = null,                     // 2026-08-24: first-frame poster, shown under the looping clip so results is never black
   reason = null,                        // B60: server settle reason — 'timing_review' = integrity draw (explainer line)
   onPlayAgain, onHome, onCycleEnd, showClock = false,
   avatar = undefined, // B89: home avatar everywhere
@@ -644,11 +645,14 @@ export default function ResultsScreen({
         { scale: shakeI.c }] }}>
 
         {/* photo + (loss/miss) photo-only desat — chrome stays full color */}
-        {/* B97: still only as no-video fallback — clip frame is the poster */}
-        {(videoUri || videoExpected) ? null : (
+        {/* 2026-08-24: frame-1 poster under the looping clip (never black); else the still */}
+        {posterUri ? (
+          <CoverPhoto source={{ uri: posterUri }} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
+            style={{ position: 'absolute', top: 0, left: 0, opacity: 0.9 }} />
+        ) : ((videoUri || videoExpected) ? null : (
           <CoverPhoto source={photo} naturalW={photoW} naturalH={photoH} boxW={width} boxH={height}
             style={{ position: 'absolute', top: 0, left: 0, opacity: 0.9 }} />
-        )}
+        ))}
         {/* 1.4.0: looping clip over the still; loss-desat + dark overlays above still apply */}
         {videoUri ? (
           <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: 0.9 }}>
