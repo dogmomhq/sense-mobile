@@ -55,6 +55,12 @@ export default function WaitingScreen({
 }) {
   const s = useScale();
   const [showInfo, setShowInfo] = useState(false); // B102: how-matches-work modal (copy CJ-approved)
+  // 2026-08-24: one action per screen. These buttons are always visible here (unlike the
+  // results screen, where they were tappable while invisible), but a fast double-tap on
+  // PLAY AGAIN still queues twice — and on a paid tier that is a second real entry escrowed
+  // from a tap the player thought was one.
+  const actedRef = useRef(false);
+  const once = (fn) => () => { if (actedRef.current) return; actedRef.current = true; fn && fn(); };
   const { width, height } = useWindowDimensions();
   // Height-aware anchors (theme.useVScale): buttons + stake pill stack up from
   // the bottom with compressible gaps (g); upper content compresses by vs. On
@@ -184,7 +190,7 @@ export default function WaitingScreen({
       </View>
 
       {/* PLAY AGAIN (same tier, decision #13/Q7 sticky tier) */}
-      <PressBtn onPress={onPlayAgain} style={{ position: 'absolute', bottom: playB, left: 40 * s,
+      <PressBtn onPress={once(onPlayAgain)} style={{ position: 'absolute', bottom: playB, left: 40 * s,
         right: 40 * s, height: 210 * s, borderRadius: RADII.cta * s, backgroundColor: COLORS.lime,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18 * s, zIndex: 12,
         shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s,
@@ -200,14 +206,14 @@ export default function WaitingScreen({
       {/* ghost HISTORY / HOME row */}
       <View style={{ position: 'absolute', bottom: ghostB, left: 40 * s, right: 40 * s,
         flexDirection: 'row', gap: 26 * s, zIndex: 12 }}>
-        {[['HISTORY', onHistory], ['HOME', onHome]].map(([label, fn]) => (
+        {[['HISTORY', onHistory], ['HOME', onHome]].map(([label, fn0]) => { const fn = once(fn0); return (
           <PressBtn key={label} onPress={fn} style={{ flex: 1, height: 150 * s,
             borderRadius: RADII.ghost * s, borderWidth: 3 * s, borderColor: COLORS.ghostBorder,
             backgroundColor: 'rgba(16,20,13,0.55)', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 42 * s,
               letterSpacing: 0.16 * 42 * s, color: COLORS.cream }}>{label}</Text>
           </PressBtn>
-        ))}
+        ); })}
       </View>
       {/* B102: HOW MATCHES WORK (copy CJ-approved 2026-08-23) */}
       <Modal visible={showInfo} transparent animationType="fade" onRequestClose={() => setShowInfo(false)}>

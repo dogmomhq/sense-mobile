@@ -419,6 +419,8 @@ export default function ResultsScreen({
     if (FT != null) return;
     const ts = [];
     const at = (t, fn) => ts.push(setTimeout(fn, Math.max(0, t)));
+    // buttons become touchable only once they are actually on screen (+80ms of settle)
+    at(btT0 + 300 + 80, () => setBtnsLive(true));
     // your answer reveal (~250ms): bright pop on correct, dull thud on wrong
     at(250, () => { if (!you.correct) sfx('wrong'); hapTap(you.correct ? 'light' : 'rigid'); });
     // B96: tension riser replaces the flat page-start sting — starts quiet,
@@ -583,6 +585,16 @@ export default function ResultsScreen({
   const cardIn = kf(clock, cdT0, 400, (q) => q, 6, 0);
   const cardY = kf(clock, cdT0, 400, (q) => 60 * (1 - outCubic(q)) * s, 8, 60 * s);
   const btT0 = E + inv(isLoss ? 1400 : isWin ? 1280 : isDraw ? 1300 : 980);
+  // HARDENING 2026-08-24 (CJ: spam-tapping where PLAY AGAIN is about to appear started a new
+  // game early, or bounced to HOME). In React Native, `opacity: 0` does NOT block touches —
+  // both buttons were fully tappable from the instant the results screen mounted, seconds
+  // before they were visible. Tapping the future PLAY AGAIN spot queued another round while
+  // the result was still animating; a slightly lower tap hit the invisible HOME.
+  // On a paid tier that means a second real entry from a tap you never saw land.
+  // One boolean flipped by one timer — not a subscribed clock value, because this screen
+  // deliberately keeps per-frame state in leaf components only.
+  const [btnsLive, setBtnsLive] = useState(FT != null); // frozen previews render interactive
+  const actedRef = useRef(false); // and one action per results screen, so spam can't double-fire
   const btnIn = kf(clock, btT0, 300, (q) => q, 6, 0);
   const btnY = kf(clock, btT0, 300, (q) => 40 * (1 - outCubic(q)) * s, 8, 40 * s);
   const idleT0 = E + 1400, idleSpan = Math.max(600, TL.CYCLE - idleT0);
@@ -971,9 +983,11 @@ export default function ResultsScreen({
         ) : null}
 
         {/* PLAY AGAIN (lime, idle pulse, nearmiss ignite) + ghost HOME */}
-        <Animated.View style={{ position: 'absolute', bottom: playB, left: 60 * s, right: 60 * s,
+        <Animated.View pointerEvents={btnsLive ? 'auto' : 'none'}
+          style={{ position: 'absolute', bottom: playB, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn, transform: [{ translateY: btnY }, { scale: btnScale }] }}>
-          <PressBtn onPress={onPlayAgain} style={{ height: 152 * s, borderRadius: 30 * s,
+          <PressBtn onPress={() => { if (actedRef.current) return; actedRef.current = true; onPlayAgain && onPlayAgain(); }}
+            style={{ height: 152 * s, borderRadius: 30 * s,
             backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
             shadowColor: COLORS.lime, shadowOpacity: 0.25, shadowRadius: 40 * s, shadowOffset: { width: 0, height: 12 * s } }}>
             <Text style={{ fontFamily: FONTS.anton, fontSize: 66 * s, letterSpacing: 0.06 * 66 * s,
@@ -990,9 +1004,11 @@ export default function ResultsScreen({
               borderColor: COLORS.lime, opacity: igniteGlow }} />
           ) : null}
         </Animated.View>
-        <Animated.View style={{ position: 'absolute', bottom: homeB, left: 60 * s, right: 60 * s,
+        <Animated.View pointerEvents={btnsLive ? 'auto' : 'none'}
+          style={{ position: 'absolute', bottom: homeB, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn }}>
-          <PressBtn onPress={onHome} style={{ height: 112 * s, borderRadius: 26 * s,
+          <PressBtn onPress={() => { if (actedRef.current) return; actedRef.current = true; onHome && onHome(); }}
+            style={{ height: 112 * s, borderRadius: 26 * s,
             borderWidth: 2.5 * s, borderColor: 'rgba(245,241,230,0.4)', backgroundColor: 'rgba(16,20,13,0.6)',
             alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 40 * s, letterSpacing: 0.22 * 40 * s,
