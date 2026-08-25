@@ -394,6 +394,9 @@ export default function App() {
   // (async-result missed while disconnected) drops live without a manual refresh, and the
   // '1 MATCH PENDING' strip reflects the true server open-game count.
   useEffect(() => { if (tab === 'history' || tab === 'home') { hydrateHistory(myName()); hydrateOpenGames(myName()); } }, [tab]);
+  // Warm the first practice round of the session while the player is on the home screen, so
+  // the very first PLAY is instant instead of paying for the question fetch + clip download.
+  useEffect(() => { if (tab === 'home' && !online) { const t = setTimeout(() => prefetchPractice(), 800); return () => clearTimeout(t); } }, [tab, online]);
   useEffect(() => {
     let sub;
     (async () => {
@@ -466,6 +469,14 @@ export default function App() {
     fadeTo(() => { setOnline(false); setMyTime(null); setShowActions(false); setOppName(generatePlayerName()); setQ(f); setPicked(null); setResult(null); setComp(null);
       setQVid(p => (p && p.seq === mySeq) ? p : null); setQVidExp(true); // B100: drop the OLD round's clip exactly when the new round becomes visible (no early null = no still/black flash on PLAY AGAIN)
       setCountdown(true); setMode('play'); });
+    if (f.preUri) {
+      // Prefetched: the clip is already on disk, so it is live from the first frame of the
+      // reveal — no download racing the countdown, and no black gap.
+      const oldPre = qVidFileRef.current; if (oldPre && oldPre !== f.preUri) { FileSystem.deleteAsync(oldPre, { idempotent: true }).catch(() => {}); }
+      qVidFileRef.current = f.preUri;
+      setQVid({ uri: f.preUri, seq: mySeq });
+      return;
+    }
     try {
       const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
       const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
@@ -498,6 +509,43 @@ export default function App() {
   // app binary WAS an answer key for paid play. Practice hasn't been offline since clips
   // shipped, so the server now picks the question, keeps the answer, and grades the response.
   // Same 45 video-backed questions in both modes; the pool grows as clips are added.
+  // PREFETCH (2026-08-24). Server-authoritative practice added a round trip BEFORE the clip
+  // download could even start, so the clip lost its head start against the 2.4s countdown and
+  // the reveal landed on a black screen — there is no still image for a video round by design
+  // (B97/B100), so "clip not ready" now looks like nothing at all. Tapping PLAY also felt slow
+  // because the fetch sat in front of the transition.
+  // Fix: fetch the next question AND download its clip while the player is still on the
+  // results/home screen, so PLAY starts instantly with the video already on disk. Falls back
+  // to the live path if nothing is warm.
+  const nextPracticeRef = useRef(null); // { q, uri, at }
+  const prefetchingRef = useRef(false);
+  const PREFETCH_MAX_AGE_MS = 8 * 60 * 1000; // the server's practice id lives 10min — stay inside it
+  async function prefetchPractice() {
+    if (prefetchingRef.current) return;
+    const cur = nextPracticeRef.current;
+    if (cur && Date.now() - cur.at < PREFETCH_MAX_AGE_MS) return; // still warm
+    prefetchingRef.current = true;
+    try {
+      const q = await fetchPracticeQuestion();
+      let uri = null;
+      if (q.videoToken) {
+        // The media token expires in 120s, so download it NOW, not at PLAY time.
+        const dest = FileSystem.cacheDirectory + 'pvid_' + Date.now() + '.mp4';
+        const r = await FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + q.videoToken, dest,
+          { headers: (accountRef.current && accountRef.current.token) ? { 'x-auth-token': accountRef.current.token } : undefined });
+        if (r && r.status === 200) uri = r.uri;
+      }
+      nextPracticeRef.current = { q, uri, at: Date.now() };
+    } catch (e) { console.log('[practice] prefetch:', e.message); }
+    finally { prefetchingRef.current = false; }
+  }
+  function takePrefetchedPractice() {
+    const p = nextPracticeRef.current;
+    if (!p || Date.now() - p.at > PREFETCH_MAX_AGE_MS) return null;
+    nextPracticeRef.current = null;
+    return { ...p.q, preUri: p.uri || null };
+  }
+
   async function fetchPracticeQuestion() {
     const tok = (accountRef.current && accountRef.current.token) || '';
     const r = await fetch(`${HTTPS_BASE}/api/practice/question`, { headers: tok ? { 'x-auth-token': tok } : undefined });
@@ -509,8 +557,10 @@ export default function App() {
   }
   function startPractice() {
     track('practice_start');
+    const warm = takePrefetchedPractice();
+    if (warm) { startRound(warm); prefetchPractice(); return; }  // instant: clip already on disk
     fetchPracticeQuestion()
-      .then((f) => startRound(f))
+      .then((f) => { startRound(f); prefetchPractice(); })
       .catch((e) => { console.log('[practice]', e.message); showToast('Practice needs a connection — try again.', 'error'); });
   }
   // TIMING FIX 2 (2026-06-12): optional pressTs = Date.now() captured at
@@ -566,13 +616,16 @@ export default function App() {
       setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
       setPracLog(p => { const n = [{ result: r.result, animal: q.options[correctIdx], time: playerTime }, ...p].slice(0, 10); try { AsyncStorage.setItem('sense_praclog', JSON.stringify(n)); } catch (e) {} return n; });
       setTimeout(() => fadeTo(() => setMode('results')), 400); // pace pass 2026-08-21: was 800
+      prefetchPractice(); // warm the NEXT round while they read this one
     })();
   }
   function playAgain() {
     if (isChallengeRef.current) { doRematch(); return; }
     if (onlineRef.current) { requeueOnline(); return; }
+    const warm = takePrefetchedPractice();
+    if (warm) { startRound(warm); prefetchPractice(); return; }
     fetchPracticeQuestion()
-      .then((f) => startRound(f))
+      .then((f) => { startRound(f); prefetchPractice(); })
       .catch((e) => { console.log('[practice]', e.message); showToast('Practice needs a connection — try again.', 'error'); });
   }
   function goHome() {
