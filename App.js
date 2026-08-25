@@ -593,18 +593,33 @@ export default function App() {
       return;
     }
     // Practice grading is server-side now — the app never held the answer, so it asks for it.
+    // 2026-08-24 FREEZE FIX (CJ: "answered and the game just froze for a few seconds"). The
+    // first version AWAITED this round trip before anything visible happened, and fetch has NO
+    // default timeout — so a slow or stalled connection showed the player a frozen screen for
+    // as long as the network took. The result now costs max(round trip, 400ms) instead of
+    // round trip PLUS 400ms, the request is hard-bounded, and if it is slow the player is told
+    // rather than left staring at a dead screen.
     (async () => {
       let correctIdx = q.correctIdx;
+      let slowToast = null;
       if (q.pid) {
+        const pace = new Promise((r) => setTimeout(r, 400)); // run the pacing CONCURRENTLY
+        slowToast = setTimeout(() => showToast('Scoring…'), 900); // only if it is actually slow
         try {
           const tok = (accountRef.current && accountRef.current.token) || '';
+          const ctrl = new AbortController();
+          const abortT = setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 8000);
           const gr = await fetch(`${HTTPS_BASE}/api/practice/answer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(tok ? { 'x-auth-token': tok } : {}) },
             body: JSON.stringify({ pid: q.pid, answerIndex: idx }),
+            signal: ctrl.signal,
           });
+          clearTimeout(abortT);
           if (gr.ok) { const gj = await gr.json(); if (Number.isInteger(gj.correctIdx)) correctIdx = gj.correctIdx; }
         } catch (e) { console.log('[practice] grade failed:', e.message); }
+        clearTimeout(slowToast);
+        await pace; // whichever finished last sets the pace — never the sum of both
       }
       if (!Number.isInteger(correctIdx)) { showToast('Could not score that round — try again.', 'error'); bailHome(null); return; }
       const c = getComputerAnswer(correctIdx, q.options.length, history.current);
@@ -616,7 +631,10 @@ export default function App() {
       setRec(p => ({ wins:p.wins+(r.result==='win'), losses:p.losses+(r.result==='loss'), draws:p.draws+(r.result==='draw') }));
       setPracLog(p => { const n = [{ result: r.result, animal: q.options[correctIdx], time: playerTime }, ...p].slice(0, 10); try { AsyncStorage.setItem('sense_praclog', JSON.stringify(n)); } catch (e) {} return n; });
       setTimeout(() => fadeTo(() => setMode('results')), 400); // pace pass 2026-08-21: was 800
-      prefetchPractice(); // warm the NEXT round while they read this one
+      // Warm the NEXT round — but AFTER the results animation has settled. Kicking a 2–3MB
+      // download off at the same instant the result animates is the kind of contention the
+      // old freeze hunt chased for weeks.
+      setTimeout(() => prefetchPractice(), 1800);
     })();
   }
   function playAgain() {
