@@ -1335,6 +1335,11 @@ export default function App() {
     setLedger(prev => { const nl = [{ ts: Date.now(), type, amount, label }, ...prev].slice(0, 100); AsyncStorage.setItem('sense_ledger', JSON.stringify(nl)).catch(()=>{}); return nl; });
   }
   function startPaidOnline() {
+    // 2026-08-24: synchronous double-tap guard. PLAY NOW / CONFIRM & PLAY escrows a real entry
+    // and queues; the balance check below is React state (async), so two taps in one frame both
+    // passed and queued TWICE = two stakes locked. onlineRef is a ref (set synchronously by
+    // playOnline just below), so if we're already in an online flow, refuse the second tap.
+    if (onlineRef.current) return;
     track('play_online', { stake });
     if (balance < stake) { showToast('Not enough credits'); return; }
     stakeRef.current = stake;

@@ -69,6 +69,10 @@ export default function DepositScreen({
   const expiryRef = useRef(null);
   const cvvRef = useRef(null);
   const focusedField = useRef(null); // 'custom' | 'number' | 'expiry' | 'cvv'
+  const inFlightRef = useRef(false); // 2026-08-24: synchronous double-charge guard. `busy` is
+  // React state (async), so two taps in the same frame both pass the !busy check before the
+  // re-render, generate two idempotency keys, and can produce TWO charges. A ref flips
+  // synchronously on the first tap and blocks the second immediately.
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -106,6 +110,8 @@ export default function DepositScreen({
 
   async function doDeposit() {
     if (!formOk) return;
+    if (inFlightRef.current) return; // synchronous: beats the setBusy state lag
+    inFlightRef.current = true;
     setErr('');
     setBusy(true);
     try {
@@ -175,6 +181,7 @@ export default function DepositScreen({
       if (onToast) onToast(e.message || 'Deposit failed — try again', 'error');
     } finally {
       setBusy(false);
+      inFlightRef.current = false;
     }
   }
 
