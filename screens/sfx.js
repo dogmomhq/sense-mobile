@@ -48,7 +48,19 @@ function initPlayers() {
       for (const [k, mod] of Object.entries(SRC)) {
         try {
           const p = createAudioPlayer(mod);
-          players[k] = { raw: p, play: (skMs = 0) => { try { p.seekTo(skMs / 1000); p.play(); } catch (e) {} } };
+          // 2026-08-24 FIX (CJ: countdown animation ran but no sound "last round"). seekTo()
+          // is ASYNC; the old code called play() immediately after, so on a REPLAY the player
+          // was still parked at the end of the previous play and play() started from there —
+          // i.e. instant silence. Only happened after you'd already played a round, which is
+          // exactly "last round". Now we wait for the seek to land, then play; fall back to a
+          // bare play() if seekTo didn't return a promise.
+          players[k] = { raw: p, play: (skMs = 0) => {
+            try {
+              const r = p.seekTo(skMs / 1000);
+              if (r && typeof r.then === 'function') r.then(() => { try { p.play(); } catch (e) {} }).catch(() => { try { p.play(); } catch (e) {} });
+              else p.play();
+            } catch (e) { try { p.play(); } catch (e2) {} }
+          } };
         } catch (e) {}
       }
     }

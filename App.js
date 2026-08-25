@@ -477,6 +477,7 @@ export default function App() {
       setQVid({ uri: f.preUri, seq: mySeq });
       return;
     }
+    const pFallbackT = setTimeout(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); }, 3000); // 2026-08-24: never black for more than ~3s
     try {
       const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
       const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
@@ -494,8 +495,10 @@ export default function App() {
         // server starts requiring it, so practice video never breaks in between.
         headers: playerAuthHeaders(),
       }).then(r => {
-        if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current && roundSeqRef.current === mySeq) { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
-      }).catch(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); }); // download failed -> allow the still fallback
+        if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current && roundSeqRef.current === mySeq) {
+          clearTimeout(pFallbackT); qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq });
+        } else if (roundSeqRef.current === mySeq) { setQVidExp(false); } // bad status -> show the photo, not black
+      }).catch(() => { clearTimeout(pFallbackT); if (roundSeqRef.current === mySeq) setQVidExp(false); }); // download failed -> allow the still fallback
     } catch (e) { setQVidExp(false); }
     // B93 home-flash fix (2026-08-22 CJ report): play-again used to clear result/q
     // SYNCHRONOUSLY while mode was still 'results' — the render branch is
@@ -730,13 +733,25 @@ export default function App() {
       try {
         const oldVid = qVidFileRef.current; if (oldVid) { FileSystem.deleteAsync(oldVid, { idempotent: true }).catch(() => {}); qVidFileRef.current = null; }
         const dest = FileSystem.cacheDirectory + 'qvid_' + Date.now() + '.mp4';
+        // 2026-08-24 FIX (CJ: "black square for a minute on the owl match"). videoExpected
+        // suppresses the still so a video round never flashes a photo first. But if this
+        // download resolved with a NON-200 (expired/again token, partial, 401) the old code
+        // set neither the video NOR videoExpected=false — so the still stayed suppressed and
+        // the screen was BLACK until the round ended. Only a network *error* was handled, not
+        // a bad *response*. Now any non-success reveals the still, and a hard 3s fallback
+        // guarantees the photo appears no matter what the network does.
+        const revealStill = () => { if (roundSeqRef.current === mySeq) setQVidExp(false); };
+        const fallbackT = setTimeout(revealStill, 3000); // never black for more than ~3s
         FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dest).then(r => {
           if (r && r.status === 200 && matchIdRef.current === mid && roundSeqRef.current === mySeq) {
+            clearTimeout(fallbackT);
             qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq });
             if (imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt;
+          } else {
+            revealStill(); // bad status -> show the photo instead of a black screen
           }
           begin();
-        }).catch(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); begin(); });
+        }).catch(() => { clearTimeout(fallbackT); revealStill(); begin(); });
       } catch (e) { setQVidExp(false); begin(); }
     } else {
       try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
