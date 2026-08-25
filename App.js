@@ -492,7 +492,7 @@ export default function App() {
         // downloadable by anyone with curl, which is a ready-made answer key. Identity now
         // rides the request so the server can require (and attribute) access. Sent BEFORE the
         // server starts requiring it, so practice video never breaks in between.
-        headers: (accountRef.current && accountRef.current.token) ? { 'x-auth-token': accountRef.current.token } : undefined,
+        headers: playerAuthHeaders(),
       }).then(r => {
         if (r && r.status === 200 && pVidNonceRef.current === pnonce && !onlineRef.current && roundSeqRef.current === mySeq) { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
       }).catch(() => { if (roundSeqRef.current === mySeq) setQVidExp(false); }); // download failed -> allow the still fallback
@@ -532,7 +532,7 @@ export default function App() {
         // The media token expires in 120s, so download it NOW, not at PLAY time.
         const dest = FileSystem.cacheDirectory + 'pvid_' + Date.now() + '.mp4';
         const r = await FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + q.videoToken, dest,
-          { headers: (accountRef.current && accountRef.current.token) ? { 'x-auth-token': accountRef.current.token } : undefined });
+          { headers: playerAuthHeaders() });
         if (r && r.status === 200) uri = r.uri;
       }
       nextPracticeRef.current = { q, uri, at: Date.now() };
@@ -546,9 +546,17 @@ export default function App() {
     return { ...p.q, preUri: p.uri || null };
   }
 
+  // 2026-08-24: send whichever credential this player actually holds. Players who signed in
+  // with email have a Supabase token and may have no device token at all — sending only the
+  // device token is why practice was being refused (35 of 48 requests 401'd in the live logs).
+  function playerAuthHeaders() {
+    const dev = accountRef.current && accountRef.current.token;
+    const sup = supabaseTokenRef.current;
+    const tok = dev || sup;
+    return tok ? { 'x-auth-token': tok } : undefined;
+  }
   async function fetchPracticeQuestion() {
-    const tok = (accountRef.current && accountRef.current.token) || '';
-    const r = await fetch(`${HTTPS_BASE}/api/practice/question`, { headers: tok ? { 'x-auth-token': tok } : undefined });
+    const r = await fetch(`${HTTPS_BASE}/api/practice/question`, { headers: playerAuthHeaders() });
     if (!r.ok) throw new Error('practice_unavailable_' + r.status);
     const j = await r.json();
     if (!j || !Array.isArray(j.options)) throw new Error('practice_bad_payload');
@@ -611,7 +619,7 @@ export default function App() {
           const abortT = setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 8000);
           const gr = await fetch(`${HTTPS_BASE}/api/practice/answer`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(tok ? { 'x-auth-token': tok } : {}) },
+            headers: { 'Content-Type': 'application/json', ...(playerAuthHeaders() || {}) },
             body: JSON.stringify({ pid: q.pid, answerIndex: idx }),
             signal: ctrl.signal,
           });
