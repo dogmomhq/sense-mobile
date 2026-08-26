@@ -14,6 +14,7 @@ import InitialsAvatar from './components/InitialsAvatar';
 import { AVATARS, AVATAR_KEYS, avatarSource } from './avatars';
 import PressBtn from './components/PressBtn';
 import { COLORS, FONTS, RADII, useScale } from './theme';
+import { RankCard } from './rank'; // RANK LADDER (2026-08-26): hero card above stats
 // Apple sign-in native module — guarded require so web / Expo Go (no native module) never crash.
 let AppleAuth = null;
 try { if (Platform.OS === 'ios') AppleAuth = require('expo-apple-authentication'); } catch (e) {}
@@ -160,7 +161,7 @@ function SettingsRow({ label, right = null, danger = false, onPress }) {
     </Pressable>);
 }
 
-function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
+function LoggedIn({ rank, handle, memberSince, stats, netLifetime, balance, soundsOn,
   onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version,
   onRename, avatarKey, onSelectAvatar }) {
   const s = useScale();
@@ -246,6 +247,9 @@ function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
         ) : null}
       </View>
 
+      {/* RANK LADDER (2026-08-26): hero card — renders only when the server has it enabled */}
+      <RankCard rank={rank} />
+
       {/* stats card */}
       <View style={[CARD(s), { padding: 30 * s, marginBottom: 28 * s }]}>
         <StatsGrid stats={stats} />
@@ -298,7 +302,7 @@ function LoggedIn({ handle, memberSince, stats, netLifetime, balance, soundsOn,
 }
 
 export default function ProfileScreen({
-  signedIn = true, handle = 'NIGHTOWL88', memberSince = 'Mar 2026',
+  rank = null, signedIn = true, handle = 'NIGHTOWL88', memberSince = 'Mar 2026',
   stats = { played: 56, w: 41, l: 12, d: 3, winPct: 73, streak: 8 },
   netLifetime = '+$212.40', balance = '$24.50', soundsOn = true, version = 'v0.9.0',
   email = '', code = undefined,
@@ -311,7 +315,7 @@ export default function ProfileScreen({
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 * s }}>
       {signedIn ? (
-        <LoggedIn handle={handle} memberSince={memberSince} stats={stats}
+        <LoggedIn rank={rank} handle={handle} memberSince={memberSince} stats={stats}
           avatarKey={avatarKey} onSelectAvatar={onSelectAvatar}
           netLifetime={netLifetime} balance={balance} soundsOn={soundsOn} version={version}
           onDeposit={onDeposit} onToggleSounds={onToggleSounds} onPrivacy={onPrivacy}

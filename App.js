@@ -279,6 +279,9 @@ export default function App() {
   const [oppPending, setOppPending] = useState(false); // B59: server confirmed the opponent hasn't answered yet (async-waiting) — gates the WaitingScreen takeover
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState(null);
+  const [rank, setRank] = useState(null); // RANK LADDER (2026-08-26): server /api/rank snapshot; null = disabled/unknown
+  useEffect(() => { if (mode === 'results' && online) { try { fetchRank(matchIdRef.current); } catch (e) {} } }, [mode]); // RANK: refresh when an online result lands
+  useEffect(() => { const t = setTimeout(() => { try { fetchRank(null); } catch (e) {} }, 2500); return () => clearTimeout(t); }, []); // RANK: boot snapshot (after auth hydrates)
   const [comp, setComp] = useState(null);
   const [oppName, setOppName] = useState('Rival');
   const [online, setOnline] = useState(false);
@@ -547,6 +550,28 @@ export default function App() {
     const sup = supabaseTokenRef.current;
     const tok = dev || sup;
     return tok ? { 'x-auth-token': tok } : undefined;
+  }
+  // RANK LADDER (2026-08-26): pull the visible-rank snapshot (RP, tier, last delta). Server
+  // is the only source of numbers; disabled server-side -> rank stays null and no UI renders.
+  // expectMid: settle can land moments after the result message, so if the log hasn't caught
+  // up to this match yet, refetch once after 2.5s.
+  async function fetchRank(expectMid) {
+    try {
+      const h = playerAuthHeaders(); if (!h) return;
+      const r = await fetch(`${HTTPS_BASE}/api/rank`, { headers: h });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (!j || !j.enabled) { setRank(null); return; }
+      setRank(j);
+      if (expectMid && j.lastMatchId !== expectMid) {
+        setTimeout(async () => {
+          try {
+            const r2 = await fetch(`${HTTPS_BASE}/api/rank`, { headers: playerAuthHeaders() });
+            if (r2.ok) { const j2 = await r2.json(); if (j2 && j2.enabled) setRank(j2); }
+          } catch (e) {}
+        }, 2500);
+      }
+    } catch (e) {}
   }
   async function fetchPracticeQuestion() {
     const r = await fetch(`${HTTPS_BASE}/api/practice/question`, { headers: playerAuthHeaders() });
@@ -1417,7 +1442,7 @@ export default function App() {
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
-      balance, stake, ledger, serverLedger, sound, displayName, showActions,
+      balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
       // setters / actions (all pre-existing logic — nothing reimplemented)

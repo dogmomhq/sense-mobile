@@ -588,6 +588,7 @@ export default function ReskinApp({ g }) {
         photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
         videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} posterUri={g.qPoster || null} player={vidPlayer}
         reason={g.result.reason || null}
+        rank={g.rank && g.online && g.matchId && g.rank.lastMatchId === g.matchId ? g.rank : null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );
   } else if (route === 'deposit') {
@@ -612,6 +613,7 @@ export default function ReskinApp({ g }) {
   } else if (g.tab === 'home') {
     body = (
       <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        rank={g.rank} onRankPress={() => g.setTab('profile')}
         avatar={avatarSource(avatarKey)}
         onSignIn={() => g.setTab('profile')}
         tiers={tierList.map((t) => ({ label: fmtMoney(t.entryCents), locked: !t.enabled }))} selectedTier={tierIdx}
@@ -641,7 +643,7 @@ export default function ReskinApp({ g }) {
       const played = g.onlineRec.wins + g.onlineRec.losses + g.onlineRec.draws;
       const winPct = played ? Math.round((g.onlineRec.wins / played) * 100) : 0;
       screen = (
-        <ProfileScreen signedIn={signedIn} handle={handle}
+        <ProfileScreen signedIn={signedIn} handle={handle} rank={g.rank}
           avatarKey={avatarKey} onSelectAvatar={pickAvatar}
           memberSince={serverInfo && serverInfo.member_since ? monthYear(serverInfo.member_since)
             : (g.authSince ? monthYear(g.authSince) : '—')}

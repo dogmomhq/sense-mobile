@@ -10,6 +10,7 @@ import GlassHeader from './components/GlassHeader';
 import SegmentedNav from './components/SegmentedNav';
 import CoverPhoto from './components/CoverPhoto';
 import { PendingStrip } from './AppShell';
+import { RankChip } from './rank'; // RANK LADDER (2026-08-26)
 import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 
 const CHEETAH = require('../assets/cheetah.jpeg');
@@ -24,7 +25,7 @@ const TIERS = [
   { label: '$128.00', locked: true },
 ];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B115';
+export const BUILD_TAG = 'B116';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
@@ -32,6 +33,7 @@ export default function HomeScreen({
   // live wiring (ReskinApp): identity header, pending strip, insufficient-balance state
   handle = null, signedIn = true, onSignIn, onAddFunds, avatar,
   pendingCount = 0, onPendingPress,
+  rank = null, onRankPress, // RANK LADDER (2026-08-26): server snapshot; null = hidden
   playDisabled = false, insufficientLabel = 'NOT ENOUGH BALANCE',
 }) {
   const s = useScale();
@@ -74,6 +76,7 @@ export default function HomeScreen({
         {...(avatar ? { avatar } : {})}
         onSignIn={onSignIn} onPressAdd={onAddFunds} showClock={showClock} />
       {pendingCount > 0 ? <PendingStrip count={pendingCount} onPress={onPendingPress} /> : null}
+      <RankChip rank={rank} onPress={onRankPress} />
 
       {/* wordmark + tagline (clamps upward on short viewports) */}
       <View style={{ position: 'absolute', top: wmTop, left: 0, right: 0,

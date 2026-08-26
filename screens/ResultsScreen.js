@@ -35,6 +35,7 @@ import ConfettiBurst from './components/ConfettiBurst';
 import { COLORS, FONTS, useScale, useVScale, BASE_W, BASE_H, REDUCED_FX } from './theme';
 import { sfx, hapTap, hapHeartbeat } from './sfx';
 import PressBtn from './components/PressBtn';
+import { RankResultStrip, RankUpOverlay } from './rank'; // RANK LADDER (2026-08-26)
 
 const DEMO_PHOTO = require('../assets/cheetah.jpeg');
 const AVATAR = require('../assets/avatars/crown.png'); // B89: crown default (was avatar_demo) — opp side of DRAW uses it; your side uses your chosen avatar
@@ -278,9 +279,20 @@ export default function ResultsScreen({
   onPlayAgain, onHome, onCycleEnd, showClock = false,
   avatar = undefined, // B89: home avatar everywhere
   player = null, // B90: shared player from ReskinApp — clip continues from waiting/question, never restarts
+  rank = null, // RANK LADDER (2026-08-26): snapshot whose lastMatchId === THIS match (ReskinApp gates it); null = no rank UI
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
+  // RANK LADDER (2026-08-26): full-screen RANK UP celebration, fired once after the outcome
+  // sequence has played (5.2s ≈ when PLAY AGAIN lands) — the dopamine peak sits exactly at
+  // the play-again decision point. Tap dismisses; never blocks the buttons for long.
+  const [showRankUp, setShowRankUp] = useState(false);
+  const rankUpFiredRef = useRef(false);
+  useEffect(() => {
+    if (!rank || !rank.enabled || !rank.rankedUp || rankUpFiredRef.current) return;
+    const tm = setTimeout(() => { rankUpFiredRef.current = true; setShowRankUp(true); }, 5200);
+    return () => clearTimeout(tm);
+  }, [rank]);
   // 1.4.0 video: same clip keeps looping under the results chrome; overlays/desat sit on top.
   const vplayer = player; // B90: shared player — continues from wherever the previous screen left it (CJ: only replay after it finishes; loop=true covers that)
   useEffect(() => { try { if (videoUri && vplayer && !vplayer.playing) vplayer.play(); } catch (e) {} }, [videoUri]); // resume-if-paused only — play() never seeks, so no restart
@@ -990,6 +1002,7 @@ export default function ResultsScreen({
         <Animated.View pointerEvents={btnsLive ? 'auto' : 'none'}
           style={{ position: 'absolute', bottom: playB, left: 60 * s, right: 60 * s,
           zIndex: 28, opacity: btnIn, transform: [{ translateY: btnY }, { scale: btnScale }] }}>
+          {rank ? <View style={{ marginBottom: 18 * s }}><RankResultStrip rank={rank} /></View> : null}
           <PressBtn onPress={() => { if (actedRef.current) return; actedRef.current = true; onPlayAgain && onPlayAgain(); }}
             style={{ height: 152 * s, borderRadius: 30 * s,
             backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
@@ -1020,6 +1033,9 @@ export default function ResultsScreen({
           </PressBtn>
         </Animated.View>
       </Animated.View>
+
+      {/* RANK UP celebration (RANK LADDER 2026-08-26) */}
+      {showRankUp ? <RankUpOverlay rank={rank} onDone={() => setShowRankUp(false)} /> : null}
 
       {/* full-screen flashes (outside the shaker, like the HTML) */}
       <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
