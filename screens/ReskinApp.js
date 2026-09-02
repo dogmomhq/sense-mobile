@@ -6,6 +6,7 @@
 //
 // Money display: 1 credit = 1¢ (DECISIONS Q2). fmtMoney is THE switchable
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
+import { now } from './clock'; // P2.3 monotonic round clock
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, Platform, Alert, AppState, TextInput, Linking } from 'react-native';
 import Constants from 'expo-constants';
@@ -31,7 +32,7 @@ import { COLORS, FONTS, useScale, useSenseFonts, getSafeTop } from './theme';
 // One-time: DOB is immutable server-side. Terms checkbox text is a placeholder until CJ
 // supplies the final terms copy.
 // B51: when CJ supplies the hosted terms URL, set it here — the link goes live, no other change.
-const TERMS_URL = '';
+const TERMS_URL = 'https://dogmomhq.github.io/sense-legal/terms.html'; // CJ 2026-09-02: interim Terms of Play (Artaev's final ToS replaces this page in place, no app change)
 function DobModal({ error, onSubmit, onCancel }) {
   const s = useScale();
   const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
@@ -313,10 +314,10 @@ export default function ReskinApp({ g }) {
       timingDbg.current = {};
       // B60: deadline-checked flip (was a single setTimeout — LPM deferred it ~2.1s,
       // revealing the question late while the scored clock stayed honest → integrity draws)
-      const t0 = Date.now(); let done = false; let rafId = null;
-      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = Date.now(); g.setCountdown(false); };
-      const iv = setInterval(() => { if (Date.now() - t0 >= 2400) fire(); }, 50);
-      const rafLoop = () => { if (done) return; if (Date.now() - t0 >= 2400) { fire(); return; } rafId = requestAnimationFrame(rafLoop); };
+      const t0 = now(); let done = false; let rafId = null; // P2.3 monotonic
+      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = now(); g.setCountdown(false); };
+      const iv = setInterval(() => { if (now() - t0 >= 2400) fire(); }, 50);
+      const rafLoop = () => { if (done) return; if (now() - t0 >= 2400) { fire(); return; } rafId = requestAnimationFrame(rafLoop); };
       rafId = requestAnimationFrame(rafLoop);
       return () => { done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); };
     }

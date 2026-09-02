@@ -3,6 +3,7 @@
 // ring, 2x2 Anton answer grid. No bottom nav.
 // `secondsLeft` prop freezes the ring (previews/tests); omit it and the
 // ring burns live 10.0 -> 0.0 at ~60fps via requestAnimationFrame.
+import { now } from './clock'; // P2.3 monotonic round clock
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, useWindowDimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -122,14 +123,14 @@ export default function QuestionScreen({
 
   useEffect(() => {
     if (secondsLeft != null) return;        // frozen mode
-    const localStart = Date.now();          // fallback only (previews without a game clock)
+    const localStart = now();          // fallback only (previews without a game clock)
     let last = ROUND_S + 0.001;
     const tick = () => {
       // read the scoring t0 PER TICK (App.js sets startRef in an effect that
       // runs after this child effect — raf fires after all effects, so the
       // first frame already sees the fresh value)
       const t0 = startTsRef && startTsRef.current ? startTsRef.current : localStart;
-      const left = Math.max(0, Math.min(ROUND_S, ROUND_S - (Date.now() - t0) / 1000));
+      const left = Math.max(0, Math.min(ROUND_S, ROUND_S - (now() - t0) / 1000));
       // 30Hz setState cap: the ring sweeps 36 deg/s, so 33ms steps are
       // sub-pixel; halves the JS/SVG re-render cost of the live screen
       if (left === 0 || last - left >= 1 / 30) { last = left; setT(left); } // B88: 30Hz + hundredths readout — stopwatch spin (CJ: faster FEEL, same 8s). Render pressure proven innocent (freeze was the clips' audio track, cured B86b).
@@ -195,7 +196,7 @@ export default function QuestionScreen({
       <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15, opacity: concealed ? 0 : 1 }}>
         <AnswerGrid answers={answers} lockedIndex={locked}
           onAnswer={(i, label, pressTs) => {
-            if (timingDbgRef && timingDbgRef.current) timingDbgRef.current.press = { pressTs, submitTs: Date.now() };
+            if (timingDbgRef && timingDbgRef.current) timingDbgRef.current.press = { pressTs, submitTs: now() };
             setLocked(i); if (onAnswer) onAnswer(i, label, pressTs);
           }} />
       </View>
@@ -211,7 +212,7 @@ function TimeDebug({ startTsRef, secondsLeft, tLeft, timingDbgRef }) {
   const [, force] = useState(0);
   useEffect(() => { const i = setInterval(() => force(n => n + 1), 100); return () => clearInterval(i); }, []);
   const t0 = startTsRef && startTsRef.current ? startTsRef.current : null;
-  const scoringElapsed = t0 ? Math.max(0, (Date.now() - t0) / 1000) : null;
+  const scoringElapsed = t0 ? Math.max(0, (now() - t0) / 1000) : null;
   const ringElapsed = ROUND_S - tLeft;
   const dbg = (timingDbgRef && timingDbgRef.current) || {};
   const goDelta = dbg.flipTs && dbg.goTs ? dbg.goTs - dbg.flipTs : null;         // rendered GO vs scheduled flip

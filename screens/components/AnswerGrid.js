@@ -3,6 +3,7 @@
 // Anton 52px uppercase, letter-spacing 0.04em).
 // States: pressed (finger down) = lime border + lime wash;
 //         locked (answer submitted) = solid lime cell, others dimmed.
+import { now } from '../clock'; // P2.3 monotonic round clock
 import React, { useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { COLORS, FONTS, RADII, useScale, getSafeBottom } from '../theme';
@@ -23,10 +24,10 @@ export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null,
         const isLocked = lockedIndex === i;
         return (
           <Pressable key={i} disabled={disabled || locked}
-            onPressIn={() => { pressStamp.current = { i, ts: Date.now() }; }}
+            onPressIn={() => { pressStamp.current = { i, ts: now() }; }}
             onPress={() => {
               const st = pressStamp.current; pressStamp.current = null;
-              const ts = st && st.i === i ? st.ts : Date.now();
+              const ts = st && st.i === i ? st.ts : now();
               if (onAnswer) onAnswer(i, label, ts);
             }}
             style={({ pressed }) => ({

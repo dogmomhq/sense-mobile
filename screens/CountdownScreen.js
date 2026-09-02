@@ -16,6 +16,7 @@
 //
 // Full takeover: NO header (CJ confirmed 2026-06-11). Stake pill kept per the
 // locked prototype. All dimensions in prototype px (1024x2224) * s.
+import { now } from './clock'; // P2.3 monotonic round clock
 import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, Animated, Easing, useWindowDimensions, StatusBar } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
@@ -196,7 +197,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     // Fix: every stage fires when Date.now()-t0 passes its deadline, checked by BOTH
     // a 50ms interval and a rAF loop (rAF keeps ticking ~30fps under LPM). A late
     // tick fires ALL overdue stages at once — drift can't accumulate.
-    const t0 = Date.now();
+    const t0 = now(); // P2.3 monotonic
     const stageFns = [];
     beat(3);
     stageFns.push({ at: BEAT_MS,     run: () => beat(2) });
@@ -213,7 +214,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
       flash.setValue(0.12);
       Animated.timing(flash, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
       // t0 anchor: first frame where the question is visible
-      goRaf.current = requestAnimationFrame(() => { if (onHandoff) onHandoff(Date.now()); });
+      goRaf.current = requestAnimationFrame(() => { if (onHandoff) onHandoff(now()); });
     } });
     // B82 verdict: stick stayed at 7.7 with teardown at 5000 -> unmount innocent
     // for the freeze. (It DID kick the knocked-over video back to life at ring 5.4
@@ -222,7 +223,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     let fired = 0; let stopped = false; let loopRaf = null;
     const step = () => {
       if (stopped) return;
-      const el = Date.now() - t0;
+      const el = now() - t0;
       while (fired < stageFns.length && el >= stageFns[fired].at) { stageFns[fired].run(); fired++; }
       if (fired >= stageFns.length) { stopped = true; clearInterval(iv); if (loopRaf) cancelAnimationFrame(loopRaf); }
     };

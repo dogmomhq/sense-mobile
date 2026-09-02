@@ -1,3 +1,4 @@
+import { now as mono } from './screens/clock'; // P2.3 monotonic round clock
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder, AppState, Alert, Linking } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
@@ -365,6 +366,18 @@ export default function App() {
   const autoRequeueRef = useRef({ n: 0, t: 0 });
   const gpsRetryRef = useRef(0);        // GPS gate (2026-07-15): one re-queue per PLAY tap, no loops
   const joinWatchRef = useRef({ timer: null, strikes: 0 }); // B58: join-ack watchdog — silence stopwatch for the matching screen
+  // JOIN TICKETS (2026-09-02, replaces the P2.2 HTTP-receipt idea): one ticket per join attempt.
+  // Consumed when the server answers with a question. A resend while the ticket is still open
+  // (the watchdog) carries the same id, and the server replays the existing game instead of
+  // escrowing a second entry. A fresh start after a consumed ticket mints a new one.
+  const joinTicketRef = useRef(null); // { id, consumed }
+  function joinTicket() {
+    const t = joinTicketRef.current;
+    if (t && !t.consumed) return t.id;
+    const id = 'jt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    joinTicketRef.current = { id, consumed: false };
+    return id;
+  }
   const isChallengeRef = useRef(false); const activeMatchRef = useRef(null); const pendTimer = useRef(null); const modeRef = useRef(null);
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
@@ -415,8 +428,8 @@ export default function App() {
   useEffect(() => {
     if (mode !== 'play' || !q || countdown) return;
     const ov = startOverrideRef.current; startOverrideRef.current = null;
-    answered.current = false; startRef.current = (ov && Math.abs(Date.now() - ov) < 1000) ? ov : Date.now(); setElapsed(0);
-    timerRef.current = setInterval(() => { const e = Date.now()-startRef.current; setElapsed(e); if (e>=TIME_LIMIT){ clearInterval(timerRef.current); submit(-1); } }, 100); // B76: 100ms - display shows tenths; 50ms doubled re-renders vs video (freeze hunt)
+    answered.current = false; startRef.current = (ov && Math.abs(mono() - ov) < 1000) ? ov : mono(); setElapsed(0); // P2.3: monotonic — same clock as onHandoff/pressTs
+    timerRef.current = setInterval(() => { const e = mono()-startRef.current; setElapsed(e); if (e>=TIME_LIMIT){ clearInterval(timerRef.current); submit(-1); } }, 100); // B76: 100ms - display shows tenths; 50ms doubled re-renders vs video (freeze hunt)
     return () => clearInterval(timerRef.current);
   }, [q, mode, countdown]);
 
@@ -597,7 +610,7 @@ export default function App() {
   // also what practice/old-UI callers without pressTs get).
   function submit(idx, pressTs) {
     if (answered.current) return; answered.current = true; clearInterval(timerRef.current);
-    const tAns = (pressTs && pressTs >= startRef.current && pressTs <= Date.now()) ? pressTs : Date.now();
+    const tAns = (pressTs && pressTs >= startRef.current && pressTs <= mono()) ? pressTs : mono(); // P2.3 monotonic
     const playerTime = idx === -1 ? TIME_LIMIT : Math.max(0, Math.min(tAns-startRef.current, TIME_LIMIT));
     setPicked(idx); setMyTime(playerTime); playSfx('tap'); // B81: sfx restored (B79 proved audio innocent)
     if (onlineRef.current) {
@@ -692,6 +705,7 @@ export default function App() {
   // shared: load the incoming question onto the (reused) Play screen
   function loadQuestion(mid, question) {
     clearJoinWatch(true); // B58: join acked with a real question — the watchdog stands down
+    if (joinTicketRef.current) joinTicketRef.current.consumed = true; // join ticket: this attempt is done
     const img = HTTPS_BASE + '/img/' + question.imageToken;
     // 1.4.0 VIDEO (2026-08-21 CJ "all 3 go"): if the server offered a videoToken, download the
     // clip in parallel with the image prefetch. NON-GATING — the image stays the ready-gate
@@ -733,7 +747,7 @@ export default function App() {
         wsSend({ type: 'ready', matchId: mid, name: myName(),
           token: (accountRef.current && accountRef.current.token) || undefined,
           supabaseToken: supabaseTokenRef.current || undefined });
-        readySentTsRef.current = Date.now();
+        readySentTsRef.current = mono(); // P2.3: paired with startRef in the drift calc — same clock or drift_ms is garbage
       } catch (e) {} }
       try { sfx('silence'); } catch (e) {} // B99: warm the iOS audio session ~150ms before beat 3 (kills the cold-start latency on the first sound)
       setCountdown(true); fadeTo(() => { setQVid(p => (p && p.seq === roundSeqRef.current) ? p : null); setQVidExp(wantVid); setQPoster(wantVid && question.videoToken ? (HTTPS_BASE + '/vposter/' + question.videoToken) : null); setMode('play'); }); // B100: old clip dropped only when the new round paints
@@ -794,8 +808,8 @@ export default function App() {
     // credit settlement (stake was escrowed at entry): win => pot*(1-5% rake); draw => refund; loss => already paid
     const sV = stk || 0;
     if (sV > 0) {
-      if (res === 'win') { const w = Math.round(sV * 2 * 0.95); applyCredit(w, 'win', 'Won ' + w); }
-      else if (res === 'draw') { applyCredit(sV, 'refund', 'Draw refund ' + sV); }
+      // P2.4 (2026-09-02): client-side win/draw payout math DELETED. The server settles; the old
+      // pot-minus-5% line here was dead under RESKIN_CREDITS but one flag flip would have revived it.
     }
     setPending(p => { const n = { ...p }; delete n[mid]; return n; });
   }
@@ -867,7 +881,7 @@ export default function App() {
     if (!name) return;
     try {
       const tok = (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || '';
-      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=200${tok ? '&token=' + encodeURIComponent(tok) : ''}`);
+      const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=200`, { headers: tok ? { 'x-auth-token': tok } : {} }); // P2.1 (2026-09-02): header, never the URL
       const d = await r.json();
       if (d && Array.isArray(d.matches)) {
         const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, questionIdx: (m.question_idx != null ? m.question_idx : null), reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
@@ -884,7 +898,7 @@ export default function App() {
     if (!name) return null;
     try {
       const tok = (supabaseTokenRef.current) || (accountRef.current && accountRef.current.token) || '';
-      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}${tok ? '?token=' + encodeURIComponent(tok) : ''}`);
+      const r = await fetch(`${HTTPS_BASE}/api/open-games/${encodeURIComponent(name)}`, { headers: tok ? { 'x-auth-token': tok } : {} }); // P2.1 (2026-09-02): header, never the URL
       const d = await r.json();
       // BUG 2 FIX (2026-06-16): reconcile pending to EXACTLY the server's open list.
       // Was gated on `d.open.length` so an EMPTY open list (everything settled — the
@@ -1069,7 +1083,7 @@ export default function App() {
       case 'rtt-result': break;
       case 'match-cancelled':  // a pending async game was cancelled — refund the escrowed stake, drop the card
         if (msg.matchId) {
-          const st0 = pending[msg.matchId] && pending[msg.matchId].stake; if (st0) applyCredit(st0, 'refund', 'Cancel refund ' + st0);
+          /* P2.4: client cancel-refund math deleted — server refunds */
           setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; });
           // keep the id in cancelledIdsRef so a near-simultaneous /api/open-games hydrate (status
           // flip still propagating) can't re-add this card before the server reports it closed.
@@ -1107,7 +1121,7 @@ export default function App() {
         break;
       }
       case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
-        if (msg.matchId) { const st1 = pending[msg.matchId] && pending[msg.matchId].stake; if (st1) applyCredit(st1, 'refund', 'Expired refund ' + st1); setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
+        if (msg.matchId) { /* P2.4: client expiry-refund math deleted — server refunds */ setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
         else showToast('MATCH EXPIRED — ENTRY REFUNDED');
         break;
@@ -1247,7 +1261,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap', attestKeyId: getAttestKeyId() || undefined }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
     armJoinWatch(); // B58: the join is in flight — start the silence stopwatch
   }
   // Supabase email one-time-code sign-in
@@ -1380,7 +1394,7 @@ export default function App() {
     setDobErr(null);
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} }
-    ensureConn(() => wsSend({ type: 'set-dob', dob, name: myName(), supabaseToken: supaTok }));
+    ensureConn(() => wsSend({ type: 'set-dob', dob, name: myName(), supabaseToken: supaTok, termsAccepted: true })); // CJ 2026-09-02: the modal's terms checkbox gates CONFIRM; record the consent server-side
   }
   function cancelDob() {
     setDobAsk(false); setDobErr(null);
