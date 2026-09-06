@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       message: { description: "Update message", required: false, default: "reskin OTA" }
+      skip_gate: { description: "EMERGENCY ONLY: skip the simulator gate + auto-rollback", required: false, default: "false" }
 
 permissions:
   actions: write
@@ -25,11 +26,52 @@ jobs:
       - name: Publish OTA update (channel/branch preview)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@latest update --branch preview --message "${{ github.event.inputs.message }}" --non-interactive
+        run: |
+          # OTA GATE (2026-09-06): remember the update group that is live RIGHT NOW so a red
+          # simulator run can put it back. B117 shipped a crash that lived for four days because
+          # the post-OTA robot was red-and-ignored; now red = automatic rollback + alert.
+          PREV=$(npx --yes eas-cli@latest update:list --branch preview --limit 1 --json --non-interactive 2>/dev/null | jq -r '(.currentPage // .)[0].group // empty')
+          echo "PREV_GROUP=$PREV" >> "$GITHUB_ENV"; echo "previous live group: ${PREV:-<none>}"
+          npx --yes eas-cli@latest update --branch preview --message "${{ github.event.inputs.message }}" --non-interactive
       - name: Kick E2E (practice-only) against the fresh OTA
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/dispatched-at
           curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ios-maestro-e2e.yml/dispatches" \
             -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
             -d '{"ref":"reskin-ui","inputs":{"run_paid":"false"}}' && echo "e2e dispatched"
+      - name: Wait for the simulator verdict (gate)
+        if: github.event.inputs.skip_gate != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SINCE=$(cat /tmp/dispatched-at); RUN=""
+          for i in $(seq 1 24); do
+            RUN=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ios-maestro-e2e.yml/runs?event=workflow_dispatch&created=>=$SINCE&per_page=1" | jq -r '.workflow_runs[0].id // empty')
+            [ -n "$RUN" ] && break; sleep 5
+          done
+          [ -n "$RUN" ] || { echo "::error::could not find the dispatched E2E run"; exit 1; }
+          echo "E2E_RUN=$RUN" >> "$GITHUB_ENV"; echo "watching run $RUN"
+          for i in $(seq 1 90); do   # up to 45 min
+            J=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN")
+            S=$(echo "$J" | jq -r .status); C=$(echo "$J" | jq -r .conclusion)
+            if [ "$S" = "completed" ]; then echo "verdict: $C"; [ "$C" = "success" ] && exit 0 || exit 1; fi
+            sleep 30
+          done
+          echo "::error::E2E did not finish in 45 min"; exit 1
+      - name: AUTO-ROLLBACK the OTA (simulator was red)
+        if: failure() && github.event.inputs.skip_gate != 'true'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
+        run: |
+          if [ -n "$PREV_GROUP" ]; then
+            npx --yes eas-cli@latest update:republish --group "$PREV_GROUP" --message "AUTO-ROLLBACK: sim red after '${{ github.event.inputs.message }}'" --non-interactive && echo "rolled back to $PREV_GROUP"
+            MSG="OTA AUTO-ROLLED BACK — '${{ github.event.inputs.message }}' failed the simulator. Previous bundle is live again."
+          else
+            MSG="OTA GATE RED — '${{ github.event.inputs.message }}' failed the simulator and NO previous group was found to roll back to. Check now."
+          fi
+          curl -s -X POST "https://web-production-c6ec6.up.railway.app/api/admin/push/send" \
+            -H "content-type: application/json" -H "x-admin-key: $ADMIN_KEY" \
+            -d "{\"accountId\":\"d29a779f-e908-4786-9e61-2fdf90d6d2fa\",\"title\":\"$MSG\",\"body\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${E2E_RUN:-${{ github.run_id }}}\"}" || true
