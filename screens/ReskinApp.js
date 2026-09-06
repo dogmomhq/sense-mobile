@@ -6,7 +6,7 @@
 //
 // Money display: 1 credit = 1¢ (DECISIONS Q2). fmtMoney is THE switchable
 // formatter (DECISIONS #3) — flip to credits formatting in one place.
-import { now } from './clock'; // P2.3 monotonic round clock
+import { now as monoNow } from './clock'; // P2.3 monotonic round clock (aliased: this file has a local `now` state)
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, Platform, Alert, AppState, TextInput, Linking } from 'react-native';
 import Constants from 'expo-constants';
@@ -314,10 +314,10 @@ export default function ReskinApp({ g }) {
       timingDbg.current = {};
       // B60: deadline-checked flip (was a single setTimeout — LPM deferred it ~2.1s,
       // revealing the question late while the scored clock stayed honest → integrity draws)
-      const t0 = now(); let done = false; let rafId = null; // P2.3 monotonic
-      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = now(); g.setCountdown(false); };
-      const iv = setInterval(() => { if (now() - t0 >= 2400) fire(); }, 50);
-      const rafLoop = () => { if (done) return; if (now() - t0 >= 2400) { fire(); return; } rafId = requestAnimationFrame(rafLoop); };
+      const t0 = monoNow(); let done = false; let rafId = null; // P2.3 monotonic
+      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = monoNow(); g.setCountdown(false); };
+      const iv = setInterval(() => { if (monoNow() - t0 >= 2400) fire(); }, 50);
+      const rafLoop = () => { if (done) return; if (monoNow() - t0 >= 2400) { fire(); return; } rafId = requestAnimationFrame(rafLoop); };
       rafId = requestAnimationFrame(rafLoop);
       return () => { done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); };
     }
