@@ -598,6 +598,19 @@ export default function App() {
     track('practice_start');
     const warm = takePrefetchedPractice();
     if (warm) { startRound(warm); prefetchPractice(); return; }  // instant: clip already on disk
+    // FIRST-RUN FIX 2026-09-06: practice has been server-graded (auth required) since 2026-08-24,
+    // but a device account was only ever claimed on the first ONLINE play. A brand-new install
+    // therefore had no credential, practice 401'd, and the user saw "Practice needs a connection"
+    // forever. The simulator E2E rig (always a fresh install) had been failing on exactly this
+    // since 8/25. Claim the device account first — same 'register' handshake the queue uses.
+    if (!playerAuthHeaders()) {
+      if (pendingAfterReg.current) return; // a registration is already in flight
+      pendingAfterReg.current = () => { pendingAfterReg.current = null; startPractice(); };
+      const reg = () => wsSend({ type: 'register', preferredHandle: myName() });
+      if (isConnected()) reg(); else ensureConn(reg);
+      setTimeout(() => { if (pendingAfterReg.current) { pendingAfterReg.current = null; showToast('Practice needs a connection — try again.', 'error'); } }, 8000);
+      return;
+    }
     fetchPracticeQuestion()
       .then((f) => { startRound(f); prefetchPractice(); })
       .catch((e) => { console.log('[practice]', e.message); showToast('Practice needs a connection — try again.', 'error'); });

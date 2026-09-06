@@ -116,6 +116,7 @@ jobs:
           exit $FAIL
 
       - name: Paid setup (accounts + seed + flag)
+        id: paidsetup
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
@@ -196,14 +197,14 @@ jobs:
         # !cancelled(): run even when the Maestro step failed — the DB verdict
         # (settled? robot answered? strays?) is the diagnosis we need on RED
         # (run 9 skipped this step and hid the ground truth).
-        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event.inputs.run_paid == 'true') }}
+        if: ${{ !cancelled() && steps.paidsetup.outcome == 'success' }}  # 2026-09-06: don't pile 'pg missing' failures on top of a practice failure
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
           EXPECT_MATCHES: "2"    # B61: both the first match AND the runback re-queue must settle; 1 settled + 1 orphan = the 2026-07-27 glitch
         run: node e2e/paid-assert.mjs
 
       - name: Paid cleanup (always)
-        if: always() && (github.event_name == 'schedule' || github.event.inputs.run_paid == 'true')
+        if: always() && steps.paidsetup.outcome == 'success'
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
