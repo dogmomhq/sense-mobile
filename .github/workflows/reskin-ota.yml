@@ -20,6 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            /*
+            !/maestro-shots/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci || npm install
@@ -53,13 +59,18 @@ jobs:
           done
           [ -n "$RUN" ] || { echo "::error::could not find the dispatched E2E run"; exit 1; }
           echo "E2E_RUN=$RUN" >> "$GITHUB_ENV"; echo "watching run $RUN"
-          for i in $(seq 1 90); do   # up to 45 min
-            J=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN")
-            S=$(echo "$J" | jq -r .status); C=$(echo "$J" | jq -r .conclusion)
-            if [ "$S" = "completed" ]; then echo "verdict: $C"; [ "$C" = "success" ] && exit 0 || exit 1; fi
-            sleep 30
+          # Watch the GATE STEP only (one practice round). The soak flows keep running after the
+          # verdict and alert on their own; they no longer hold the OTA hostage.
+          for i in $(seq 1 60); do   # up to 20 min
+            J=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN/jobs")
+            G=$(echo "$J" | jq -r '[.jobs[].steps[] | select(.name | startswith("GATE"))][0] // empty')
+            GS=$(echo "$G" | jq -r '.status // empty'); GC=$(echo "$G" | jq -r '.conclusion // empty')
+            RS=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN" | jq -r .status)
+            if [ "$GS" = "completed" ]; then echo "gate verdict: $GC"; [ "$GC" = "success" ] && exit 0 || exit 1; fi
+            if [ "$RS" = "completed" ]; then echo "::error::run finished before the gate step ran (setup failure)"; exit 1; fi
+            sleep 20
           done
-          echo "::error::E2E did not finish in 45 min"; exit 1
+          echo "::error::gate did not report in 20 min"; exit 1
       - name: AUTO-ROLLBACK the OTA (simulator was red)
         if: failure() && github.event.inputs.skip_gate != 'true'
         env:
