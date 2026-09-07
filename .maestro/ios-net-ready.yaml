@@ -1,0 +1,11 @@
+# Readiness probe (2026-09-07): proves the SIMULATOR can reach the game server before the gate
+# runs. On a fresh install the app claims its device account at boot (B120) and the header
+# balance flips from "—" to the $5.00 signup credits — that text only exists if a round trip to
+# the server succeeded. If it never appears the problem is the runner's network, not the app.
+appId: com.dogmomhq.sensemobile
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "\\$[0-9]+\\.[0-9][0-9]"
+    timeout: 45000

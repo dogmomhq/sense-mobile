@@ -63,16 +63,21 @@ jobs:
           # verdict and alert on their own; they no longer hold the OTA hostage.
           for i in $(seq 1 60); do   # up to 20 min
             J=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN/jobs")
-            G=$(echo "$J" | jq -r '[.jobs[].steps[] | select(.name | startswith("GATE"))][0] // empty')
+            G=$(echo "$J" | jq -r '[.jobs[].steps[] | select(.name | startswith("GATE: "))][0] // empty')
+            I=$(echo "$J" | jq -r '[.jobs[].steps[] | select(.name | startswith("GATE INCONCLUSIVE"))][0] // empty')
             GS=$(echo "$G" | jq -r '.status // empty'); GC=$(echo "$G" | jq -r '.conclusion // empty')
+            IC=$(echo "$I" | jq -r '.conclusion // empty')
             RS=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN" | jq -r .status)
-            if [ "$GS" = "completed" ]; then echo "gate verdict: $GC"; [ "$GC" = "success" ] && exit 0 || exit 1; fi
-            if [ "$RS" = "completed" ]; then echo "::error::run finished before the gate step ran (setup failure)"; exit 1; fi
+            # INCONCLUSIVE = the simulator never reached the server (runner infra). No verdict on the
+            # app, so NO rollback — alert instead. Only a real practice-round failure rolls back.
+            if [ "$IC" = "failure" ]; then echo "INCONCLUSIVE=1" >> "$GITHUB_ENV"; echo "::error::gate inconclusive — simulator network never came up; NOT rolling back"; exit 1; fi
+            if [ "$GS" = "completed" ] && [ "$GC" != "skipped" ]; then echo "gate verdict: $GC"; [ "$GC" = "success" ] && exit 0 || exit 1; fi
+            if [ "$RS" = "completed" ]; then echo "INCONCLUSIVE=1" >> "$GITHUB_ENV"; echo "::error::run finished before the gate ran (setup failure) — NOT rolling back"; exit 1; fi
             sleep 20
           done
           echo "::error::gate did not report in 20 min"; exit 1
       - name: AUTO-ROLLBACK the OTA (simulator was red)
-        if: failure() && github.event.inputs.skip_gate != 'true'
+        if: failure() && github.event.inputs.skip_gate != 'true' && env.INCONCLUSIVE != '1'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
@@ -86,3 +91,11 @@ jobs:
           curl -s -X POST "https://web-production-c6ec6.up.railway.app/api/admin/push/send" \
             -H "content-type: application/json" -H "x-admin-key: $ADMIN_KEY" \
             -d "{\"accountId\":\"d29a779f-e908-4786-9e61-2fdf90d6d2fa\",\"title\":\"$MSG\",\"body\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${E2E_RUN:-${{ github.run_id }}}\"}" || true
+      - name: Alert — gate inconclusive (runner network), bundle left live
+        if: failure() && env.INCONCLUSIVE == '1'
+        env:
+          ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
+        run: |
+          curl -s -X POST "https://web-production-c6ec6.up.railway.app/api/admin/push/send" \
+            -H "content-type: application/json" -H "x-admin-key: $ADMIN_KEY" \
+            -d "{\"accountId\":\"d29a779f-e908-4786-9e61-2fdf90d6d2fa\",\"title\":\"OTA gate INCONCLUSIVE — '${{ github.event.inputs.message }}' is live but unverified (sim network)\",\"body\":\"Re-run reskin-ota.yml or check your phone. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${E2E_RUN:-${{ github.run_id }}}\"}" || true
