@@ -34,11 +34,13 @@ function questionImage(questionIdx) {
   const q = PRACTICE_QUESTIONS[questionIdx];
   return (q && q.image) ? q.image : null;
 }
-function QThumb({ questionIdx, size = 140 }) {
+function QThumb({ questionIdx, size = 140, posterUri = null, authHeaders = null }) {
   // base 140 in the 1024-wide design space ≈ a 52px thumbnail on a phone, and
   // scales proportionally with the rest of the card via useScale().
+  // 2026-09-07 (CJ): match rows prefer the FRAME-1 POSTER of the clip they played
+  // (/mposter/:matchId, participant-gated, auth header) over the bundled still.
   const s = useScale();
-  const uri = questionImage(questionIdx);
+  const uri = posterUri || questionImage(questionIdx);
   const box = {
     width: size * s, height: size * s, borderRadius: 22 * s,
     borderWidth: 2.5 * s, borderColor: COLORS.lime, overflow: 'hidden',
@@ -59,7 +61,7 @@ function QThumb({ questionIdx, size = 140 }) {
   }
   return (
     <View style={box}>
-      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      <Image source={posterUri ? { uri, headers: authHeaders || {} } : { uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
     </View>
   );
 }
@@ -174,19 +176,21 @@ function PendingRow({ row, onCancel }) {
 
 /* ── ONE unified feed row: a money event + optional match context.
       row = { badge, label?, title, sub?, amount, balance } ── */
-function FeedRow({ row }) {
+function FeedRow({ row, onOpen, httpsBase, authHeaders }) {
   const s = useScale();
+  const openable = !!(row.matchId && onOpen && row.settled); // settled match rows open the detail sheet
   const pos = String(row.amount || '').startsWith('+');
   const amtColor = pos ? COLORS.lime : RED;
   const border = row.badge === 'loss' ? 'rgba(255,90,72,0.45)'
     : row.badge === 'win' ? 'rgba(215,248,74,0.35)' : 'rgba(245,241,230,0.18)';
   return (
+    <Pressable onPress={openable ? () => onOpen(row.matchId) : undefined} disabled={!openable}>
     <RowCard borderColor={border}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 * s, flex: 1 }}>
-          {/* thumbnail only on match-derived rows (those carry questionIdx);
-              deposit/bonus rows have none and stay image-free */}
-          {row.questionIdx != null ? <QThumb questionIdx={row.questionIdx} size={104} /> : null}
+          {/* thumbnail only on match-derived rows; settled matches show the clip's frame 1 */}
+          {row.matchId && row.settled && httpsBase ? <QThumb questionIdx={row.questionIdx} size={104} posterUri={`${httpsBase}/mposter/${encodeURIComponent(row.matchId)}`} authHeaders={authHeaders} />
+            : row.questionIdx != null ? <QThumb questionIdx={row.questionIdx} size={104} /> : null}
           <Badge kind={row.badge} label={row.label} />
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s,
@@ -194,6 +198,10 @@ function FeedRow({ row }) {
             {row.sub ? (
               <Text numberOfLines={1} style={{ fontFamily: FONTS.mono, fontSize: 28 * s,
                 color: COLORS.creamDim, marginTop: 8 * s }}>{row.sub}</Text>
+            ) : null}
+            {row.animal ? (
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 24 * s,
+                color: COLORS.lime, letterSpacing: 0.08 * 24 * s, marginTop: 6 * s }}>{String(row.animal).toUpperCase()}{openable ? '  ›' : ''}</Text>
             ) : null}
           </View>
         </View>
@@ -210,7 +218,8 @@ function FeedRow({ row }) {
           ) : null}
         </View>
       </View>
-    </RowCard>);
+    </RowCard>
+    </Pressable>);
 }
 
 /* ── PRACTICE tab ── */
@@ -284,9 +293,10 @@ function PracticeTab({ practice, onStartPractice }) {
 
 export default function HistoryScreen({
   tab: tabProp = 'matches', onTabChange,
-  pending = [], feed = [],            // feed rows: {badge,label?,title,sub?,amount,balance}
+  pending = [], feed = [],            // feed rows: {badge,label?,title,sub?,amount,balance,matchId?,settled?,animal?}
   practice = { w: 0, l: 0, d: 0, log: [] },
   onCancelPending, onStartPractice,
+  onOpenMatch, httpsBase, authHeaders, // 2026-09-07: tap a settled match -> MatchDetailScreen; poster thumbs
 }) {
   const s = useScale();
   const [tab, setTab] = useState(tabProp);
@@ -319,7 +329,7 @@ export default function HistoryScreen({
         <View style={{ paddingHorizontal: 45 * s }}>
           {pending.map((row, i) => (
             <PendingRow key={`p${i}`} row={row} onCancel={onCancelPending} />))}
-          {feed.map((row, i) => <FeedRow key={i} row={row} />)}
+          {feed.map((row, i) => <FeedRow key={i} row={row} onOpen={onOpenMatch} httpsBase={httpsBase} authHeaders={authHeaders} />)}
         </View>
       )}
     </ScrollView>

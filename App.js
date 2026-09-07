@@ -911,7 +911,7 @@ export default function App() {
       const r = await fetch(`${HTTPS_BASE}/history/${encodeURIComponent(name)}?limit=200`, { headers: tok ? { 'x-auth-token': tok } : {} }); // P2.1 (2026-09-02): header, never the URL
       const d = await r.json();
       if (d && Array.isArray(d.matches)) {
-        const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, questionIdx: (m.question_idx != null ? m.question_idx : null), reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
+        const mapped = d.matches.filter(m => m.mode === 'free').map(m => { const meA = m.player_a === name; return { matchId: m.match_id, animal: m.animal || null, /* 2026-09-07: server names the animal for history cards */ opponent: meA ? m.player_b : m.player_a, result: meA ? m.result_a : m.result_b, myTime: meA ? m.time_a : m.time_b, oppTime: meA ? m.time_b : m.time_a, correctIdx: m.correct_idx, questionIdx: (m.question_idx != null ? m.question_idx : null), reason: m.reason, timestamp: m.settled_at }; }).filter(x => x.matchId);
         setMatchLog(prev => { const ids = new Set(mapped.map(x => x.matchId)); const localOnly = prev.filter(x => !ids.has(x.matchId)); return [...localOnly, ...mapped].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,200); });
         if (d.free && typeof d.free.wins === 'number') setOnlineRec({ wins: d.free.wins||0, losses: d.free.losses||0, draws: d.free.draws||0 });
         if (Array.isArray(d.ledger)) setServerLedger(d.ledger);            // server-authoritative tx feed
@@ -1483,7 +1483,7 @@ export default function App() {
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
-      balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank,
+      balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
       // setters / actions (all pre-existing logic — nothing reimplemented)

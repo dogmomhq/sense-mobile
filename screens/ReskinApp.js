@@ -22,6 +22,7 @@ import HistoryScreen from './HistoryScreen';
 import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
+import MatchDetailScreen from './MatchDetailScreen'; // 2026-09-07: tap a history match -> detail + analytics
 import AppShell from './AppShell';
 import { avatarSource, DEFAULT_AVATAR_KEY } from './avatars';
 import { COLORS, FONTS, useScale, useSenseFonts, getSafeTop } from './theme';
@@ -255,6 +256,7 @@ function FindingFlash({ onCancel, noConn }) {
 export default function ReskinApp({ g }) {
   const fontsReady = useSenseFonts();
   const [route, setRoute] = useState('tabs');            // 'tabs' | 'deposit'
+  const [detailMatchId, setDetailMatchId] = useState(null); // 2026-09-07: MatchDetailScreen overlay
   // B53: chosen animal avatar — device-local (AsyncStorage), never sent to the
   // server. Opponents/leaderboard don't see it; a reinstall resets the choice.
   const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
@@ -470,6 +472,8 @@ export default function ReskinApp({ g }) {
         rows.push({ ts: t.created_at ? new Date(t.created_at).getTime() : 0,
           ...enrich(t.type, t.match_id),
           questionIdx: qIdxOf(t.match_id),
+          matchId: t.match_id || null, settled: !!(t.match_id && byId[t.match_id]), // 2026-09-07: openable + poster thumb
+          animal: (t.match_id && byId[t.match_id] && byId[t.match_id].animal) || null,
           amount: fmtSigned(Number(t.amount)),
           balance: t.balance_after != null ? fmtMoney(Number(t.balance_after)) : '' });
       });
@@ -631,6 +635,7 @@ export default function ReskinApp({ g }) {
     if (g.tab === 'history') {
       screen = signedIn ? (
         <HistoryScreen pending={pendingRows} feed={feed}
+          onOpenMatch={(mid) => setDetailMatchId(mid)} httpsBase={g.httpsBase} authHeaders={g.playerAuthHeaders ? g.playerAuthHeaders() : undefined}
           practice={{ w: g.rec.wins, l: g.rec.losses, d: g.rec.draws, log: (g.pracLog || []).map((e) => ({ result: e.result, animal: e.animal, yourTime: fmtSecs(e.time) })) }}
           onCancelPending={(row) => row && row.mid && g.cancelPendingMatch(row.mid)}
           onStartPractice={g.startPractice} />
@@ -691,6 +696,9 @@ export default function ReskinApp({ g }) {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest }}>
       {body}
+      {/* 2026-09-07: match detail + analytics sheet (from a History match row) */}
+      {detailMatchId ? <MatchDetailScreen matchId={detailMatchId} httpsBase={g.httpsBase}
+        authHeaders={g.playerAuthHeaders ? g.playerAuthHeaders() : undefined} onClose={() => setDetailMatchId(null)} /> : null}
       {/* countdown takeover (no header, CJ confirmed) — opaque (3·2·1·GO
           beats) until exactly 2400ms, then a transparent <=150ms residual
           flash over the live question. box-none + the overlay's own
