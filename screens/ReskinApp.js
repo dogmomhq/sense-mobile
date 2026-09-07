@@ -614,7 +614,6 @@ export default function ReskinApp({ g }) {
   } else if (g.tab === 'home') {
     body = (
       <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
-        rank={g.rank} onRankPress={() => g.setTab('profile')}
         avatar={avatarSource(avatarKey)}
         onSignIn={() => g.setTab('profile')}
         tiers={tierList.map((t) => ({ label: fmtMoney(t.entryCents), locked: !t.enabled }))} selectedTier={tierIdx}
