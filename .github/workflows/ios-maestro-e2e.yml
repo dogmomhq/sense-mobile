@@ -26,6 +26,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: reskin-ui
+          fetch-depth: 1
+          # SPEED (2026-09-06): the screenshot/video archive is what made checkout take 3.5 min.
+          sparse-checkout: |
+            /*
+            !/maestro-shots/
+          sparse-checkout-cone-mode: false
 
       - name: Resolve simulator build URL
         env:
@@ -44,10 +50,16 @@ jobs:
             echo "using: $URL"
           fi
 
+      - name: Cache simulator .app
+        id: appcache
+        uses: actions/cache@v4
+        with:
+          path: app.tar.gz
+          key: simapp-${{ env.APP_URL }}
       - name: Download + unpack .app
         run: |
           set -e
-          curl -sL "$APP_URL" -o app.tar.gz
+          [ -s app.tar.gz ] || curl -sL "$APP_URL" -o app.tar.gz
           mkdir -p simapp && tar -xzf app.tar.gz -C simapp
           APP_PATH=$(find simapp -maxdepth 2 -name "*.app" | head -1)
           [ -n "$APP_PATH" ] || { echo "no .app in archive"; ls -laR simapp | head -50; exit 1; }
@@ -76,17 +88,20 @@ jobs:
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      - name: Run E2E (practice + evil scenarios)
+      - name: "GATE: practice happy path"
+        id: gate
         run: |
-          mkdir -p shots
-          touch /tmp/e2e-start
+          set -e
+          date > /tmp/e2e-start; mkdir -p shots
           xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/run.mp4 & echo $! > /tmp/vid.pid
           xcrun simctl spawn "$UDID" log stream --style compact --predicate 'process == "sensemobile"' > shots/app.log 2>&1 & echo $! > /tmp/log.pid
-
+          echo "=== GATE flow 1: practice happy path ==="
+          maestro test .maestro/ios-practice.yaml
+      - name: Soak flows (kill / background / 5-game loop)
+        # Runs AFTER the gate has already reported. A red here still alerts (below) but no
+        # longer holds the OTA verdict hostage for 15 minutes.
+        run: |
           FAIL=0
-          echo "=== flow 1: practice happy path ==="
-          maestro test .maestro/ios-practice.yaml || FAIL=1
-
           echo "=== flow 2: kill mid-question, relaunch ==="
           maestro test -e TAG=kill .maestro/ios-enter-question.yaml || FAIL=1
           xcrun simctl terminate "$UDID" com.dogmomhq.sensemobile || true
@@ -106,16 +121,21 @@ jobs:
           echo "=== flow 4: 5-game loop ==="
           maestro test .maestro/ios-practice-loop.yaml || FAIL=1
 
-          kill -INT $(cat /tmp/vid.pid) 2>/dev/null || true
-          sleep 5
-          kill $(cat /tmp/log.pid) 2>/dev/null || true
-          # collect Maestro screenshots wherever they landed
-          { find . -maxdepth 2 -name "*.png" -newer /tmp/e2e-start -not -path "./shots/*" -not -path "./node_modules/*" 2>/dev/null; find "$HOME/.maestro" -name "*.png" -newer /tmp/e2e-start 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
-          ls -la shots/
-          echo "VERDICT: $([ "$FAIL" = 0 ] && echo GREEN || echo RED)"
+          echo "SOAK VERDICT: $([ "$FAIL" = 0 ] && echo GREEN || echo RED)"
           exit $FAIL
 
+      - name: Stop recording + collect screenshots
+        if: always()
+        run: |
+          kill -INT $(cat /tmp/vid.pid 2>/dev/null) 2>/dev/null || true
+          sleep 5
+          kill $(cat /tmp/log.pid 2>/dev/null) 2>/dev/null || true
+          mkdir -p shots
+          { find . -maxdepth 2 -name "*.png" -newer /tmp/e2e-start -not -path "./shots/*" -not -path "./node_modules/*" 2>/dev/null; find "$HOME/.maestro" -name "*.png" -newer /tmp/e2e-start 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
+          ls -la shots/ || true
+
       - name: Paid setup (accounts + seed + flag)
+        id: paidsetup
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
@@ -196,14 +216,14 @@ jobs:
         # !cancelled(): run even when the Maestro step failed — the DB verdict
         # (settled? robot answered? strays?) is the diagnosis we need on RED
         # (run 9 skipped this step and hid the ground truth).
-        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event.inputs.run_paid == 'true') }}
+        if: ${{ !cancelled() && steps.paidsetup.outcome == 'success' }}  # 2026-09-06: don't pile 'pg missing' failures on top of a practice failure
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
           EXPECT_MATCHES: "2"    # B61: both the first match AND the runback re-queue must settle; 1 settled + 1 orphan = the 2026-07-27 glitch
         run: node e2e/paid-assert.mjs
 
       - name: Paid cleanup (always)
-        if: always() && (github.event_name == 'schedule' || github.event.inputs.run_paid == 'true')
+        if: always() && steps.paidsetup.outcome == 'success'
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
@@ -218,21 +238,8 @@ jobs:
             -H "content-type: application/json" -H "x-admin-key: $ADMIN_KEY" \
             -d "{\"accountId\":\"d29a779f-e908-4786-9e61-2fdf90d6d2fa\",\"title\":\"E2E RED — ios run ${{ github.run_number }}\",\"body\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" || true
 
-      - name: Commit shots + video
-        if: always()
-        run: |
-          DEST="maestro-shots/ios/run-${{ github.run_number }}"
-          mkdir -p "$DEST"
-          cp -R shots/* "$DEST"/ 2>/dev/null || true
-          rm -f "$DEST"/*.mp4
-          find "$DEST" -size +90M -delete 2>/dev/null || true
-          git config user.name "sense-e2e-bot"
-          git config user.email "e2e@sense.local"
-          git add "$DEST"
-          git commit -m "ios maestro e2e run ${{ github.run_number }}" || echo "nothing to commit"
-          git pull --rebase origin reskin-ui || true
-          git push origin HEAD:reskin-ui || true
-
+      # 2026-09-06: shots/video are NO LONGER committed to the repo — the archive had grown until
+      # every checkout took 3.5 min. They live on the run's artifact (below) instead.
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4
