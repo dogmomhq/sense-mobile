@@ -199,9 +199,16 @@ function FeedRow({ row, onOpen, httpsBase, authHeaders }) {
               <Text numberOfLines={1} style={{ fontFamily: FONTS.mono, fontSize: 28 * s,
                 color: COLORS.creamDim, marginTop: 8 * s }}>{row.sub}</Text>
             ) : null}
-            {row.animal ? (
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 24 * s,
-                color: COLORS.lime, letterSpacing: 0.08 * 24 * s, marginTop: 6 * s }}>{String(row.animal).toUpperCase()}{openable ? '  ›' : ''}</Text>
+            {row.animal || openable ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 * s, marginTop: 10 * s }}>
+                {row.animal ? <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 24 * s,
+                  color: COLORS.lime, letterSpacing: 0.08 * 24 * s, flexShrink: 1 }}>{String(row.animal).toUpperCase()}</Text> : null}
+                {openable ? (
+                  <View style={{ borderWidth: 1.5 * s, borderColor: 'rgba(215,248,74,0.6)', borderRadius: 20 * s,
+                    paddingVertical: 4 * s, paddingHorizontal: 16 * s, backgroundColor: 'rgba(212,242,60,0.10)' }}>
+                    <Text style={{ fontFamily: FONTS.interExtra, fontSize: 20 * s, color: COLORS.lime, letterSpacing: 0.1 * 20 * s }}>DETAILS ›</Text>
+                  </View>) : null}
+              </View>
             ) : null}
           </View>
         </View>
