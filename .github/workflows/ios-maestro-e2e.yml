@@ -88,8 +88,26 @@ jobs:
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      - name: Simulator network readiness (infra, not app)
+        id: netready
+        run: |
+          # Up to 4 launches. Seen 2026-09-07: right after a relaunch the simulator's TLS stack can
+          # stall (no bytes ever reach the server; PostHog shows cert errors) while the runner's own
+          # curl works. That is runner infra. Never let it read as an app failure.
+          READY=false
+          for i in 1 2 3 4; do
+            if maestro test .maestro/ios-net-ready.yaml; then READY=true; break; fi
+            echo "::warning::sim could not reach the server (attempt $i) — relaunching"
+            xcrun simctl terminate "$UDID" com.dogmomhq.sensemobile || true; sleep 3
+          done
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+          [ "$READY" = true ] || echo "::warning::GATE INCONCLUSIVE — simulator never reached the server"
+      - name: "GATE INCONCLUSIVE (runner network) — no verdict"
+        if: steps.netready.outputs.ready != 'true'
+        run: exit 3
       - name: "GATE: practice happy path"
         id: gate
+        if: steps.netready.outputs.ready == 'true'
         run: |
           set -e
           date > /tmp/e2e-start; mkdir -p shots
@@ -230,7 +248,7 @@ jobs:
         run: node e2e/paid-cleanup.mjs
 
       - name: Alert CJ on RED
-        if: failure()
+        if: failure() && steps.netready.outputs.ready == 'true'
         env:
           ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
         run: |
