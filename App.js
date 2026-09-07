@@ -594,6 +594,20 @@ export default function App() {
     // correctIdx deliberately absent — it arrives only after the answer is submitted.
     return { text: j.text, options: j.options, correctIdx: null, pid: j.pid, videoToken: j.videoToken, questionIdx: null };
   }
+  // B120 (2026-09-07): claim the device-bound account ONCE, at boot, in the background — not
+  // lazily on the first practice tap. Run 171 showed the lazy claim racing a cold simulator's
+  // first socket dial: nothing registered within the window, practice never started. With the
+  // claim at boot the credential exists long before anyone taps, and the practice prefetch (B108)
+  // can warm the first round. Skipped when a device or Supabase credential already exists.
+  function claimDeviceAccount(after, tag) {
+    if (accountRef.current || supabaseTokenRef.current) { if (after) after(); return; }
+    if (pendingAfterReg.current) { const prev = pendingAfterReg.current; const fn = () => { prev(); if (after) after(); }; fn.tag = prev.tag; pendingAfterReg.current = fn; return; }
+    const fn = () => { pendingAfterReg.current = null; if (after) after(); }; fn.tag = tag || null;
+    pendingAfterReg.current = fn;
+    const reg = () => wsSend({ type: 'register', preferredHandle: myName() });
+    if (isConnected()) reg(); else ensureConn(reg);
+  }
+  useEffect(() => { const t = setTimeout(() => { try { claimDeviceAccount(() => prefetchPractice()); } catch (e) {} }, 3000); return () => clearTimeout(t); }, []); // B120: 3s lets the stored account / Supabase session restore first
   function startPractice() {
     track('practice_start');
     const warm = takePrefetchedPractice();
@@ -604,11 +618,11 @@ export default function App() {
     // forever. The simulator E2E rig (always a fresh install) had been failing on exactly this
     // since 8/25. Claim the device account first — same 'register' handshake the queue uses.
     if (!playerAuthHeaders()) {
-      if (pendingAfterReg.current) return; // a registration is already in flight
-      pendingAfterReg.current = () => { pendingAfterReg.current = null; startPractice(); };
-      const reg = () => wsSend({ type: 'register', preferredHandle: myName() });
-      if (isConnected()) reg(); else ensureConn(reg);
-      setTimeout(() => { if (pendingAfterReg.current) { pendingAfterReg.current = null; showToast('Practice needs a connection — try again.', 'error'); } }, 8000);
+      // B120: normally the account was already claimed at boot (below); this is the fallback for
+      // a boot with no network. 15s covers a cold first dial; the toast only fires if nothing landed.
+      const my = Symbol('reg');
+      claimDeviceAccount(() => startPractice(), my);
+      setTimeout(() => { if (pendingAfterReg.current && pendingAfterReg.current.tag === my) { pendingAfterReg.current = null; showToast('Practice needs a connection — try again.', 'error'); } }, 15000);
       return;
     }
     fetchPracticeQuestion()

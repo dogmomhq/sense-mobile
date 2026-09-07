@@ -9,6 +9,9 @@ appId: com.dogmomhq.sensemobile
           visible: "PRACTICE FREE"
           timeout: 45000
       - tapOn: "PRACTICE FREE"
+      - extendedWaitUntil:
+          visible: "PRACTICE · FREE"
+          timeout: 20000
       - waitForAnimationToEnd:
           timeout: 9000
       - tapOn:

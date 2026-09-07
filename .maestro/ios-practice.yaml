@@ -8,9 +8,11 @@ appId: com.dogmomhq.sensemobile
     timeout: 45000
 - takeScreenshot: shots/01-home
 - tapOn: "PRACTICE FREE"
+# the countdown pill reads "PRACTICE · FREE" (middle dot) — the home button has no dot. Waiting on the
+# dot means "the round actually started"; the old "PRACTICE.*FREE" matched the home button itself.
 - extendedWaitUntil:
-    visible: "PRACTICE.*FREE"
-    timeout: 10000
+    visible: "PRACTICE · FREE"
+    timeout: 20000
 - takeScreenshot: shots/02-countdown
 - waitForAnimationToEnd:
     timeout: 9000
