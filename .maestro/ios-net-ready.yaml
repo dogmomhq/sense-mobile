@@ -1,13 +1,13 @@
-# Readiness probe (2026-09-07): proves the SIMULATOR can reach the game server before the gate
-# runs. On a fresh install the app claims its device account at boot (B120), hydrates, and the
-# header balance flips from "—" to the $5.00 signup credits ($0.00 if the per-IP bonus cap hit).
-# Those two exact strings can never be a tier pill ($0.50/$1.00/$2.00/...), so a match is a
-# real server round trip. (v1 used \$[0-9]+\.[0-9][0-9], which full-matched the "$0.50" pill and
-# passed with no network at all — that false positive rolled back a good B124.)
+# Readiness probe (2026-09-07 v3): proves the SIMULATOR can reach the game server before the
+# gate runs. Home mounts an invisible accessibility element with id "net-ready" ONLY after
+# GET /api/tiers has answered from our server (ReskinApp serverOk). Nothing visible depends on
+# it, and a guest account shows no balance on Home (v2's mistake), so this is the one honest
+# server-derived signal available on a fresh install.
 appId: com.dogmomhq.sensemobile
 ---
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "^\\$(5\\.00|0\\.00)$"
+    visible:
+      id: "net-ready"
     timeout: 45000
