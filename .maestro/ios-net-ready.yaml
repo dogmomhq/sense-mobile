@@ -1,11 +1,13 @@
 # Readiness probe (2026-09-07): proves the SIMULATOR can reach the game server before the gate
-# runs. On a fresh install the app claims its device account at boot (B120) and the header
-# balance flips from "—" to the $5.00 signup credits — that text only exists if a round trip to
-# the server succeeded. If it never appears the problem is the runner's network, not the app.
+# runs. On a fresh install the app claims its device account at boot (B120), hydrates, and the
+# header balance flips from "—" to the $5.00 signup credits ($0.00 if the per-IP bonus cap hit).
+# Those two exact strings can never be a tier pill ($0.50/$1.00/$2.00/...), so a match is a
+# real server round trip. (v1 used \$[0-9]+\.[0-9][0-9], which full-matched the "$0.50" pill and
+# passed with no network at all — that false positive rolled back a good B124.)
 appId: com.dogmomhq.sensemobile
 ---
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "\\$[0-9]+\\.[0-9][0-9]"
+    visible: "^\\$(5\\.00|0\\.00)$"
     timeout: 45000
