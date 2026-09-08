@@ -15,6 +15,8 @@ import CoverPhoto from './components/CoverPhoto';
 import { VideoView } from 'expo-video'; // B73: question clip loops behind the wait (answer already locked - no leak)
 import { COLORS, FONTS, RADII, useScale, useVScale } from './theme';
 import PressBtn from './components/PressBtn';
+import InitialsAvatar from './components/InitialsAvatar';
+import { RankBadge, RANK_TIERS, ringColor } from './rank'; // WAITING FACE-OFF + rank meter (CJ 2026-09-07)
 
 // dark panther-eyes plate derived from the locked batch6/waiting.png mockup
 const PHOTO = require('../assets/waiting_eyes.png');
@@ -52,8 +54,30 @@ export default function WaitingScreen({
   lockedTime = '1.42s', stakeText = '$1.00 · WIN $1.90',
   onPlayAgain, onHistory, onHome, showClock = false, freeze = false,
   pushOn = true, onEnablePush,
+  // 2026-09-07 (CJ: "key retention screen, keep it organic"): two HONEST states.
+  //   opp      = { name, tier } the moment a real opponent enters your game (server
+  //              async-opponent-found) -> face-off: YOU vs THEM · Playing now…
+  //   activity = { players:[{handle,tier}], matches24h, medianWaitSec } real social proof
+  //              for this stake while nobody has entered yet; rank = your RP snapshot for
+  //              the progress meter ("WIN -> +20 RP · 2 wins to OTTER").
+  opp = null, activity = null, rank = null, paid = false,
 }) {
   const s = useScale();
+  const dots = useRef(new Animated.Value(0)).current; // "Playing now…" pulse
+  useEffect(() => {
+    if (!opp) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(dots, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(dots, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true })]));
+    loop.start(); return () => loop.stop();
+  }, [!!opp]);
+  const winRp = paid ? 20 : 10;
+  const rankMeter = (() => {
+    if (!rank || !rank.enabled || rank.nextEntry == null) return null;
+    const need = Math.max(0, rank.nextEntry - rank.rp); const wins = Math.max(1, Math.ceil(need / winRp));
+    const next = RANK_TIERS[Math.min(19, rank.tier)]; const span = Math.max(1, rank.nextEntry - rank.tierEntry);
+    return { frac: Math.min(1, Math.max(0, (rank.rp - rank.tierEntry) / span)), wins, next, color: ringColor(rank.tier) };
+  })();
   const [showInfo, setShowInfo] = useState(false); // B102: how-matches-work modal (copy CJ-approved)
   // 2026-08-24: one action per screen. These buttons are always visible here (unlike the
   // results screen, where they were tappable while invisible), but a fast double-tap on
@@ -139,6 +163,30 @@ export default function WaitingScreen({
         <RadarPulse cx={width / 2} cy={eyesCY} freeze={freeze} />
       </View>
 
+      {opp ? (
+        /* FACE-OFF: a real opponent is in the round right now */
+        <View style={{ position: 'absolute', top: 980 * s * vs + headerOff, left: 40 * s, right: 40 * s, alignItems: 'center', zIndex: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: 40 * s }}>
+            <View style={{ alignItems: 'center', width: 300 * s }}>
+              <InitialsAvatar handle={handle || 'YOU'} size={170} ring={4} fontSize={68} />
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.cream, marginTop: 14 * s }}>{String(handle || 'YOU')}</Text>
+              <Text style={{ fontFamily: FONTS.mono, fontSize: 40 * s, color: COLORS.lime, marginTop: 4 * s }}>{lockedTime}</Text>
+            </View>
+            <Text style={{ fontFamily: FONTS.anton, fontSize: 56 * s, color: 'rgba(245,241,230,0.5)', includeFontPadding: false }}>VS</Text>
+            <View style={{ alignItems: 'center', width: 300 * s }}>
+              <View>
+                <InitialsAvatar handle={opp.name || '?'} size={170} ring={4} fontSize={68} />
+                {opp.tier ? <View style={{ position: 'absolute', right: -10 * s, bottom: -8 * s }}><RankBadge tier={opp.tier} size={66} s={s} /></View> : null}
+              </View>
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.cream, marginTop: 14 * s }}>{opp.name}</Text>
+              <Animated.Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#FF9F43', marginTop: 4 * s, letterSpacing: 0.06 * 28 * s,
+                opacity: dots.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }) }}>PLAYING NOW…</Animated.Text>
+            </View>
+          </View>
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 28 * s, letterSpacing: 0.08 * 28 * s, color: 'rgba(245,241,230,0.85)', textAlign: 'center', marginTop: 34 * s }}>
+            THEY'RE ON THE SAME CLIP RIGHT NOW. RESULT LANDS THE SECOND THEY LOCK IN.</Text>
+        </View>
+      ) : (<>
       {/* mystery-opponent chip (#7: pre-reveal treatment, opponent unknown) */}
       <View style={{ position: 'absolute', top: 1040 * s * vs + headerOff, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: 'rgba(16,20,13,0.72)', borderWidth: 1.5 * s,
@@ -179,6 +227,44 @@ export default function WaitingScreen({
           </PressBtn>
         )}
       </View>
+
+      </>)}
+
+      {/* social proof + rank meter (pre-join) — every number here is real. Compact strip between
+          the notify promise (~1190-1330) and the stake pill (1565); hidden when the TURN ON
+          NOTIFICATIONS button needs that space. */}
+      {!opp && pushOn && (activity || rankMeter) ? (
+        <View style={{ position: 'absolute', top: 1345 * s * vs + headerOff, left: 40 * s, right: 40 * s, zIndex: 10 }}>
+          {activity && activity.players && activity.players.length ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14 * s }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 18 * s }}>
+                {activity.players.slice(0, 5).map((p, i) => (
+                  <View key={p.handle} style={{ marginLeft: i ? -16 * s : 0, zIndex: 10 - i }}>
+                    <InitialsAvatar handle={p.handle} size={60} ring={3} fontSize={26} />
+                    {p.tier ? <View style={{ position: 'absolute', right: -6 * s, bottom: -6 * s }}><RankBadge tier={p.tier} size={28} s={s} /></View> : null}
+                  </View>))}
+              </View>
+              <Text numberOfLines={2} style={{ flexShrink: 1, fontFamily: FONTS.interBold, fontSize: 22 * s, lineHeight: 28 * s, color: 'rgba(245,241,230,0.8)', letterSpacing: 0.06 * 22 * s }}>
+                {activity.matches24h ? `${activity.matches24h} ${activity.matches24h === 1 ? 'MATCH' : 'MATCHES'} AT THIS STAKE · 24H` : 'PLAYERS AT THIS STAKE TODAY'}
+                {activity.medianWaitSec != null ? `\nTYPICAL WAIT ${activity.medianWaitSec < 60 ? activity.medianWaitSec + 'S' : Math.round(activity.medianWaitSec / 60) + ' MIN'}` : ''}</Text>
+            </View>
+          ) : null}
+          {rankMeter ? (
+            <View style={{ backgroundColor: 'rgba(16,20,13,0.72)', borderWidth: 1.5 * s, borderColor: rankMeter.color, borderRadius: 20 * s, paddingVertical: 14 * s, paddingHorizontal: 20 * s }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 * s }}>
+                  <RankBadge tier={rank.tier} size={44} s={s} />
+                  <Text style={{ fontFamily: FONTS.interExtra, fontSize: 24 * s, color: COLORS.cream, letterSpacing: 0.06 * 24 * s }}>WIN → +{winRp} RP</Text>
+                </View>
+                <Text style={{ fontFamily: FONTS.interBold, fontSize: 22 * s, color: COLORS.creamDim }}>{rankMeter.wins} {rankMeter.wins === 1 ? 'WIN' : 'WINS'} TO {String(rankMeter.next.name).toUpperCase()} {rankMeter.next.emoji}</Text>
+              </View>
+              <View style={{ height: 10 * s, borderRadius: 5 * s, backgroundColor: 'rgba(245,241,230,0.12)', overflow: 'hidden', marginTop: 12 * s }}>
+                <View style={{ width: `${Math.round(rankMeter.frac * 100)}%`, height: '100%', backgroundColor: rankMeter.color }} />
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* stake pill */}
       <View style={{ position: 'absolute', bottom: pillB, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>

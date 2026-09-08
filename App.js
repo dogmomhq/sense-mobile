@@ -285,6 +285,7 @@ export default function App() {
   useEffect(() => { const t = setTimeout(() => { try { fetchRank(null); } catch (e) {} }, 2500); return () => clearTimeout(t); }, []); // RANK: boot snapshot (after auth hydrates)
   const [comp, setComp] = useState(null);
   const [oppName, setOppName] = useState('Rival');
+  const [oppTier, setOppTier] = useState(null); // WAITING FACE-OFF (2026-09-07): opponent's rank tier, arrives with async-opponent-found
   const [online, setOnline] = useState(false);
   const [matchId, setMatchId] = useState(null);
   const [myTime, setMyTime] = useState(null);
@@ -1022,7 +1023,7 @@ export default function App() {
         break;
       }
       // ---- async matchmaking ----
-      case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); break;
+      case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); setOppTier(msg.opponentTier != null ? Number(msg.opponentTier) : null); break;
       case 'async-question':
         // B43 GHOST GUARD: a question while we're NOT in online play means a stale/replayed
         // queue reached the server (any vector). Never hijack the screen — cancel for an
@@ -1401,7 +1402,7 @@ export default function App() {
     setConfirming(false);
     playOnline();
   }
-  function playOnline() { setNotice(null); setOppName('Rival'); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue('tap'); }
+  function playOnline() { setNotice(null); setOppName('Rival'); setOppTier(null); onlineRef.current = true; isChallengeRef.current = false; setOnline(true); setMode('joining'); startQueue('tap'); }
   // Guarded wrapper for the AUTO re-queue paths (match-unavailable / stale "not in this match").
   function autoRequeue() {
     const now = Date.now(); const grd = autoRequeueRef.current;
@@ -1436,7 +1437,7 @@ export default function App() {
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
     if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
     activeMatchRef.current = null; matchIdRef.current = null; // B61: runback = the old game stops being "current" NOW. Its result often races this very tap (2026-07-27: settle + runback in the same second); with the ref cleared the late result takes the async-result else-branch (banner) instead of re-foregrounding over the joining screen — the hijack that orphaned a fresh queue into a 50c timeout loss.
-    setNotice(null); setOppName('Rival'); setMode('joining'); startQueue(src || 'runback');
+    setNotice(null); setOppName('Rival'); setOppTier(null); setMode('joining'); startQueue(src || 'runback');
   }
   // HARDENING 2026-08-24 (audit 5.5). This used to build the message WITHOUT identity and
   // send it straight down a socket that may already be dead (websocket.js drops sends on a
@@ -1481,7 +1482,7 @@ export default function App() {
     const g = {
       // live state
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
-      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp,
+      matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp, oppTier,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,

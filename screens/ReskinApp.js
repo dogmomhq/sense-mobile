@@ -257,6 +257,22 @@ export default function ReskinApp({ g }) {
   const fontsReady = useSenseFonts();
   const [route, setRoute] = useState('tabs');            // 'tabs' | 'deposit'
   const [detailMatchId, setDetailMatchId] = useState(null); // 2026-09-07: MatchDetailScreen overlay
+  // WAITING SCREEN social proof (2026-09-07): who played this stake in 24h + median wait. Fetched
+  // once per waiting entry; the face-off state needs nothing extra (name+tier ride the join msg).
+  const [tierActivity, setTierActivity] = useState(null);
+  const waitingNow = g.mode === 'play' && !!g.q && g.picked !== null && g.online && !g.isChallenge;
+  useEffect(() => {
+    if (!waitingNow) { setTierActivity(null); return; }
+    let live = true;
+    (async () => {
+      try {
+        const cents = g.stakeRef.current || 0;
+        const r = await fetch(`${g.httpsBase}/api/tier-activity?cents=${cents}`, { headers: (g.playerAuthHeaders && g.playerAuthHeaders()) || {} });
+        if (r.ok) { const j = await r.json(); if (live) setTierActivity(j); }
+      } catch (e) {}
+    })();
+    return () => { live = false; };
+  }, [waitingNow, g.matchId]);
   // B53: chosen animal avatar — device-local (AsyncStorage), never sent to the
   // server. Opponents/leaderboard don't see it; a reinstall resets the choice.
   const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
@@ -532,6 +548,8 @@ export default function ReskinApp({ g }) {
           avatar={avatarSource(avatarKey)}
           lockedTime={g.picked === -1 ? '—' : fmtSecs(g.myTime)}
           stakeText={stakeLabel(g.stakeRef.current || stakeCents)}
+          opp={g.oppName && g.oppName !== 'Rival' ? { name: g.oppName, tier: g.oppTier } : null}
+          activity={tierActivity} rank={g.rank} paid={(g.stakeRef.current || 0) > 0}
           pushOn={g.pushOn !== false} onEnablePush={g.enablePush}
           onPlayAgain={() => { g.setShowActions(false); g.requeueOnline(); }}
           onHistory={() => g.navTo('history')} onHome={g.goHome} />
