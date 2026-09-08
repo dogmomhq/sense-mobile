@@ -24,7 +24,7 @@ const TIERS = [
   { label: '$128.00', locked: true },
 ];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B124';
+export const BUILD_TAG = 'B125';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
@@ -33,6 +33,7 @@ export default function HomeScreen({
   handle = null, signedIn = true, onSignIn, onAddFunds, avatar,
   pendingCount = 0, onPendingPress,
   playDisabled = false, insufficientLabel = 'NOT ENOUGH BALANCE',
+  serverOk = false, // 2026-09-07: mounts an invisible 'net-ready' marker once the server has answered (E2E readiness probe)
 }) {
   const s = useScale();
   const { width, height } = useWindowDimensions();
@@ -185,6 +186,8 @@ export default function HomeScreen({
       <Text style={{ position: 'absolute', right: 24 * s, bottom: navB + 150 * s, zIndex: 40,
         fontFamily: FONTS.interBold, fontSize: 10, color: COLORS.cream, opacity: 0.3 }}>{`v.${BUILD_TAG}`}</Text>
 
+      {serverOk ? <View testID="net-ready" accessible accessibilityLabel="net-ready" pointerEvents="none"
+        style={{ position: 'absolute', left: 0, bottom: 0, width: 3, height: 3, opacity: 0.02 }} /> : null}
       <SegmentedNav active={activeTab} onTab={onTab} />
       {/* B102: HOW IT WORKS modal (copy CJ-approved 2026-08-23) */}
       <Modal visible={showHow} transparent animationType="fade" onRequestClose={() => setShowHow(false)}>

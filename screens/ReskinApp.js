@@ -306,6 +306,7 @@ export default function ReskinApp({ g }) {
   // ladder from the server so admin tier unlocks reach the picker on next app-open
   // without an OTA. Fetch failure = keep the hardcoded fallback, no error surfaced.
   const [tierList, setTierList] = useState(ladder());
+  const [serverOk, setServerOk] = useState(false); // 2026-09-07: true once /api/tiers answered — the sim rig's readiness marker (invisible)
   useEffect(() => {
     const ok = (c) => { const t = tierFor(c); return !!(t && t.enabled); };
     if (!ok(g.stake)) g.setStake(firstEnabled(ladder()));
@@ -313,7 +314,7 @@ export default function ReskinApp({ g }) {
       const rows = (j && j.tiers) || [];
       if (!rows.length) return;
       LIVE_LADDER = rows.map((t) => ({ index: t.index, entryCents: t.entryCents, prizeCents: t.prizeCents, enabled: !!t.enabled }));
-      setTierList(LIVE_LADDER);
+      setTierList(LIVE_LADDER); setServerOk(true);
       if (!ok(g.stakeRef.current)) g.setStake(firstEnabled(LIVE_LADDER));
     }).catch(() => {});
   }, []);
@@ -636,6 +637,7 @@ export default function ReskinApp({ g }) {
   } else if (g.tab === 'home') {
     body = (
       <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        serverOk={serverOk}
         avatar={avatarSource(avatarKey)}
         onSignIn={() => g.setTab('profile')}
         tiers={tierList.map((t) => ({ label: fmtMoney(t.entryCents), locked: !t.enabled }))} selectedTier={tierIdx}
