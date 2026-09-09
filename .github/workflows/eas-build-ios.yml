@@ -11,6 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 2026-09-09: never check out the historical screenshot/video archive (EAS archive cap is 2 GB)
+          sparse-checkout: |
+            /*
+            !/maestro-shots/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - name: Install deps (needed for iOS config/entitlement resolution)
@@ -31,6 +37,9 @@ jobs:
             }
           }
           JSON
+      - name: Archive size guard (what EAS will pack)
+        run: |
+          du -sh --exclude=node_modules --exclude=.git . ; du -sh .git node_modules 2>/dev/null || true
       - name: Build iOS (.ipa)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

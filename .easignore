@@ -5,6 +5,9 @@ maestro-shots/
 snapshots/
 sim-shots/
 buildlog/
+# 2026-09-09: EAS copies the repo's .git (a depth-1 clone incl. every screenshot/video blob) into the
+# archive unless .git is listed here — it pushed the archive to 2.7 GB (cap 2.0 GB). Not needed to build.
+.git/
 
 # ── mirror of .gitignore ──
 node_modules/
