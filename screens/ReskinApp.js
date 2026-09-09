@@ -307,10 +307,12 @@ export default function ReskinApp({ g }) {
   // without an OTA. Fetch failure = keep the hardcoded fallback, no error surfaced.
   const [tierList, setTierList] = useState(ladder());
   const [serverOk, setServerOk] = useState(false); // 2026-09-07: true once /api/tiers answered — the sim rig's readiness marker (invisible)
+  const [payInfo, setPayInfo] = useState(null);   // 2026-09-08: { provider, coinflow:{env,merchantId} } from /api/tiers — picks the deposit form (Coinflow vs legacy Checkout)
   useEffect(() => {
     const ok = (c) => { const t = tierFor(c); return !!(t && t.enabled); };
     if (!ok(g.stake)) g.setStake(firstEnabled(ladder()));
     fetch(g.httpsBase + '/api/tiers').then((r) => r.json()).then((j) => {
+      if (j && j.payments) setPayInfo(j.payments);
       const rows = (j && j.tiers) || [];
       if (!rows.length) return;
       LIVE_LADDER = rows.map((t) => ({ index: t.index, entryCents: t.entryCents, prizeCents: t.prizeCents, enabled: !!t.enabled }));
@@ -628,6 +630,7 @@ export default function ReskinApp({ g }) {
           supabaseToken={authToken(g)}
           signedInEmail={g.authEmail || ''}
           balance={balanceShown}
+          payments={payInfo}
           onToast={(t, kind) => g.showToast(t, kind)}
           onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
           onDone={() => { setRoute('tabs'); g.setTab('home'); }}

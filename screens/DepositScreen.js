@@ -22,6 +22,7 @@ import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, InputA
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 import PressBtn from './components/PressBtn';
+import DepositCoinflow from './DepositCoinflow'; // 2026-09-08: Coinflow replaces Checkout.com; the server's payments.provider picks the form
 
 // Checkout.com SANDBOX public key — PUBLIC, safe to embed (it can only tokenize a
 // card, never move money). The SECRET key lives only in the server env.
@@ -57,7 +58,18 @@ export default function DepositScreen({
   onRefresh,                 // () => void — pull fresh balance + ledger after success
   onDone,                    // () => void — pop back to tabs
   onNeedDob,                 // (retry) => void — B48: server wants a DOB before first deposit
+  payments,                  // 2026-09-08: { provider:'coinflow'|'checkout', coinflow:{env,merchantId} } from GET /api/tiers
 }) {
+  if (payments && payments.provider === 'coinflow') {
+    return <DepositCoinflow httpsBase={httpsBase} supabaseToken={supabaseToken} signedInEmail={signedInEmail} balance={balance} payments={payments}
+      onToast={onToast} onRefresh={onRefresh} onDone={onDone} onNeedDob={onNeedDob} />;
+  }
+  return <DepositCheckout httpsBase={httpsBase} supabaseToken={supabaseToken} signedInEmail={signedInEmail} balance={balance}
+    onToast={onToast} onRefresh={onRefresh} onDone={onDone} onNeedDob={onNeedDob} />;
+}
+
+// Legacy Checkout.com sandbox form — unchanged; retired once PAYMENT_PROVIDER=coinflow is permanent.
+function DepositCheckout({ httpsBase, supabaseToken = '', signedInEmail = '', balance = '$0.00', onToast, onRefresh, onDone, onNeedDob }) {
   const s = useScale();
   const [amountCents, setAmountCents] = useState(2500); // default $25
   const [custom, setCustom] = useState('');             // optional custom $ amount

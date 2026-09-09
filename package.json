@@ -27,7 +27,9 @@
     "react-native-ios-appattest": "1.0.1",
     "posthog-react-native-session-replay": "1.6.0",
     "expo-video": "~3.0.16",
-    "expo-file-system": "~19.0.23"
+    "expo-file-system": "~19.0.23",
+    "react-native-webview": "13.15.0",
+    "lz-string": "^1.5.0"
   },
   "scripts": {
     "start": "expo start",
