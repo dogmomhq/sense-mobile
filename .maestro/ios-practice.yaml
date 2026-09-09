@@ -1,8 +1,12 @@
 # Happy path: home -> PRACTICE FREE -> countdown -> question -> answer -> results -> HOME
 appId: com.dogmomhq.sensemobile
 ---
+# stopApp:false (2026-09-09): keep the process that just passed the network-readiness probe. A cold
+# relaunch on the runner can hit the simulator TLS stall (run 191: home rendered, tap did nothing,
+# app.log = handshake loop) and read as an app failure.
 - launchApp:
     clearState: false
+    stopApp: false
 - extendedWaitUntil:
     visible: "PRACTICE FREE"
     timeout: 45000
