@@ -4,8 +4,10 @@
 //      (KYC state, linked bank/card) — GET /api/withdraw/status
 //   2. sends the player to Coinflow's HOSTED page for identity + bank/card linking (WebView; SSN never touches us)
 //   3. quotes the fee — GET /api/withdraw/quote
-//   4. asks for a fresh email code (Supabase OTP → new session) and POSTs /api/withdraw with that fresh token;
-//      the server refuses anything without a code newer than 5 minutes.
+//   4. asks for a fresh step-up and POSTs /api/withdraw with the fresh token; the server refuses
+//      anything without a re-auth newer than 5 minutes. Email accounts: fresh email code (Supabase OTP).
+//      Apple accounts (B129): fresh Apple sign-in re-auth instead — their private-relay email silently
+//      drops Supabase's codes (relay forwards only registered sender domains), so email codes never arrive.
 // First withdrawal, anything ≥ $500 or a destination linked < 24 h ago waits for CJ's approval — the server says so.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Modal, Platform, Keyboard } from 'react-native';
@@ -69,8 +71,10 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState(null);
+  const [isApple, setIsApple] = useState(false); // B129: Apple accounts step up via Apple re-auth, not email code
   const idemRef = useRef(null); const inFlightRef = useRef(false); const alive = useRef(true); const quoteTimer = useRef(null);
   useEffect(() => () => { alive.current = false; }, []);
+  useEffect(() => { (async () => { try { const { data } = await supabase.auth.getSession(); const u = data && data.session && data.session.user; const prov = String((u && u.app_metadata && (u.app_metadata.provider || (u.app_metadata.providers || [])[0])) || ''); if (alive.current) setIsApple(prov === 'apple'); } catch {} })(); }, []);
 
   const hdr = { Authorization: 'Bearer ' + supabaseToken };
   const load = useCallback(async (fresh) => {
@@ -110,26 +114,52 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   }
   function linkDone(msg) { setLinkUrl(null); if (onToast && msg) onToast(msg); load(true); }
 
-  async function sendCode() { // step-up: fresh email code → fresh session → fresh JWT the server accepts for money
-    if (!ready) return; setErr(''); setBusy(true);
+  async function submitWithdraw(freshTok) { // shared tail of both step-up paths (email code + Apple re-auth)
+    if (!idemRef.current) idemRef.current = Crypto.randomUUID();
+    const body = { supabaseToken: freshTok, amountCents: cents, destinationToken: destObj.token, speed, idempotencyKey: idemRef.current };
+    let r, j; try { r = await fetch(`${httpsBase}/api/withdraw`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); j = await r.json().catch(() => ({})); }
+    catch { setErr('Network error — try again (the same request will not be sent twice)'); return; }   // idem key kept
+    if (r.ok && j && j.ok) { idemRef.current = null; setResult(j); setPhase('done'); if (onRefresh) onRefresh(); load(true); return; }
+    if (j && j.error !== 'otp_required') idemRef.current = null;
+    if (j && j.error === 'otp_required') { setPhase('code'); }
+    setErr(humanError(j && j.error, j)); if (onToast) onToast(humanError(j && j.error, j), 'error');
+  }
+  async function sendCode() { // step-up entry: Apple accounts → Apple re-auth (B129); email accounts → fresh email code
+    if (!ready) return;
+    if (isApple) { await confirmWithApple(); return; }
+    setErr(''); setBusy(true);
     try { const { error } = await supabase.auth.signInWithOtp({ email: signedInEmail, options: { shouldCreateUser: false } }); if (error) { setErr(error.message || 'Could not send the code'); } else { setPhase('code'); setCode(''); if (onToast) onToast('Code sent to ' + signedInEmail); } }
     catch (e) { setErr((e && e.message) || 'Could not send the code'); }
     setBusy(false);
+  }
+  // B129: fresh Apple sign-in = the step-up for Apple accounts. Mirrors App.js signInWithApple
+  // (proven nonce flow); the server accepts a fresh oauth/idtoken amr entry exactly like an email code.
+  async function confirmWithApple() {
+    if (inFlightRef.current) return; inFlightRef.current = true; setErr(''); setBusy(true);
+    try {
+      let AppleAuthentication; try { AppleAuthentication = require('expo-apple-authentication'); } catch (e) { setErr('Apple sign-in not available on this device'); return; }
+      const rawNonce = `${Date.now()}.${Math.random().toString(36).slice(2)}.${Math.random().toString(36).slice(2)}`;
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+        nonce: hashedNonce,
+      });
+      if (!cred.identityToken) { setErr('Apple could not confirm — try again'); return; }
+      const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token: cred.identityToken, nonce: rawNonce });
+      if (error || !data || !data.session) { setErr((error && error.message) || 'Apple confirmation failed — try again'); return; }
+      await submitWithdraw(data.session.access_token);  // App.js onAuthStateChange picks the new session up too
+    } catch (e) {
+      if (e && (e.code === 'ERR_REQUEST_CANCELED' || /cancel/i.test(String(e && e.message)))) { /* user cancelled — silent */ }
+      else setErr((e && e.message) || 'Apple confirmation failed — try again');
+    }
+    finally { setBusy(false); inFlightRef.current = false; }
   }
   async function confirm() {
     if (inFlightRef.current || code.trim().length < 6) return; inFlightRef.current = true; setErr(''); setBusy(true);
     try {
       const { data, error } = await supabase.auth.verifyOtp({ email: signedInEmail, token: code.trim(), type: 'email' });
       if (error || !data || !data.session) { setErr((error && error.message) || 'Invalid code'); return; }
-      const freshTok = data.session.access_token;  // App.js onAuthStateChange picks the new session up too
-      if (!idemRef.current) idemRef.current = Crypto.randomUUID();
-      const body = { supabaseToken: freshTok, amountCents: cents, destinationToken: destObj.token, speed, idempotencyKey: idemRef.current };
-      let r, j; try { r = await fetch(`${httpsBase}/api/withdraw`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); j = await r.json().catch(() => ({})); }
-      catch { setErr('Network error — try again (the same request will not be sent twice)'); return; }   // idem key kept
-      if (r.ok && j && j.ok) { idemRef.current = null; setResult(j); setPhase('done'); if (onRefresh) onRefresh(); load(true); return; }
-      if (j && j.error !== 'otp_required') idemRef.current = null;
-      if (j && j.error === 'otp_required') { setPhase('code'); }
-      setErr(humanError(j && j.error, j)); if (onToast) onToast(humanError(j && j.error, j), 'error');
+      await submitWithdraw(data.session.access_token);  // App.js onAuthStateChange picks the new session up too
     } catch (e) { setErr((e && e.message) || 'Withdrawal failed'); }
     finally { setBusy(false); inFlightRef.current = false; }
   }
