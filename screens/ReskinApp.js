@@ -22,6 +22,7 @@ import HistoryScreen from './HistoryScreen';
 import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
+import WithdrawScreen from './WithdrawScreen'; // 2026-09-09: payouts (Coinflow) — shown only when /api/tiers payments.withdrawals is on
 import MatchDetailScreen from './MatchDetailScreen'; // 2026-09-07: tap a history match -> detail + analytics
 import AppShell from './AppShell';
 import { avatarSource, DEFAULT_AVATAR_KEY } from './avatars';
@@ -287,6 +288,10 @@ export default function ReskinApp({ g }) {
   // B49 (CJ): age + terms come BEFORE the card form — a declined card must never
   // re-ask them. Gate only on a positive "no DOB" from the server; when in doubt the
   // screen opens normally and the PAY-time needDob backstop still catches it.
+  const openWithdraw = () => { // money requires the email login (same rule as deposits)
+    if (!g.authEmail) { g.showToast('Sign in with email to withdraw', 'error'); setRoute('tabs'); g.setTab('profile'); return; }
+    setRoute('withdraw');
+  };
   const openDeposit = () => {
     if (!!g.authEmail && g.dobOnFile === false) { g.askDobForDeposit(() => setRoute('deposit')); return; }
     setRoute('deposit');
@@ -637,6 +642,24 @@ export default function ReskinApp({ g }) {
           onNeedDob={g.askDobForDeposit} />
       </AppShell>
     );
+  } else if (route === 'withdraw') {
+    body = (
+      <AppShell streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
+        avatar={avatarSource(avatarKey)}
+        onSignIn={() => { setRoute('tabs'); g.setTab('profile'); }}
+        pendingCount={pendingCount} onPendingPress={() => { setRoute('tabs'); g.setTab('history'); }}
+        activeTab="profile" onTab={(t) => { setRoute('tabs'); g.setTab(t); }}
+        onAddFunds={openDeposit}>
+        <WithdrawScreen
+          httpsBase={g.httpsBase}
+          supabaseToken={authToken(g)}
+          signedInEmail={g.authEmail || ''}
+          balance={balanceShown}
+          onToast={(t, kind) => g.showToast(t, kind)}
+          onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
+          onDone={() => { setRoute('tabs'); g.setTab('profile'); }} />
+      </AppShell>
+    );
   } else if (g.tab === 'home') {
     body = (
       <HomeScreen streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
@@ -684,6 +707,7 @@ export default function ReskinApp({ g }) {
           balance={balanceShown} soundsOn={g.sound} version={'v' + ((Constants.expoConfig && Constants.expoConfig.version) || '?') + ' · ' + BUILD_TAG}
           onToggleSounds={() => g.setSound((x) => !x)}
           onDeposit={openDeposit}
+          onWithdraw={payInfo && payInfo.withdrawals ? openWithdraw : undefined}
           email={g.signinEmail} onChangeEmail={g.setSigninEmail}
           codeStr={g.signinCode} onChangeCode={g.setSigninCode}
           step={g.signinStep} busy={g.signinBusy}

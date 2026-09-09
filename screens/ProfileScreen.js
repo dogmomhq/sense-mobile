@@ -162,7 +162,7 @@ function SettingsRow({ label, right = null, danger = false, onPress }) {
 }
 
 function LoggedIn({ rank, handle, memberSince, stats, netLifetime, balance, soundsOn,
-  onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version,
+  onDeposit, onWithdraw, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onSignOut, version,
   onRename, avatarKey, onSelectAvatar }) {
   const s = useScale();
   const netPos = !String(netLifetime).startsWith('-');
@@ -276,12 +276,20 @@ function LoggedIn({ rank, handle, memberSince, stats, netLifetime, balance, soun
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: '#10140C',
               letterSpacing: 0.06 * 36 * s }}>DEPOSIT</Text>
           </Pressable>
-          {/* withdraw disabled until real money ships */}
-          <View style={{ flex: 1, borderWidth: 2.5 * s, borderColor: 'rgba(245,241,230,0.25)',
-            borderRadius: 20 * s, paddingVertical: 30 * s, alignItems: 'center', opacity: 0.5 }}>
-            <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: COLORS.creamDim,
-              letterSpacing: 0.06 * 36 * s }}>WITHDRAW</Text>
-          </View>
+          {/* 2026-09-09: live when the server says payments.withdrawals (ReskinApp passes onWithdraw); placeholder otherwise */}
+          {onWithdraw ? (
+            <Pressable onPress={onWithdraw} style={{ flex: 1, borderWidth: 2.5 * s, borderColor: COLORS.lime,
+              borderRadius: 20 * s, paddingVertical: 30 * s, alignItems: 'center' }}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: COLORS.lime,
+                letterSpacing: 0.06 * 36 * s }}>WITHDRAW</Text>
+            </Pressable>
+          ) : (
+            <View style={{ flex: 1, borderWidth: 2.5 * s, borderColor: 'rgba(245,241,230,0.25)',
+              borderRadius: 20 * s, paddingVertical: 30 * s, alignItems: 'center', opacity: 0.5 }}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: COLORS.creamDim,
+                letterSpacing: 0.06 * 36 * s }}>WITHDRAW</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -306,7 +314,7 @@ export default function ProfileScreen({
   stats = { played: 56, w: 41, l: 12, d: 3, winPct: 73, streak: 8 },
   netLifetime = '+$212.40', balance = '$24.50', soundsOn = true, version = 'v0.9.0',
   email = '', code = undefined,
-  onSignIn, onDeposit, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onRename,
+  onSignIn, onDeposit, onWithdraw, onToggleSounds, onPrivacy, onTerms, onHelp, onDeleteAccount, onRename,
   avatarKey, onSelectAvatar,
   // live OTP wiring (ReskinApp)
   onChangeEmail, codeStr = '', onChangeCode, step = null, busy = false, onSendCode, onVerify, onApple, onSignOut,
@@ -318,7 +326,7 @@ export default function ProfileScreen({
         <LoggedIn rank={rank} handle={handle} memberSince={memberSince} stats={stats}
           avatarKey={avatarKey} onSelectAvatar={onSelectAvatar}
           netLifetime={netLifetime} balance={balance} soundsOn={soundsOn} version={version}
-          onDeposit={onDeposit} onToggleSounds={onToggleSounds} onPrivacy={onPrivacy}
+          onDeposit={onDeposit} onWithdraw={onWithdraw} onToggleSounds={onToggleSounds} onPrivacy={onPrivacy}
           onTerms={onTerms} onHelp={onHelp} onDeleteAccount={onDeleteAccount} onSignOut={onSignOut}
           onRename={onRename} />
       ) : (
