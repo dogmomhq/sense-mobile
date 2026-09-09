@@ -21,8 +21,8 @@ import PressBtn from './components/PressBtn';
 import CoinflowCardForm from './CoinflowCardForm';
 
 const MIN_CENTS = 50;       // server MIN_DEPOSIT_CENTS
-const MAX_CENTS = 50000;    // server MAX_DEPOSIT_CENTS ($500 per deposit; $500/day, $2k/30d, $5k lifetime pre-KYC)
-const CHIP_CENTS = [500, 2500, 10000, 50000];
+const DEFAULT_MAX = 50000;  // unverified tier ($500/deposit); the server's /api/deposit/limits is the truth (verified = $2,500)
+const BASE_CHIPS = [500, 2500, 10000, 50000];
 const POLL_MS = 2000, POLL_MAX_MS = 75000;
 
 const dollars = (cents) => '$' + (cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2));
@@ -86,6 +86,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const [stateCode, setStateCode] = useState('');
   const [zip, setZip] = useState('');
   const [formReady, setFormReady] = useState(false);
+  const [lim, setLim] = useState(null);         // { tier, maxCents, remainingTodayCents, verifiedTier } from /api/deposit/limits
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('idle');   // idle | charging | processing
   const [err, setErr] = useState('');
@@ -95,6 +96,12 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const alive = useRef(true);
   const lastRef = useRef(null); const addrRef = useRef(null); const cityRef = useRef(null); const stRef = useRef(null); const zipRef = useRef(null);
   useEffect(() => { installId(); return () => { alive.current = false; }; }, []);
+  useEffect(() => { // caps are tiered on identity verification (2026-09-09) — ask the server, never assume
+    if (!supabaseToken) return;
+    fetch(`${httpsBase}/api/deposit/limits`, { headers: { Authorization: 'Bearer ' + supabaseToken } }).then((r) => r.json()).then((j) => { if (alive.current && j && j.ok) setLim(j); }).catch(() => {});
+  }, [supabaseToken]);
+  const MAX_CENTS = (lim && lim.maxCents) || DEFAULT_MAX;
+  const CHIP_CENTS = MAX_CENTS >= 250000 ? [...BASE_CHIPS, 100000, 250000] : BASE_CHIPS;
 
   const canDeposit = !!supabaseToken;
   const onCustom = (t) => {
@@ -204,7 +211,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           </PressBtn>); })}
       </View>
       <View style={{ marginHorizontal: 45 * s, marginBottom: 36 * s }}>
-        <TextInput placeholder="OR CUSTOM AMOUNT ($0.50–$500)" placeholderTextColor={COLORS.creamDim} value={custom ? '$' + custom : ''} onChangeText={onCustom}
+        <TextInput placeholder={`OR CUSTOM AMOUNT ($0.50–${dollars(MAX_CENTS)})`} placeholderTextColor={COLORS.creamDim} value={custom ? '$' + custom : ''} onChangeText={onCustom}
           keyboardType="decimal-pad" inputAccessoryViewID="cfDone" style={[fieldStyle, custom ? { borderColor: COLORS.lime } : null]} />
       </View>
 
@@ -260,7 +267,11 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
       </PressBtn>
 
       <Text style={{ fontFamily: FONTS.interSemi, fontSize: 22 * s, color: COLORS.creamDim, textAlign: 'center', letterSpacing: 0.06 * 22 * s, marginTop: 26 * s, marginHorizontal: 45 * s }}>
-        {signedInEmail ? signedInEmail + ' · ' : ''}MAX $500 PER DEPOSIT · SECURED BY COINFLOW</Text>
+        {signedInEmail ? signedInEmail + ' · ' : ''}MAX {dollars(MAX_CENTS)} PER DEPOSIT{lim && Number.isInteger(lim.remainingTodayCents) ? ' · ' + dollars(lim.remainingTodayCents) + ' LEFT TODAY' : ''} · SECURED BY COINFLOW</Text>
+      {lim && lim.tier !== 'verified' && lim.verifiedTier ? (
+        <Text style={{ fontFamily: FONTS.interSemi, fontSize: 22 * s, color: COLORS.creamDim, textAlign: 'center', letterSpacing: 0.04 * 22 * s, marginTop: 10 * s, marginHorizontal: 45 * s }}>
+          VERIFY YOUR IDENTITY (PROFILE → WITHDRAW → VERIFY) TO RAISE LIMITS TO {dollars(lim.verifiedTier.maxCents)} PER DEPOSIT · {dollars(lim.verifiedTier.dayCents)} PER DAY</Text>
+      ) : null}
     </ScrollView>
   );
 }
