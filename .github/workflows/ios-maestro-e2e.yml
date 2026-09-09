@@ -12,6 +12,10 @@ on:
         description: "Also run the paid $0.50 credits match (real ledger, auto-cleaned)"
         required: false
         default: "false"
+      sim_location:
+        description: "Simulator GPS as lat,lon. Default Fort Lauderdale FL (allowed). Try 42.3314,-83.0458 (Detroit MI) to prove the blocked-state refusal."
+        required: false
+        default: "26.1224,-80.1373"
   schedule:
     - cron: '0 9 * * *'   # 2am PT — quiet window; nightly always includes paid
 
@@ -66,6 +70,8 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Boot simulator + install
+        env:
+          SIM_LOCATION: ${{ github.event.inputs.sim_location }}
         run: |
           set -e
           UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.isAvailable) | select(.name | test("^iPhone 1[5-9]"))] | last | .udid')
@@ -74,6 +80,15 @@ jobs:
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP_PATH"
+          # LOCATION (2026-09-09). The paid geo gate requires a real GPS fix per paid game, and
+          # until now this harness gave the simulator no location at all — so the nightly ran with
+          # server_config e2e_accounts skipping GPS entirely and the gate was never exercised by any
+          # automated client. A bug that let three paid games run on one stale fix was invisible to
+          # it. Pre-granting means no permission prompt for Maestro to tap; `simctl location` is
+          # what makes the fix real. Both are re-applied after the paid fresh-install below, because
+          # uninstall drops the grant.
+          xcrun simctl privacy "$UDID" grant location com.dogmomhq.sensemobile || echo "WARN: privacy grant unsupported on this Xcode"
+          xcrun simctl location "$UDID" set "${SIM_LOCATION:-26.1224,-80.1373}" || echo "WARN: simctl location unsupported on this Xcode"
           # OTA warm-up: launch #1 runs the EMBEDDED bundle and only downloads the
           # latest eas update in the background (expo-updates applies it on the NEXT
           # launch). Without this cycle every flow tests the stale embedded build —
@@ -169,12 +184,17 @@ jobs:
 
       - name: Fresh install + inject robot session
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
+        env:
+          SIM_LOCATION: ${{ github.event.inputs.sim_location }}
         run: |
           set -e
           # fresh container purges the practice-era device account
           xcrun simctl terminate "$UDID" com.dogmomhq.sensemobile || true
           xcrun simctl uninstall "$UDID" com.dogmomhq.sensemobile
           xcrun simctl install "$UDID" "$APP_PATH"
+          # uninstall dropped the location grant — re-apply before the robot's first real launch
+          xcrun simctl privacy "$UDID" grant location com.dogmomhq.sensemobile || true
+          xcrun simctl location "$UDID" set "${SIM_LOCATION:-26.1224,-80.1373}" || true
           # OTA warm-up again — the fresh install wiped the downloaded update
           # (see boot step). Warm up BEFORE injecting the session so the robot's
           # first real launch runs the latest bundle.
