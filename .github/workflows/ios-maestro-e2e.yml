@@ -145,8 +145,11 @@ jobs:
       - name: Stop recording + collect screenshots
         if: always()
         run: |
-          kill -INT $(cat /tmp/vid.pid 2>/dev/null) 2>/dev/null || true
-          sleep 5
+          # Stop the recorder and WAIT for it to finish writing: a 20-min h264 file takes >5 s to finalize,
+          # and upload-artifact zipping a half-written run.mp4.sb-* temp file failed 2 runs on 9/8 (gate was green).
+          VP=$(cat /tmp/vid.pid 2>/dev/null); kill -INT $VP 2>/dev/null || true
+          for i in $(seq 1 90); do kill -0 $VP 2>/dev/null || break; sleep 1; done
+          sleep 2; rm -f shots/*.sb-* 2>/dev/null || true
           kill $(cat /tmp/log.pid 2>/dev/null) 2>/dev/null || true
           mkdir -p shots
           { find . -maxdepth 2 -name "*.png" -newer /tmp/e2e-start -not -path "./shots/*" -not -path "./node_modules/*" 2>/dev/null; find "$HOME/.maestro" -name "*.png" -newer /tmp/e2e-start 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
