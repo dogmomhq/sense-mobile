@@ -1,5 +1,6 @@
 import { now as mono } from './screens/clock'; // P2.3 monotonic round clock
 import React, { useState, useEffect, useRef } from 'react';
+import { installId, installIdSync } from './installId'; // B151: one account per phone — the id rides on register + queue
 import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder, AppState, Alert, Linking } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
 let SK = null; // Skia removed: explosion renders via react-native-svg (Confetti)
@@ -605,9 +606,10 @@ export default function App() {
     if (pendingAfterReg.current) { const prev = pendingAfterReg.current; const fn = () => { prev(); if (after) after(); }; fn.tag = prev.tag; pendingAfterReg.current = fn; return; }
     const fn = () => { pendingAfterReg.current = null; if (after) after(); }; fn.tag = tag || null;
     pendingAfterReg.current = fn;
-    const reg = () => wsSend({ type: 'register', preferredHandle: myName() });
+    const reg = () => wsSend({ type: 'register', preferredHandle: myName(), deviceId: installIdSync() || undefined });
     if (isConnected()) reg(); else ensureConn(reg);
   }
+  useEffect(() => { installId().catch(() => {}); }, []); // B151: mint the install id before the first register
   useEffect(() => { const t = setTimeout(() => { try { claimDeviceAccount(() => prefetchPractice()); } catch (e) {} }, 3000); return () => clearTimeout(t); }, []); // B120: 3s lets the stored account / Supabase session restore first
   function startPractice() {
     track('practice_start');
@@ -990,7 +992,7 @@ export default function App() {
     if (!/^[a-zA-Z0-9_]{3,16}$/.test(nm)) { showToast('3-16 chars: letters, numbers, underscore'); return; }
     setNameBusy(true);
     const send = () => wsSend({ type: 'rename', handle: nm, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined });
-    const go = () => { if (accountRef.current || supabaseTokenRef.current) send(); else { pendingAfterReg.current = send; wsSend({ type: 'register', preferredHandle: myName() }); } };
+    const go = () => { if (accountRef.current || supabaseTokenRef.current) send(); else { pendingAfterReg.current = send; wsSend({ type: 'register', preferredHandle: myName(), deviceId: installIdSync() || undefined }); } };
     if (isConnected()) go(); else ensureConn(go);
   }
   function handleOnlineMessage(msg) {
@@ -1289,7 +1291,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
     armJoinWatch(); // B58: the join is in flight — start the silence stopwatch
   }
   // Supabase email one-time-code sign-in
@@ -1365,7 +1367,7 @@ export default function App() {
     armJoinWatch(); // B58: covers the register-first path too; sendQueueMsg re-arms when the join actually sends
     ensureConn(() => {
       if (accountRef.current && accountRef.current.token) sendQueueMsg(src);
-      else { pendingAfterReg.current = () => sendQueueMsg(src); wsSend({ type: 'register', preferredHandle: myName() }); } // first time: claim an owned account, then queue
+      else { pendingAfterReg.current = () => sendQueueMsg(src); wsSend({ type: 'register', preferredHandle: myName(), deviceId: installIdSync() || undefined }); } // first time: claim an owned account, then queue
     });
   }
   // RESKIN_CREDITS: pull the server-authoritative balance + ledger after any credit-moving event

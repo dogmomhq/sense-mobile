@@ -54,16 +54,7 @@ const CHECKOUT_THEME = {
   primary: '#D4F23C', ctaColor: '#D4F23C', style: 'rounded', fontSize: '18px', fontWeight: '600',
 };
 
-let _installId = null;
-async function installId() { // stable per install; Coinflow's deviceId (chargeback protection)
-  if (_installId) return _installId;
-  try {
-    const v = await AsyncStorage.getItem('sense_install_id');
-    if (v) { _installId = v; return v; }
-    const n = 'inst_' + Crypto.randomUUID();
-    await AsyncStorage.setItem('sense_install_id', n); _installId = n; return n;
-  } catch { return 'inst_unknown'; }
-}
+import { installId, installIdSync } from '../installId'; // B151: shared with App.js (register/queue carry it too)
 
 function humanError(code, j) {
   switch (code) {
@@ -229,7 +220,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           <CoinflowPurchase env={c.env || env} merchantId={c.merchantId || merchantId} sessionKey={intent.sessionKey} cents={intent.amountCents}
             webhookInfo={intent.webhookInfo} email={c.email || signedInEmail || undefined}
             allowedPaymentMethods={[method.id]} chargebackProtectionData={c.chargebackProtectionData}
-            chargebackProtectionAccountType={c.chargebackProtectionAccountType} deviceId={_installId || undefined} theme={CHECKOUT_THEME}
+            chargebackProtectionAccountType={c.chargebackProtectionAccountType} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME}
             onSuccess={onPaid} onExternalRedirect={onPaid}
             onAuthDeclined={(info) => setErr((info && (info.message || info.error)) ? String(info.message || info.error).slice(0, 120) : 'Payment declined — try another method')}
             onError={() => setErr('Checkout could not load — check your connection and go back')} />
@@ -293,7 +284,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           expanded={overlay} onOverlay={setOverlay} style={overlay ? undefined : { marginHorizontal: 45 * s }}
           env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
           sessionKey={intent.sessionKey} cents={intent.amountCents} webhookInfo={intent.webhookInfo}
-          email={signedInEmail || undefined} deviceId={_installId || undefined} theme={CHECKOUT_THEME}
+          email={signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME}
           chargebackProtectionData={intent.checkout && intent.checkout.chargebackProtectionData}
           chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
           onApprove={onPaid} onError={() => setErr(method.label + ' could not start — try another method')} />
