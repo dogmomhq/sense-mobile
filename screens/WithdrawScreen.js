@@ -2,12 +2,12 @@
 // The phone never decides anything about money here. It:
 //   1. asks the server what is withdrawable (balance − not-yet-played deposits/bonuses) and what Coinflow knows
 //      (KYC state, linked PayPal / Venmo / card / bank) — GET /api/withdraw/status
-//   2. the METHOD PICKER IS COINFLOW'S OWN hosted page (CJ 2026-09-10). One CTA opens it and it
-//      shows every payout method with each brand's real logo, drawn by Coinflow — nothing for us to
-//      ship and nothing to drift. Identity verification (one-time) happens on the same page.
-//      PayPal is the exception: it links through Coinflow's API, not that page, so it keeps its own
-//      native email row — putting it in the hosted picker would dead-end the user.
-//      Already-linked destinations are listed under the CTA so a returning player skips the picker.
+//   2. all four transfer methods are ALWAYS listed, linked or not (Triumph's shape, CJ 2026-09-10).
+//      Tapping one either uses it or collects where the money should go:
+//        PayPal → native email sheet → POST /api/withdraw/link/paypal (their API, no WebView)
+//        Venmo / Debit card / Bank → Coinflow's hosted page filtered to THAT method
+//      A linked row shows the account inline and goes straight to the amount keypad.
+//      Identity verification (one-time) happens on the hosted page before any of it.
 //   3. amount keypad → fee quote (GET /api/withdraw/quote — the Sense schedule: 3% min $2, bank free)
 //   4. step-up (fresh email code, or Apple re-auth for Apple accounts — B129) → POST /api/withdraw.
 // First withdrawal, anything ≥ $500 or a destination linked < 24 h ago waits for CJ's approval — the server says so.
@@ -19,6 +19,7 @@ import { supabase } from '../supabaseClient';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 import PressBtn from './components/PressBtn';
 import AmountKeypad, { toCents } from './components/AmountKeypad';
+import PayLogo from './components/PayLogo';
 
 const LINK_RETURN = 'https://dogmomhq.github.io/sense-legal/linked.html'; // Coinflow bounces here after linking; we intercept it
 const RED = '#FF5A48';
@@ -151,8 +152,16 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     } catch { setErr('Network error — try again'); }
     finally { setBusy(false); inFlightRef.current = false; }
   }
-  function openPicker() { setErr(''); if (st && st.enabled) openLink('all'); }   // Coinflow's own method picker
   function useDestination(d) { setErr(''); setDest(d); setAmount(''); setPhase('amount'); }
+  function tapMethod(m) {
+    setErr('');
+    if (!st || !st.enabled) return;
+    const linked = linkedFor(m.kind)[0];
+    if (linked) { useDestination(linked); return; }
+    if (!st.verified) { openLink('all'); return; }          // identity first — the hosted page does KYC, then linking
+    if (m.kind === 'paypal') { setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); return; }
+    openLink(m.kind);                                        // bank | card | venmo → hosted page, that method only
+  }
 
   async function submitWithdraw(freshTok) { // shared tail of both step-up paths (email code + Apple re-auth)
     if (!idemRef.current) idemRef.current = Crypto.randomUUID();
@@ -281,32 +290,28 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
       {st && !st.enabled ? (<View style={card}><Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, color: COLORS.cream, textAlign: 'center' }}>Withdrawals are coming soon.</Text></View>) : null}
 
       {st && st.enabled ? (<>
-        <Text style={{ fontFamily: FONTS.interBlack, fontSize: 44 * s, color: COLORS.cream, textAlign: 'center', marginBottom: 10 * s }}>{(st.destinations || []).length ? 'Where to?' : 'Choose a transfer method'}</Text>
+        <Text style={{ fontFamily: FONTS.interBlack, fontSize: 44 * s, color: COLORS.cream, textAlign: 'center', marginBottom: 10 * s }}>Choose a transfer method</Text>
         <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, textAlign: 'center', marginHorizontal: 60 * s, marginBottom: 30 * s, lineHeight: 34 * s }}>
           Minimum {dollars(minCents)}. Cash must be played through once to be withdrawn. Winnings are always withdrawable.</Text>
         {!st.verified ? (
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.lime, textAlign: 'center', marginHorizontal: 60 * s, marginBottom: 20 * s, letterSpacing: 0.04 * 24 * s }}>
             {st.kyc === 'pending' || st.kyc === 'partial-approval' ? 'YOUR VERIFICATION IS BEING REVIEWED' : st.kyc === 'rejected' ? 'VERIFICATION COULD NOT BE COMPLETED — CONTACT SUPPORT' : 'ONE-TIME IDENTITY VERIFICATION FIRST · HANDLED BY COINFLOW, SENSE NEVER SEES YOUR ID'}</Text>
         ) : null}
-        {/* already linked — skip the picker */}
-        {(st.destinations || []).map((d) => { const m = methodFor(d.kind); return (
-          <PressBtn key={d.token} onPress={() => useDestination(d)} style={{ marginHorizontal: 45 * s, marginBottom: 18 * s, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,241,230,0.06)', borderRadius: 32 * s, paddingVertical: 30 * s, paddingHorizontal: 34 * s, borderWidth: 1.5 * s, borderColor: 'rgba(215,248,74,0.35)' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: COLORS.cream }}>{m.title}<Text style={{ color: COLORS.creamDim, fontFamily: FONTS.interSemi, fontSize: 26 * s }}>{d.alias ? '  ' + d.alias : d.last4 ? '  ••' + d.last4 : ''}</Text></Text>
-              <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginTop: 6 * s }}>{m.fee}</Text>
-            </View>
-            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginLeft: 16 * s }}>{m.speed}</Text>
-          </PressBtn>); })}
-
-        {/* the picker itself is Coinflow's page — real logos, every method, nothing for us to ship */}
-        <PressBtn onPress={openPicker} style={[cta(true), { marginBottom: 16 * s }]}>
-          <Text style={ctaText}>{(st.destinations || []).length ? '+ ADD A METHOD' : 'CHOOSE A TRANSFER METHOD'}</Text>
-        </PressBtn>
-        {/* PayPal links through Coinflow's API, not the hosted picker, so it needs its own entry */}
-        {linkedFor('paypal').length ? null : (
-          <Pressable onPress={() => { setErr(''); setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); }} hitSlop={12}>
-            <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: COLORS.lime, textAlign: 'center', marginTop: 8 * s, letterSpacing: 0.04 * 26 * s }}>OR LINK PAYPAL</Text>
-          </Pressable>)}
+        {/* every method, always — a linked one carries its account, an unlinked one collects it on tap */}
+        {METHODS.map((m) => { const d = linkedFor(m.kind)[0];
+          const acct = d ? (d.alias || (d.last4 ? '••' + d.last4 : null)) : null;
+          return (
+            <PressBtn key={m.kind} onPress={() => tapMethod(m)} style={{ marginHorizontal: 45 * s, marginBottom: 20 * s, flexDirection: 'row', alignItems: 'center',
+              backgroundColor: 'rgba(245,241,230,0.06)', borderRadius: 32 * s, paddingVertical: 28 * s, paddingHorizontal: 30 * s,
+              borderWidth: 1.5 * s, borderColor: d ? 'rgba(215,248,74,0.35)' : 'transparent' }}>
+              <View style={{ marginRight: 26 * s }}><PayLogo id={m.kind} size={44 * s} circle /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: COLORS.cream }}>{m.title}</Text>
+                <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginTop: 6 * s }} numberOfLines={2}>
+                  {m.fee}{acct ? ' · ' + acct : ''}</Text>
+              </View>
+              <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginLeft: 16 * s }}>{m.speed}</Text>
+            </PressBtn>); })}
         {err ? (<Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: RED, textAlign: 'center', marginHorizontal: 45 * s, marginTop: 16 * s }}>{err}</Text>) : null}
       </>) : null}
 

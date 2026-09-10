@@ -305,7 +305,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 30 * s, paddingHorizontal: 34 * s,
                 borderTopWidth: i ? 1 : 0, borderTopColor: 'rgba(245,241,230,0.12)', backgroundColor: m.id === method.id ? 'rgba(212,242,60,0.10)' : 'transparent' }}>
               <Text style={{ fontFamily: FONTS.interSemi, fontSize: 32 * s, color: COLORS.cream }}>{m.label}</Text>
-              <PayLogo id={m.id} size={30 * s} />
+              <PayLogo id={m.id} size={34 * s} circle />
             </Pressable>))}
         </View>
       </Pressable>
