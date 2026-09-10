@@ -84,22 +84,49 @@ function makeMessageHandler({ onLoad, onSuccess, onAuthDeclined, onInputError, o
   };
 }
 
-// ── standalone Apple Pay button (SDK: CoinflowApplePayButton) ──────────────────────────────────
-// The official Apple Pay mark is drawn as a permanent overlay ABOVE the WebView with
-// pointerEvents="none", so the button looks right instantly and touches fall through to the real
-// hosted button underneath. `color` follows Apple's guidance: white on our dark UI.
+// ── standalone brand pay buttons (SDK: CoinflowApplePayButton / PayPal / Venmo) ────────────────
+// Coinflow ships NO PayPal/Venmo/Cash App logo files, and that is deliberate: each brand's button
+// is drawn by that brand's own SDK on Coinflow's hosted form page (/form/<chain>/<method>/<MID>),
+// which is exactly what PayPal's and Venmo's brand rules require. So the official mark is always
+// live and always current — we just give the page a box to render in.
+// Apple Pay is the exception: Apple's button must be drawn natively, so their mark IS shipped as a
+// PNG and is overlaid above the WebView with pointerEvents="none" — the button looks right
+// instantly and touches fall through to the real hosted button underneath.
 const APPLE_MARK = { white: require('../assets/pay/ApplePayWhite.png'), black: require('../assets/pay/ApplePayBlack.png') };
-export function CoinflowApplePayButton({ color = 'white', height = 56, radius = 28, onApprove, onError, onLoad, style, ...props }) {
-  const url = useMemo(() => coinflowUrl({ ...props, which: 'form', routePrefix: 'form', route: '/apple-pay/<MID>' }), [props]);
-  const onMessage = useCallback(makeMessageHandler({ onLoad, onSuccess: onApprove, onError }), [onLoad, onApprove, onError]);
+const FORM_ROUTE = { applePay: '/apple-pay/<MID>', paypal: '/paypal/<MID>', venmo: '/venmo/<MID>' };
+const IDENTIFIER_MSG = { paypal: 'paypalIdentifier', venmo: 'venmoIdentifier' };
+export const STANDALONE_METHODS = Object.keys(FORM_ROUTE);
+
+// `onOverlay(open)` fires when PayPal/Venmo open their in-page approval modal: the parent must give
+// this button the whole sheet while it is open, or the modal renders inside a 56pt strip.
+export function CoinflowMethodButton({ method = 'applePay', color = 'white', height = 56, radius = 28, expanded = false,
+  onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
+  const ref = useRef(null);
+  const isApple = method === 'applePay';
+  // The identifier is deliberately kept OUT of the url (SDK does the same) and posted in after load,
+  // so changing it never reloads the page.
+  const url = useMemo(() => coinflowUrl({ ...props, email: isApple ? email : undefined, which: 'form', routePrefix: 'form', route: FORM_ROUTE[method] || FORM_ROUTE.applePay }), [props, method, isApple, email]);
+  const post = useCallback((msg) => { try { ref.current && ref.current.postMessage(msg); } catch {} }, []);
+  const handleLoad = useCallback(() => {
+    // iOS disables JS injection in a WebView with enableApplePay, so postMessage is a no-op there —
+    // which is fine, the Apple Pay page takes everything from the url.
+    if (!isApple && IDENTIFIER_MSG[method]) post(JSON.stringify({ method: IDENTIFIER_MSG[method], email: email || undefined }));
+    if (onLoad) onLoad();
+  }, [isApple, method, email, post, onLoad]);
+  const onMessage = useCallback((ev) => {
+    const raw = ev && ev.nativeEvent && ev.nativeEvent.data;
+    if (typeof raw === 'string') { try { const m = JSON.parse(raw); if (m && m.method === 'overlay' && onOverlay) onOverlay(m.data === 'open'); } catch {} }
+    makeMessageHandler({ onLoad: handleLoad, onSuccess: onApprove, onError })(ev);
+  }, [handleLoad, onApprove, onError, onOverlay]);
   return (
-    <View style={[{ height, width: '100%', position: 'relative' }, style]}>
-      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius, backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
-        <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
-      </View>
-      <WebView source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent' }} originWhitelist={['*']}
-        enableApplePay={Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
-        scrollEnabled={false} onMessage={onMessage} onError={() => onError && onError('load')} />
+    <View style={[expanded ? { flex: 1 } : { height, width: '100%' }, { position: 'relative' }, style]}>
+      {isApple ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius, backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
+          <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
+        </View>) : null}
+      <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent' }} originWhitelist={['*']}
+        enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
+        scrollEnabled={expanded} onMessage={onMessage} onError={() => onError && onError('load')} />
     </View>);
 }
 

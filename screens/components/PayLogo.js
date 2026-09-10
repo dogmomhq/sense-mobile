@@ -1,22 +1,18 @@
-// ── PAYMENT BRAND MARKS (B133, 2026-09-10) ───────────────────────────────────────────────────
-// Every payment brand publishes its own logo files and REQUIRES you to use them — a hand-drawn
-// approximation breaks their brand guidelines (and PayPal/Venmo/Cash App all say so explicitly).
-// So this file loads official assets and nothing else; anything without one falls back to a plain
-// monogram until the real file is dropped in.
+// ── PAYMENT BRAND MARKS (B134, 2026-09-10) ───────────────────────────────────────────────────
+// Where the real marks come from, per brand:
+//   Apple Pay        Apple's button must be drawn natively, so Coinflow SHIPS the mark as a PNG in
+//                    @coinflowlabs/react-native — vendored to assets/pay/, used by CoinflowMethodButton.
+//   PayPal · Venmo   drawn by the brand's own SDK on Coinflow's hosted /form/<chain>/<method>/<MID>
+//                    page, which is what their brand rules require. Nothing for us to ship.
+//   Cash App · Visa  no standalone button exists, so these are the only rows that would ever need a
+//                    file of their own.
+// This component is therefore only for the small marks in the PICKER LIST; the pay button itself
+// always carries the brand's real button. Anything without a file shows a plain monogram, which is
+// not a brand violation — an approximated logo would be.
 //
-// TO ADD A BRAND (one line each, no other code changes):
-//   1. download the official asset and save it as assets/pay/<name>.png (or .svg → export to png,
-//      ~120px tall, transparent background)
-//   2. change that brand's `null` below to require('../../assets/pay/<name>.png')
-//
-//   PayPal    https://www.paypal.com/us/webapps/mpp/logo-center      → assets/pay/paypal.png
-//   Venmo     https://venmo.com/about/brand/                          → assets/pay/venmo.png
-//   Cash App  https://cash.app/press                                  → assets/pay/cashapp.png
-//   Visa      https://usa.visa.com/run-your-business/small-business-tools/payment-technology/visa-brand-assets.html
-//   Mastercard https://brand.mastercard.com/brandcenter/mastercard-brand-mark.html
-//
-// Apple Pay ships with @coinflowlabs/react-native (Apache-2.0) — vendored here, same files their
-// SDK renders over the hosted Apple Pay button, which is how Apple's guidelines want it drawn.
+// TO ADD ONE (one line, no other code change): save the official file as assets/pay/<name>.png
+// (~120px tall, transparent) and change that brand's `null` below to require(...).
+//   Cash App  https://cash.app/press        Visa  https://usa.visa.com/…/visa-brand-assets.html
 import React from 'react';
 import { View, Text, Image } from 'react-native';
 import { COLORS, FONTS } from '../theme';

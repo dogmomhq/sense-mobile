@@ -7,8 +7,9 @@
 //   amount settles → POST /api/deposit/intent { amountCents, idempotencyKey, method }
 //     (server runs EVERY gate: $10 floor, per-deposit ceiling, geo, freeze, tier caps; creates the
 //      deposits row; mints the Coinflow session key)
-//   → Apple Pay: Coinflow's REAL hosted Apple Pay button is the CTA (one tap, Apple's own sheet)
-//     everything else: our branded CTA opens Coinflow's checkout with only that method allowed
+//   → Apple Pay / PayPal / Venmo: the CTA is COINFLOW'S OWN hosted button for that brand, so the
+//     mark is drawn by the brand's SDK (which is what their brand rules require) and it is one tap.
+//     Cash App / crypto have no standalone button: the CTA opens the checkout with only that method.
 //   → we POLL /api/deposit/status until Coinflow's signed `Settled` webhook credits it. THE PHONE
 //     NEVER DECIDES THAT MONEY ARRIVED: success is shown only when the server reports `settled`.
 //     If polling times out, the balance still updates by itself when the webhook lands.
@@ -24,7 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { COLORS, FONTS, useScale } from './theme';
 import PressBtn from './components/PressBtn';
-import CoinflowPurchase, { CoinflowApplePayButton } from './CoinflowPurchase';
+import CoinflowPurchase, { CoinflowMethodButton, STANDALONE_METHODS } from './CoinflowPurchase';
 import AmountKeypad, { toCents } from './components/AmountKeypad';
 import PayLogo, { BRAND } from './components/PayLogo';
 
@@ -93,6 +94,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('amount'); // amount | checkout | processing
   const [err, setErr] = useState('');
+  const [overlay, setOverlay] = useState(false); // PayPal/Venmo approval modal is open — it needs the whole sheet
   const inFlightRef = useRef(false);
   const idemRef = useRef(null);
   const pollingRef = useRef(false);
@@ -236,11 +238,11 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
 
   // ── amount (Triumph order: close · balance · amount · METHOD · chips · keypad · pay · terms) ──
   const intentReady = !!(intent && intent.amountCents === cents && intent.method === method.id);
-  const showRealApplePay = method.id === 'applePay' && intentReady && amountOk;
+  const showBrandButton = STANDALONE_METHODS.includes(method.id) && intentReady && amountOk;
   return shell(<>
-    {closeBtn}
-    {balancePill}
-    <View style={{ flex: 1, justifyContent: 'center' }}>
+    {overlay ? null : closeBtn}
+    {overlay ? null : balancePill}
+    {overlay ? null : (<View style={{ flex: 1, justifyContent: 'center' }}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 200 * s, color: COLORS.cream, textAlign: 'center', includeFontPadding: false }} numberOfLines={1} adjustsFontSizeToFit>
         {amount ? '$' + amount : '$0'}</Text>
       {/* method pill sits directly under the amount — Triumph's position */}
@@ -257,31 +259,31 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
       ) : err ? (
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: '#FF5A48', textAlign: 'center', marginTop: 22 * s, marginHorizontal: 45 * s }}>{err}</Text>
       ) : null}
-    </View>
+    </View>)}
 
-    {CHIP_CENTS.length ? (
+    {overlay || !CHIP_CENTS.length ? null : (
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 * s, marginHorizontal: 40 * s, marginBottom: 8 * s }}>
         {CHIP_CENTS.map((c) => { const on = cents === c; return (
           <Pressable key={c} onPress={() => setAmount(String(c / 100))} style={{ flex: 1, alignItems: 'center', paddingVertical: 26 * s, borderRadius: 40 * s,
             backgroundColor: on ? 'rgba(212,242,60,0.18)' : 'rgba(245,241,230,0.08)', borderWidth: on ? 2 * s : 0, borderColor: COLORS.lime }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: on ? COLORS.lime : COLORS.cream }}>{dollars(c)}</Text>
           </Pressable>); })}
-      </View>) : null}
+      </View>)}
 
-    <AmountKeypad value={amount} onChange={setAmount} maxCents={MAX_CENTS} allowCents={false} hideDisplay compact />
+    {overlay ? null : <AmountKeypad value={amount} onChange={setAmount} maxCents={MAX_CENTS} allowCents={false} hideDisplay compact />}
 
-    <View style={{ marginBottom: 10 * s }}>
-      {showRealApplePay ? (
-        // Coinflow's REAL hosted Apple Pay button — one tap, Apple's own sheet. Keyed on the intent
-        // so a new amount remounts it with a fresh subtotal (see the header note).
-        <CoinflowApplePayButton key={intent.depositId} color="white" height={140 * s} radius={44 * s}
-          style={{ marginHorizontal: 45 * s }}
+    <View style={overlay ? { flex: 1 } : { marginBottom: 10 * s }}>
+      {showBrandButton ? (
+        // Coinflow's OWN hosted button for this brand — one tap, the brand's real mark and sheet.
+        // Keyed on the intent so a new amount remounts it with a fresh subtotal (see header note).
+        <CoinflowMethodButton key={intent.depositId + method.id} method={method.id} color="white" height={140 * s} radius={44 * s}
+          expanded={overlay} onOverlay={setOverlay} style={overlay ? undefined : { marginHorizontal: 45 * s }}
           env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
           sessionKey={intent.sessionKey} cents={intent.amountCents} webhookInfo={intent.webhookInfo}
           email={signedInEmail || undefined} deviceId={_installId || undefined} theme={CHECKOUT_THEME}
           chargebackProtectionData={intent.checkout && intent.checkout.chargebackProtectionData}
           chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
-          onApprove={onPaid} onError={() => setErr('Apple Pay could not start — try another method')} />
+          onApprove={onPaid} onError={() => setErr(method.label + ' could not start — try another method')} />
       ) : (
         <PressBtn onPress={openSheet} disabled={!canDeposit || !amountOk || busy}
           style={[ctaBase, { backgroundColor: brand.bg, opacity: (!canDeposit || !amountOk || busy) ? 0.5 : 1 }]}>
@@ -289,10 +291,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: brand.fg, letterSpacing: 0.04 * 34 * s }}>{method.cta}</Text>
         </PressBtn>
       )}
-      <Text style={{ fontFamily: FONTS.interSemi, fontSize: 20 * s, color: 'rgba(245,241,230,0.45)', textAlign: 'center', marginTop: 18 * s, marginHorizontal: 45 * s }}>
+      {overlay ? null : (<Text style={{ fontFamily: FONTS.interSemi, fontSize: 20 * s, color: 'rgba(245,241,230,0.45)', textAlign: 'center', marginTop: 18 * s, marginHorizontal: 45 * s }}>
         {!canDeposit ? 'Sign in with email to deposit real funds' : <>By submitting your transaction you agree to the Sense{' '}
           <Text onPress={() => Linking.openURL(TERMS_URL).catch(() => {})} style={{ textDecorationLine: 'underline' }}>Terms of Use</Text></>}
-      </Text>
+      </Text>)}
     </View>
 
     <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
