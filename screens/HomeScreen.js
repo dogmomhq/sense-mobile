@@ -24,7 +24,7 @@ const TIERS = [
   { label: '$128.00', locked: true },
 ];
 // OTA build stamp — bump on every OTA so CJ can confirm a bundle actually landed.
-export const BUILD_TAG = 'B165';
+export const BUILD_TAG = 'B166';
 
 export default function HomeScreen({
   streak = 8, balance = '$24.50', tiers = TIERS, selectedTier = 1, winAmount = 'WIN $1.90',
@@ -205,11 +205,11 @@ export default function HomeScreen({
                 color: 'rgba(245,241,230,0.92)', marginBottom: 22 * s }}>{p}</Text>
             ))}
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, letterSpacing: 0.1 * 24 * s,
-              color: 'rgba(245,241,230,0.5)', textAlign: 'center', marginBottom: 24 * s }}>skill-based \u00b7 1v1 \u00b7 18+</Text>
+              color: 'rgba(245,241,230,0.5)', textAlign: 'center', marginBottom: 24 * s }}>skill-based · 1v1 · 18+</Text>
             <Pressable onPress={() => setShowHow(false)} style={{ height: 120 * s, borderRadius: 26 * s,
               backgroundColor: COLORS.lime, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: FONTS.anton, fontSize: 48 * s, color: '#10140C',
-                letterSpacing: 0.05 * 48 * s }}>LET\u2019S GO</Text>
+                letterSpacing: 0.05 * 48 * s }}>LET’S GO</Text>
             </Pressable>
           </View>
         </View>
