@@ -5,7 +5,7 @@
 // so adding or removing a state in the admin panel changes this screen on the next open.
 // Map paths: @svg-maps/usa (MIT), simplified. Alaska/Hawaii inset as drawn by the source.
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Linking, Alert, SafeAreaView } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, FONTS, useScale } from './theme';
 import USA from '../assets/usa-states.json';
@@ -43,30 +43,42 @@ export default function LocationGate({ httpsBase, supabaseToken, onDone, onSkip,
     } catch (e) { setBusy(false); setErr('Couldn’t get your location — try again.'); }
   }
 
-  const fill = (k) => (verdict && verdict.state === k) ? (verdict.allowed === false ? '#FF5A48' : COLORS.lime) : (blocked.has(k) ? '#2A2D27' : 'rgba(212,242,60,0.82)');
+  const fill = (k) => (verdict && verdict.state === k) ? (verdict.allowed === false ? '#FF5A48' : COLORS.lime) : (blocked.has(k) ? '#2A2D27' : COLORS.lime);
+  // B158 (CJ): everything centred, nothing clipped at the top. SafeAreaView keeps the headline clear of
+  // the notch / Dynamic Island; the content block is flex-centred between the top inset and the button,
+  // so the screen reads the same on a small phone and a Pro Max instead of hugging the top edge.
+  const MAP_W = 940 * s, MAP_H = MAP_W * 746 / 1028;
   return (
-    <View style={{ flex: 1, backgroundColor: '#0B0E09', paddingHorizontal: 40 * s, paddingTop: 140 * s }}>
-      <Text style={{ fontFamily: FONTS.anton, fontSize: 96 * s, color: COLORS.cream, includeFontPadding: false, lineHeight: 100 * s }}>Let’s check your{'\n'}location.</Text>
-      <Text style={{ fontFamily: FONTS.interSemi, fontSize: 30 * s, color: COLORS.creamDim, marginTop: 24 * s, lineHeight: 42 * s }}>We’re required to confirm your location so you can play for real money in your state.</Text>
-      <View style={{ marginTop: 40 * s, alignItems: 'center' }}>
-        <Svg width={1000 * s} height={1000 * s * 746 / 1028} viewBox={USA.viewBox}>
-          {Object.keys(USA.states).map((k) => <Path key={k} d={USA.states[k]} fill={fill(k)} stroke="#0B0E09" strokeWidth={1.5} />)}
-        </Svg>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0B0E09' }}>
+      <View style={{ flex: 1, paddingHorizontal: 56 * s, paddingBottom: 30 * s }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontFamily: FONTS.anton, fontSize: 84 * s, lineHeight: 92 * s, color: COLORS.cream, textAlign: 'center', includeFontPadding: false }}>
+            Let’s check{'\n'}your location.</Text>
+          <Text style={{ fontFamily: FONTS.interSemi, fontSize: 28 * s, lineHeight: 40 * s, color: COLORS.creamDim, textAlign: 'center', marginTop: 26 * s, paddingHorizontal: 20 * s }}>
+            We’re required to confirm your location so you can play for real money in your state.</Text>
+          <View style={{ marginTop: 44 * s, alignItems: 'center', justifyContent: 'center' }}>
+            <Svg width={MAP_W} height={MAP_H} viewBox={USA.viewBox}>
+              {Object.keys(USA.states).map((k) => <Path key={k} d={USA.states[k]} fill={fill(k)} stroke="#0B0E09" strokeWidth={1.5} />)}
+            </Svg>
+          </View>
+          {verdict && verdict.allowed === false ? (
+            <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, lineHeight: 42 * s, color: '#FF5A48', textAlign: 'center', marginTop: 40 * s }}>
+              Real-money play isn’t available in {verdict.state}.{'\n'}You can still play for free.</Text>
+          ) : (
+            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, lineHeight: 36 * s, color: COLORS.creamDim, textAlign: 'center', marginTop: 40 * s }}>
+              {rules ? 'Sense currently operates in ' + allowedList.length + ' states: ' + allowedList.join(', ') + '.' : ' '}</Text>
+          )}
+          {err ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: '#FF5A48', textAlign: 'center', marginTop: 24 * s }}>{err}</Text> : null}
+        </View>
+        <Pressable onPress={check} disabled={busy} style={{ backgroundColor: COLORS.lime, borderRadius: 70 * s, height: 140 * s, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}>
+          {busy ? <ActivityIndicator color="#10140C" /> : <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: '#10140C' }}>Check my location</Text>}
+        </Pressable>
+        {canSkip || (verdict && verdict.allowed === false) ? (
+          <Pressable onPress={onSkip} style={{ alignItems: 'center', paddingTop: 26 * s }}>
+            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 28 * s, color: COLORS.creamDim }}>{verdict && verdict.allowed === false ? 'Continue with free play' : 'Not now'}</Text>
+          </Pressable>
+        ) : null}
       </View>
-      {verdict && verdict.allowed === false ? (
-        <Text style={{ fontFamily: FONTS.interBold, fontSize: 30 * s, color: '#FF5A48', textAlign: 'center', marginTop: 30 * s }}>Real-money play isn’t available in {verdict.state}. You can still play for free.</Text>
-      ) : (
-        <Text style={{ fontFamily: FONTS.interSemi, fontSize: 26 * s, color: COLORS.creamDim, textAlign: 'center', marginTop: 30 * s, lineHeight: 38 * s }}>
-          {rules ? 'Sense currently operates in: ' + allowedList.join(', ') + '.' : ' '}</Text>
-      )}
-      {err ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: '#FF5A48', textAlign: 'center', marginTop: 20 * s }}>{err}</Text> : null}
-      <View style={{ flex: 1 }} />
-      <Pressable onPress={check} disabled={busy} style={{ backgroundColor: COLORS.lime, borderRadius: 60 * s, height: 140 * s, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}>
-        {busy ? <ActivityIndicator color="#10140C" /> : <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: '#10140C' }}>Check my location</Text>}
-      </Pressable>
-      {canSkip || (verdict && verdict.allowed === false) ? (
-        <Pressable onPress={onSkip} style={{ alignItems: 'center', paddingVertical: 30 * s }}><Text style={{ fontFamily: FONTS.interSemi, fontSize: 28 * s, color: COLORS.creamDim }}>{verdict && verdict.allowed === false ? 'Continue with free play' : 'Not now'}</Text></Pressable>
-      ) : <View style={{ height: 60 * s }} />}
-    </View>
+    </SafeAreaView>
   );
 }
