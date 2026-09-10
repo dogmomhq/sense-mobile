@@ -99,8 +99,11 @@ export const STANDALONE_METHODS = Object.keys(FORM_ROUTE);
 
 // `onOverlay(open)` fires when PayPal/Venmo open their in-page approval modal: the parent must give
 // this button the whole sheet while it is open, or the modal renders inside a 56pt strip.
+// `inert` draws the button's chrome with no WebView under it. The parent uses it while the deposit
+// intent is still being created — there is no session key to point a real button at yet — so the
+// live button drops into an identical box instead of replacing a differently-shaped one.
 export function CoinflowMethodButton({ method = 'applePay', color = 'white', height = 56, radius = 28, expanded = false,
-  onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
+  inert = false, inertColor, onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
   const ref = useRef(null);
   const isApple = method === 'applePay';
   // The identifier is deliberately kept OUT of the url (SDK does the same) and posted in after load,
@@ -118,12 +121,22 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
     if (typeof raw === 'string') { try { const m = JSON.parse(raw); if (m && m.method === 'overlay' && onOverlay) onOverlay(m.data === 'open'); } catch {} }
     makeMessageHandler({ onLoad: handleLoad, onSuccess: onApprove, onError })(ev);
   }, [handleLoad, onApprove, onError, onOverlay]);
+  // No width here: the view stretches to its parent, so the caller's horizontal margin is respected.
+  // Setting width:'100%' AND a margin made the button wider than the screen.
+  const box = [expanded ? { flex: 1 } : { height }, { position: 'relative' }, style];
+  const appleChrome = (o) => (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius, opacity: o,
+      backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
+      <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
+    </View>);
+  if (inert) return (
+    <View style={box}>
+      {isApple ? appleChrome(0.45)
+        : <View style={[StyleSheet.absoluteFillObject, { borderRadius: radius, opacity: 0.35, backgroundColor: inertColor || 'rgba(245,241,230,0.14)' }]} />}
+    </View>);
   return (
-    <View style={[expanded ? { flex: 1 } : { height, width: '100%' }, { position: 'relative' }, style]}>
-      {isApple ? (
-        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius, backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
-          <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
-        </View>) : null}
+    <View style={box}>
+      {isApple ? appleChrome(1) : null}
       <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent' }} originWhitelist={['*']}
         enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
         scrollEnabled={expanded} onMessage={onMessage} onError={() => onError && onError('load')} />

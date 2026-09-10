@@ -96,7 +96,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const [err, setErr] = useState('');
   const [overlay, setOverlay] = useState(false); // PayPal/Venmo approval modal is open — it needs the whole sheet
   const inFlightRef = useRef(false);
-  const idemRef = useRef(null);
+  // One nonce per deposit attempt; the key sent to the server is nonce+amount+method, so changing
+  // the amount mints a new key and re-trying the same amount replays the same intent.
+  const idemNonce = useRef(Crypto.randomUUID());
+  const idemKey = (c, m) => `${idemNonce.current}-${c}-${m}`;
   const pollingRef = useRef(false);
   const intentTimer = useRef(null);
   const alive = useRef(true);
@@ -116,7 +119,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
 
   const close = useCallback(() => { if (onDone) onDone(); }, [onDone]);
   const finish = useCallback((toastText, kind) => {
-    idemRef.current = null;
+    idemNonce.current = Crypto.randomUUID();      // that deposit is done; the next one is a new attempt
     if (toastText && onToast) onToast(toastText, kind);
     if (onRefresh) onRefresh();
     close();
@@ -133,7 +136,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         try { const r = await fetch(`${httpsBase}/api/deposit/status?id=${encodeURIComponent(depositId)}`, { headers: { Authorization: 'Bearer ' + supabaseToken } }); j = await r.json().catch(() => null); } catch { j = null; }
         if (!j || !j.status) continue;
         if (j.status === 'settled') { finish(`DEPOSITED ${dollars(j.settledCents || expectCents)}`); return 'settled'; }
-        if (j.status === 'failed') { setErr('Payment declined — try another method'); setPhase('amount'); setIntent(null); idemRef.current = null; return 'failed'; }
+        if (j.status === 'failed') { setErr('Payment declined — try another method'); setPhase('amount'); setIntent(null); idemNonce.current = Crypto.randomUUID(); return 'failed'; }
         if (j.status === 'review') { finish('Deposit under review — it will be credited once confirmed', 'error'); return 'review'; }
         if (j.status === 'amount_mismatch') { finish('Deposit on hold — support will sort it out', 'error'); return 'held'; }
         // created / expired / unknown / pending / authorized: keep waiting
@@ -150,8 +153,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     if (intent && intent.amountCents === cents && intent.method === method.id) return intent;
     inFlightRef.current = true; if (loud) setBusy(true);
     try {
-      if (!idemRef.current) idemRef.current = Crypto.randomUUID();
-      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemRef.current, deviceId: await installId(), method: method.id };
+      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents, method.id), deviceId: await installId(), method: method.id };
       const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j = await res.json().catch(() => ({}));
       if (!alive.current) return null;
@@ -159,7 +161,6 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         if (j.deduped && j.status && j.status !== 'created' && j.status !== 'expired') { pollUntilSettled(j.depositId, cents); return null; }
         const next = { ...j, method: method.id }; setIntent(next); setErr(''); return next;
       }
-      idemRef.current = null;
       if (loud && j && j.needGps && onNeedGps) { onNeedGps(() => ensureIntent(true)); return null; }
       if (loud && j && j.needDob && onNeedDob) { onNeedDob(() => ensureIntent(true)); return null; }
       const code = j && j.error;
@@ -282,9 +283,8 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           drops straight into it. If the intent FAILED we fall through to a tappable retry, or the
           player would be staring at a dead button (a location prompt lands here, for instance). */}
       {isStandalone && !intentReady && !err ? (
-        <View pointerEvents="none" style={[ctaBase, { backgroundColor: brand.bg, opacity: 0.4 }]}>
-          <PayLogo id={method.id} size={36 * s} on={brand.bg === '#FFFFFF' ? 'light' : 'dark'} />
-        </View>
+        <CoinflowMethodButton inert method={method.id} color="white" height={140 * s} radius={44 * s}
+          inertColor={brand.bg} style={{ marginHorizontal: 45 * s }} />
       ) : showBrandButton ? (
         // Coinflow's OWN hosted button for this brand — one tap, the brand's real mark and sheet.
         // Keyed on the intent so a new amount remounts it with a fresh subtotal (see header note).
