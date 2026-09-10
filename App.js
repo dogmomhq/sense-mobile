@@ -384,6 +384,24 @@ export default function App() {
   const wsHandlerRef = useRef(() => {}); const myNameRef = useRef(null); const showActionsRef = useRef(false); const toastTimer = useRef(null);
   const accountRef = useRef(null); const pendingAfterReg = useRef(null); // device-bound account {accountId,handle,token}
   const supabaseTokenRef = useRef(null); // Supabase access token when signed in (preferred over device token)
+  // B157 LOCATION GATE (CJ 2026-09-10, Triumph pattern): on every app open, once signed in, ask for location
+  // before anything real-money. A fix is good for LOC_GATE_MS (55 min — under the server's 60) or until the
+  // app is cold-started. Guests see it too but may skip (they cannot play for money anyway); a blocked state
+  // shows the reason and offers free play.
+  const LOC_GATE_MS = 55 * 60 * 1000;
+  const [locGate, setLocGate] = useState(false);
+  const locOkUntil = useRef(0);
+  const locGateShownOnce = useRef(false);
+  function locGateDone() { locOkUntil.current = Date.now() + LOC_GATE_MS; setLocGate(false); }
+  function locGateSkip() { locGateShownOnce.current = true; setLocGate(false); }
+  useEffect(() => { // cold start: show once the auth session has had a moment to restore
+    const t = setTimeout(() => { if (Date.now() > locOkUntil.current && !locGateShownOnce.current) { locGateShownOnce.current = true; setLocGate(true); } }, 1800);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => { // back from background with an expired fix (signed in only): ask again
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active' && supabaseTokenRef.current && Date.now() > locOkUntil.current) setLocGate(true); });
+    return () => { try { sub.remove(); } catch (e) {} };
+  }, []);
   const fade = useRef(new Animated.Value(1)).current;
   // swipe-up on the Play screen (when pending actions are showing) → re-queue, matching web
   const swipe = useRef(PanResponder.create({
@@ -1234,6 +1252,7 @@ export default function App() {
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       wsSend({ type: 'gps-check', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+      locOkUntil.current = Date.now() + LOC_GATE_MS; // B157
       armJoinWatch(); // B58: gps-check is a queue-flow send — silence after it = the same stuck-matching risk
     } catch (e) { bailHome('Couldn\u2019t get your location \u2014 try again'); }
   }
@@ -1453,6 +1472,7 @@ export default function App() {
         body: JSON.stringify({ supabaseToken: supabaseTokenRef.current || '', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }) });
       const j = await r.json().catch(() => null);
       if (!r.ok || !j || !j.ok) { showToast('Couldn\u2019t verify your location \u2014 try again', 'error'); return; }
+      locOkUntil.current = Date.now() + LOC_GATE_MS; // B157
       if (resume) resume();
     } catch (e) { showToast('Couldn\u2019t get your location \u2014 try again', 'error'); }
   }
@@ -1508,6 +1528,7 @@ export default function App() {
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp, oppTier,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, askGpsForDeposit, dobOnFile,
+      locGate, locGateDone, locGateSkip, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157
       balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
