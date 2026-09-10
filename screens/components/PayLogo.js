@@ -6,7 +6,8 @@
 //                    @coinflowlabs/react-native — vendored to assets/pay/.
 //   Cash App         publishes a HOSTED svg and tells integrators to link it, not copy it:
 //                    developers.cash.app → "Make sure you use the provided link or code sample."
-//   PayPal · Venmo   official files from newsroom.paypal-corp.com/media-resources → assets/pay/.
+//   PayPal · Venmo   official files from newsroom.paypal-corp.com/media-resources (PayPal's own
+//                    newsroom serves both) → assets/pay/. Resized only: no recolour, no crop, no redraw.
 //   Debit card·Bank  generic icons, not anyone's trademark — drawn here.
 //   Crypto           the Bitcoin mark is public domain — drawn here.
 import React, { useState } from 'react';
@@ -21,9 +22,13 @@ const HOSTED = { cashApp: 'https://static.afterpaycdn.com/en-US/integration/logo
 const MARKS = {
   applePayWhite: require('../../assets/pay/ApplePayWhite.png'),
   applePayBlack: require('../../assets/pay/ApplePayBlack.png'),
-  paypal: null,   // ← require('../../assets/pay/paypal.png')
-  venmo: null,    // ← require('../../assets/pay/venmo.png')
+  paypal: require('../../assets/pay/paypal.png'),   // PayPal-Monogram-FullColor-RGB, resized only
+  venmo: require('../../assets/pay/venmo.png'),     // Venmo_Monogram (their .ai), rendered + resized only
 };
+// TILE marks carry their own background (Venmo's blue square, Cash App's green square) and are the
+// badge themselves, so they fill the slot with rounded corners — no grey disc behind them, which is
+// how Triumph shows them. GLYPH marks are transparent and sit inside the disc.
+const TILE = { venmo: true, cashApp: true };
 
 export const BRAND = {
   applePay: { bg: '#FFFFFF', fg: '#000000', tint: '#FFFFFF' },
@@ -34,7 +39,7 @@ export const BRAND = {
   card:     { bg: COLORS.lime, fg: '#10140C', tint: '#5BE7E0' },
   bank:     { bg: COLORS.lime, fg: '#10140C', tint: COLORS.lime },
 };
-const MONOGRAM = { paypal: 'PP', venmo: 'V', cashApp: '$' };
+const MONOGRAM = { cashApp: '$' };   // only a brand with no bundled file still needs a letter
 
 // Generic icons — a card and a bank building. No trademark involved.
 function CardGlyph({ size, color }) {
@@ -69,25 +74,33 @@ function BitcoinGlyph({ size, color }) {
 
 export function hasOfficialMark(id) { return !!(MARKS[id === 'applePay' ? 'applePayWhite' : id] || HOSTED[id]); }
 
-// `circle` wraps the mark in Triumph's grey disc (the transfer-method list); off for inline pills.
+// `circle` gives the mark Triumph's badge slot: a grey disc for transparent glyphs, or the brand's
+// own tile (rounded square) where the mark already carries its background. Off for inline pills.
 export default function PayLogo({ id, size = 32, on = 'dark', circle = false }) {
   const [failed, setFailed] = useState(false);
   const b = BRAND[id] || {};
-  const inner = (() => {
-    const key = id === 'applePay' ? (on === 'light' ? 'applePayBlack' : 'applePayWhite') : id;
-    const src = MARKS[key];
-    if (src) return <Image source={src} style={{ height: size, width: id === 'applePay' ? size * 2.43 : size, resizeMode: 'contain' }} />;
-    if (HOSTED[id] && !failed) return <SvgUri width={size} height={size} uri={HOSTED[id]} onError={() => setFailed(true)} />;
-    if (id === 'card') return <CardGlyph size={size} color={b.tint || COLORS.cream} />;
-    if (id === 'bank') return <BankGlyph size={size} color={b.tint || COLORS.cream} />;
-    if (id === 'crypto') return <BitcoinGlyph size={size} color={b.tint || COLORS.lime} />;
+  const isTile = !!TILE[id] && !(id === 'cashApp' && failed);
+  const d = size * 2;                                  // badge slot; a tile fills it, a glyph sits inside
+
+  if (circle && isTile) {
+    const src = MARKS[id];
     return (
-      <Text style={{ fontFamily: FONTS.interBlack, fontSize: size * 0.52, color: on === 'light' ? '#10140C' : (b.tint || COLORS.cream), includeFontPadding: false }}>
-        {MONOGRAM[id] || '?'}
-      </Text>);
-  })();
+      <View style={{ width: d, height: d, borderRadius: d * 0.28, overflow: 'hidden', backgroundColor: b.tint || 'transparent' }}>
+        {src ? <Image source={src} style={{ width: d, height: d, resizeMode: 'cover' }} />
+             : <SvgUri width={d} height={d} uri={HOSTED[id]} onError={() => setFailed(true)} />}
+      </View>);
+  }
+
+  const key = id === 'applePay' ? (on === 'light' ? 'applePayBlack' : 'applePayWhite') : id;
+  const src = MARKS[key];
+  const inner = src ? <Image source={src} style={{ height: size, width: id === 'applePay' ? size * 2.43 : size, resizeMode: 'contain' }} />
+    : (HOSTED[id] && !failed) ? <SvgUri width={size} height={size} uri={HOSTED[id]} onError={() => setFailed(true)} />
+    : id === 'card' ? <CardGlyph size={size} color={b.tint || COLORS.cream} />
+    : id === 'bank' ? <BankGlyph size={size} color={b.tint || COLORS.cream} />
+    : id === 'crypto' ? <BitcoinGlyph size={size} color={b.tint || COLORS.lime} />
+    : (<Text style={{ fontFamily: FONTS.interBlack, fontSize: size * 0.52, color: on === 'light' ? '#10140C' : (b.tint || COLORS.cream), includeFontPadding: false }}>
+        {MONOGRAM[id] || '?'}</Text>);
   if (!circle) return inner;
-  const d = size * 2;
   return (
     <View style={{ width: d, height: d, borderRadius: d / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
       backgroundColor: on === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(245,241,230,0.10)' }}>{inner}</View>);
