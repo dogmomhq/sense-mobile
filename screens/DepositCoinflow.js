@@ -248,7 +248,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
       {/* method pill sits directly under the amount — Triumph's position */}
       <View style={{ alignItems: 'center', marginTop: 40 * s }}>
         <Pressable onPress={() => setPickerOpen(true)} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 * s, paddingVertical: 20 * s, paddingHorizontal: 38 * s, borderRadius: 50 * s, backgroundColor: 'rgba(245,241,230,0.10)' }}>
-          <PayLogo id={method.id} size={30 * s} />
+          <PayLogo id={method.id} size={38 * s} />
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.cream }}>{method.label}</Text>
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: COLORS.creamDim }}>▼</Text>
         </Pressable>
@@ -287,7 +287,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
       ) : (
         <PressBtn onPress={openSheet} disabled={!canDeposit || !amountOk || busy}
           style={[ctaBase, { backgroundColor: brand.bg, opacity: (!canDeposit || !amountOk || busy) ? 0.5 : 1 }]}>
-          {busy ? <ActivityIndicator color={brand.fg} /> : <PayLogo id={method.id} size={30 * s} on={brand.bg === '#FFFFFF' || brand.bg === COLORS.lime ? 'light' : 'dark'} />}
+          {busy ? <ActivityIndicator color={brand.fg} /> : <PayLogo id={method.id} size={36 * s} on={brand.bg === '#FFFFFF' || brand.bg === COLORS.lime ? 'light' : 'dark'} />}
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: brand.fg, letterSpacing: 0.04 * 34 * s }}>{method.cta}</Text>
         </PressBtn>
       )}
@@ -305,7 +305,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 30 * s, paddingHorizontal: 34 * s,
                 borderTopWidth: i ? 1 : 0, borderTopColor: 'rgba(245,241,230,0.12)', backgroundColor: m.id === method.id ? 'rgba(212,242,60,0.10)' : 'transparent' }}>
               <Text style={{ fontFamily: FONTS.interSemi, fontSize: 32 * s, color: COLORS.cream }}>{m.label}</Text>
-              <PayLogo id={m.id} size={34 * s} circle />
+              <PayLogo id={m.id} size={52 * s} />
             </Pressable>))}
         </View>
       </Pressable>

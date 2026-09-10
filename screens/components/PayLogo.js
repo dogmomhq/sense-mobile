@@ -25,10 +25,15 @@ const MARKS = {
   paypal: require('../../assets/pay/paypal.png'),   // PayPal-Monogram-FullColor-RGB, resized only
   venmo: require('../../assets/pay/venmo.png'),     // Venmo_Monogram (their .ai), rendered + resized only
 };
-// TILE marks carry their own background (Venmo's blue square, Cash App's green square) and are the
-// badge themselves, so they fill the slot with rounded corners — no grey disc behind them, which is
-// how Triumph shows them. GLYPH marks are transparent and sit inside the disc.
+// Three shapes of mark, and they cannot be rendered the same way:
+//   TILE   Venmo, Cash App — the mark carries its own coloured background, so it IS the badge and
+//          fills the slot as a rounded square. No disc behind it.
+//   WIDE   Apple Pay — a  Pay lockup at 2.43:1. It can never go in a circle; it gets clipped.
+//          Rendered free-standing at its own aspect, which is also how Triumph shows it.
+//   GLYPH  PayPal, Bitcoin, card, bank — transparent, so they need a disc behind them in a list,
+//          and stand alone in a menu.
 const TILE = { venmo: true, cashApp: true };
+const WIDE = { applePay: 2.43 };
 
 export const BRAND = {
   applePay: { bg: '#FFFFFF', fg: '#000000', tint: '#FFFFFF' },
@@ -74,34 +79,47 @@ function BitcoinGlyph({ size, color }) {
 
 export function hasOfficialMark(id) { return !!(MARKS[id === 'applePay' ? 'applePayWhite' : id] || HOSTED[id]); }
 
-// `circle` gives the mark Triumph's badge slot: a grey disc for transparent glyphs, or the brand's
-// own tile (rounded square) where the mark already carries its background. Off for inline pills.
-export default function PayLogo({ id, size = 32, on = 'dark', circle = false }) {
-  const [failed, setFailed] = useState(false);
+// The raw mark at its natural aspect. `h` is its height.
+function Mark({ id, h, on, onFail, failed }) {
   const b = BRAND[id] || {};
-  const isTile = !!TILE[id] && !(id === 'cashApp' && failed);
-  const d = size * 2;                                  // badge slot; a tile fills it, a glyph sits inside
-
-  if (circle && isTile) {
-    const src = MARKS[id];
-    return (
-      <View style={{ width: d, height: d, borderRadius: d * 0.28, overflow: 'hidden', backgroundColor: b.tint || 'transparent' }}>
-        {src ? <Image source={src} style={{ width: d, height: d, resizeMode: 'cover' }} />
-             : <SvgUri width={d} height={d} uri={HOSTED[id]} onError={() => setFailed(true)} />}
-      </View>);
-  }
-
   const key = id === 'applePay' ? (on === 'light' ? 'applePayBlack' : 'applePayWhite') : id;
   const src = MARKS[key];
-  const inner = src ? <Image source={src} style={{ height: size, width: id === 'applePay' ? size * 2.43 : size, resizeMode: 'contain' }} />
-    : (HOSTED[id] && !failed) ? <SvgUri width={size} height={size} uri={HOSTED[id]} onError={() => setFailed(true)} />
-    : id === 'card' ? <CardGlyph size={size} color={b.tint || COLORS.cream} />
-    : id === 'bank' ? <BankGlyph size={size} color={b.tint || COLORS.cream} />
-    : id === 'crypto' ? <BitcoinGlyph size={size} color={b.tint || COLORS.lime} />
-    : (<Text style={{ fontFamily: FONTS.interBlack, fontSize: size * 0.52, color: on === 'light' ? '#10140C' : (b.tint || COLORS.cream), includeFontPadding: false }}>
-        {MONOGRAM[id] || '?'}</Text>);
-  if (!circle) return inner;
+  if (src) return <Image source={src} style={{ height: h, width: h * (WIDE[id] || 1), resizeMode: 'contain' }} />;
+  if (HOSTED[id] && !failed) return <SvgUri width={h} height={h} uri={HOSTED[id]} onError={onFail} />;
+  if (id === 'card') return <CardGlyph size={h} color={b.tint || COLORS.cream} />;
+  if (id === 'bank') return <BankGlyph size={h} color={b.tint || COLORS.cream} />;
+  if (id === 'crypto') return <BitcoinGlyph size={h} color={b.tint || COLORS.lime} />;
   return (
-    <View style={{ width: d, height: d, borderRadius: d / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-      backgroundColor: on === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(245,241,230,0.10)' }}>{inner}</View>);
+    <Text style={{ fontFamily: FONTS.interBlack, fontSize: h * 0.52, color: on === 'light' ? '#10140C' : (b.tint || COLORS.cream), includeFontPadding: false }}>
+      {MONOGRAM[id] || '?'}</Text>);
+}
+
+// variant 'mark'  — free-standing, `size` is the mark's height. Every brand reads at the same
+//                   weight because nothing is boxed. Used in the deposit menu.
+// variant 'badge' — a fixed square slot of `size`: a tile fills it, a glyph sits on a disc inside
+//                   it. Used in the withdraw list, where rows need a common left column.
+export default function PayLogo({ id, size = 32, on = 'dark', variant = 'mark', circle = false }) {
+  const [failed, setFailed] = useState(false);
+  const b = BRAND[id] || {};
+  const onFail = () => setFailed(true);
+  const isTile = !!TILE[id] && !(HOSTED[id] && failed);
+  const v = circle ? 'badge' : variant;               // `circle` kept for older call sites
+
+  if (isTile) {
+    const box = v === 'badge' ? size : size;
+    return (
+      <View style={{ width: box, height: box, borderRadius: box * 0.24, overflow: 'hidden', backgroundColor: b.tint || 'transparent' }}>
+        {MARKS[id] ? <Image source={MARKS[id]} style={{ width: box, height: box, resizeMode: 'cover' }} />
+                   : <SvgUri width={box} height={box} uri={HOSTED[id]} onError={onFail} />}
+      </View>);
+  }
+  if (v === 'mark') return <Mark id={id} h={size} on={on} onFail={onFail} failed={failed} />;
+
+  // badge: transparent glyph on a disc. A WIDE lockup never fits one, so it stays free-standing.
+  if (WIDE[id]) return <Mark id={id} h={size * 0.44} on={on} onFail={onFail} failed={failed} />;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+      backgroundColor: on === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(245,241,230,0.10)' }}>
+      <Mark id={id} h={size * 0.6} on={on} onFail={onFail} failed={failed} />
+    </View>);
 }

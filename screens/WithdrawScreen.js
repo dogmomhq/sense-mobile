@@ -304,7 +304,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
             <PressBtn key={m.kind} onPress={() => tapMethod(m)} style={{ marginHorizontal: 45 * s, marginBottom: 20 * s, flexDirection: 'row', alignItems: 'center',
               backgroundColor: 'rgba(245,241,230,0.06)', borderRadius: 32 * s, paddingVertical: 28 * s, paddingHorizontal: 30 * s,
               borderWidth: 1.5 * s, borderColor: d ? 'rgba(215,248,74,0.35)' : 'transparent' }}>
-              <View style={{ marginRight: 26 * s }}><PayLogo id={m.kind} size={44 * s} circle /></View>
+              <View style={{ width: 88 * s, alignItems: 'center', marginRight: 24 * s }}><PayLogo id={m.kind} size={88 * s} variant="badge" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: COLORS.cream }}>{m.title}</Text>
                 <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginTop: 6 * s }} numberOfLines={2}>
