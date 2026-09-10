@@ -23,6 +23,7 @@ import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
 import { prefetchDepositIntent } from './DepositCoinflow'; // B160: warm the deposit intent on the tap that opens the sheet
+import { CoinflowWarmer } from './CoinflowPurchase';        // B161: warm Coinflow's origin so the pay button is not cold
 import LocationGate from './LocationGate'; // B157: location check on every open (Triumph pattern)
 import WithdrawScreen from './WithdrawScreen'; // 2026-09-09: payouts (Coinflow) — shown only when /api/tiers payments.withdrawals is on
 import MatchDetailScreen from './MatchDetailScreen'; // 2026-09-07: tap a history match -> detail + analytics
@@ -749,6 +750,11 @@ export default function ReskinApp({ g }) {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.forest }}>
       {body}
+      {/* B161: pay the cold DNS/TLS/bundle cost for Coinflow's origin once, invisibly, so the pay
+          button is already warm when the deposit sheet opens. Signed-in only — a guest never mounts
+          it, which keeps it off the practice path the OTA gate walks. */}
+      {g.authEmail && payInfo && payInfo.provider === 'coinflow' && payInfo.coinflow
+        ? <CoinflowWarmer env={payInfo.coinflow.env} merchantId={payInfo.coinflow.merchantId} /> : null}
       {/* 2026-09-07: match detail + analytics sheet (from a History match row) */}
       {detailMatchId ? <MatchDetailScreen matchId={detailMatchId} httpsBase={g.httpsBase}
         authHeaders={g.playerAuthHeaders ? g.playerAuthHeaders() : undefined} onClose={() => setDetailMatchId(null)} /> : null}

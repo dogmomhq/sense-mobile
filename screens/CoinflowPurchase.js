@@ -109,13 +109,16 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   inert = false, inertColor, hidden = false, onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
   const ref = useRef(null);
   const isApple = method === 'applePay';
-  // B160: PayPal's and Venmo's own SDK draws a button taller than our pill (their mark plus the
-  // funding line), and the box clips — which is the bottom-cut-off button CJ saw. Coinflow's form
-  // page will report its real content height if we ask for it (`useHeightChange`), so the box grows
-  // to fit. The floor is generous enough that the button is whole even if that message never lands.
+  // B161: MEASURED, not guessed. Coinflow's form page carries a `#height-ref` element and that is
+  // exactly what its `useHeightChange` reports; loading /form/solana/paypal/… at phone width it is
+  // 49 CSS px (their button is Tailwind `h-12`, plus a pixel), and CSS px are points in a WebView.
+  // Our pill was a different height, so their button sat inside a taller/shorter rounded mask and the
+  // mask's curve ate its bottom corners — that is the "cut off at the bottom" button. The box is now
+  // that height, and grows only if the page says it needs more.
+  const FORM_H = 49;
   const [contentH, setContentH] = useState(0);
   const heightId = useMemo(() => (isApple ? null : 'h' + Math.random().toString(36).slice(2, 8)), [isApple]);
-  const boxH = isApple ? height : Math.max(height, Math.min(contentH || 0, height * 2.2));
+  const boxH = isApple ? height : Math.max(FORM_H, Math.min(contentH || 0, 400));
   // B146: `ready` = Coinflow's page has told us its button is up. Until then a tap lands on a WebView
   // that is still loading and does nothing — which read as "the button is broken". The pill is drawn
   // ONCE, white, and never changes colour or size; only a small spinner at the right edge says
@@ -162,7 +165,13 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   // tappable underneath (opacity does not block touches).
   // `hidden` parks the view off-layout at full size so its page still loads and lays out; it cannot be
   // touched and it occupies no space, so the visible button's position is unaffected.
-  const box = [expanded ? { flex: 1 } : { height: boxH }, { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: 'hidden' }, style,
+  // B161: the rounded mask exists ONLY to hide the white square-cornered body Coinflow's page paints
+  // for a frame or two before its button is styled. Once the page says it is up, the mask comes off —
+  // so a brand's own button can never have its corners clipped by ours. Apple Pay keeps the mask: our
+  // native chrome is painted over that WebView and IS the visual.
+  const masked = isApple || !ready;
+  const box = [expanded ? { flex: 1 } : { height: boxH },
+    { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: masked ? 'hidden' : 'visible' }, style,
     hidden ? { position: 'absolute', left: 0, right: 0, bottom: 0, opacity: 0, zIndex: -1 } : null];
   const waiting = inert || !ready;
   // The one Apple Pay visual. Same JSX in the inert and live branches, at the same tree position, so
@@ -184,6 +193,29 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
       <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: isApple ? 0.02 : 1 }} originWhitelist={['*']}
         enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
         scrollEnabled={expanded} onMessage={onMessage} onLoadEnd={() => setReady(true)} onError={() => onError && onError('load')} />
+    </View>);
+}
+
+// ── B161: origin warmer ────────────────────────────────────────────────────────────────────────
+// The spinner on the Apple Pay pill is honest: the page really is not up yet. Almost all of that
+// wait is cold DNS + TLS + Coinflow's JS bundle, paid on the FIRST WebView that touches their
+// origin. WKWebView shares one network cache across the whole app, so loading the form page once,
+// early and invisibly, means the real button loads from cache when the sheet opens.
+//
+// Deliberately inert: no session key, no cents, no webhookInfo — it cannot start or affect a
+// payment, and it is 1×1 and untouchable. Mounted only for a SIGNED-IN player, which is also why it
+// cannot appear on the guest practice path the OTA gate walks.
+export function CoinflowWarmer({ env, merchantId, delayMs = 2500 }) {
+  const [on, setOn] = useState(false);
+  const [done, setDone] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setOn(true), delayMs); return () => clearTimeout(t); }, [delayMs]);
+  if (!on || done || !merchantId) return null;
+  const uri = baseUrl(env, 'form') + `/form/solana/apple-pay/${encodeURIComponent(merchantId)}`;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', width: 1, height: 1, opacity: 0, bottom: 0, left: 0 }}>
+      <WebView source={{ uri }} style={{ flex: 1, backgroundColor: 'transparent' }} originWhitelist={['*']}
+        javaScriptEnabled cacheEnabled androidLayerType="none"
+        onLoadEnd={() => setDone(true)} onError={() => setDone(true)} onHttpError={() => setDone(true)} />
     </View>);
 }
 

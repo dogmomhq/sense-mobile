@@ -332,7 +332,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           drops straight into it. If the intent FAILED we fall through to a tappable retry, or the
           player would be staring at a dead button (a location prompt lands here, for instance). */}
       {isStandalone && !intentReady && !err ? (
-        <CoinflowMethodButton inert method={method.id} color="white" height={(method.id === 'applePay' ? 140 : 175) * s} radius={44 * s}
+        <CoinflowMethodButton inert method={method.id} color="white" height={method.id === 'applePay' ? 140 * s : 49} radius={44 * s}
           inertColor={brand.bg} style={{ marginHorizontal: 45 * s }} />
       ) : showBrandButton ? (
         // Coinflow's OWN hosted button for each brand — one tap, the brand's real mark and sheet.
@@ -344,7 +344,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
             const sel = mid === method.id;
             return (
               <CoinflowMethodButton key={intent.depositId + mid} hidden={!sel} method={mid} color="white"
-                height={(mid === 'applePay' ? 140 : 175) * s} radius={44 * s}
+                height={mid === 'applePay' ? 140 * s : 49} radius={44 * s}   // 49pt = Coinflow's own #height-ref for the brand form pages (B161)
                 expanded={sel && overlay} onOverlay={sel ? setOverlay : undefined}
                 style={(sel && overlay) ? undefined : { marginHorizontal: 45 * s }}
                 env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
