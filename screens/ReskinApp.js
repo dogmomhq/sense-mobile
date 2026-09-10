@@ -22,6 +22,7 @@ import HistoryScreen from './HistoryScreen';
 import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
+import { prefetchDepositIntent } from './DepositCoinflow'; // B160: warm the deposit intent on the tap that opens the sheet
 import LocationGate from './LocationGate'; // B157: location check on every open (Triumph pattern)
 import WithdrawScreen from './WithdrawScreen'; // 2026-09-09: payouts (Coinflow) — shown only when /api/tiers payments.withdrawals is on
 import MatchDetailScreen from './MatchDetailScreen'; // 2026-09-07: tap a history match -> detail + analytics
@@ -294,6 +295,9 @@ export default function ReskinApp({ g }) {
     setRoute('withdraw');
   };
   const openDeposit = () => {
+    // B160: start the deposit intent on the TAP, so our round trip to the server (and Coinflow's
+    // session key) happen behind the sheet's slide-in instead of after it. Quiet — it can't prompt.
+    if (g.authEmail && g.dobOnFile !== false) prefetchDepositIntent({ httpsBase: g.httpsBase, supabaseToken: authToken(g) });
     if (!!g.authEmail && g.dobOnFile === false) { g.askDobForDeposit(() => setRoute('deposit')); return; }
     setRoute('deposit');
   };

@@ -56,6 +56,30 @@ const CHECKOUT_THEME = {
 
 import { installId, installIdSync } from '../installId'; // B151: shared with App.js (register/queue carry it too)
 
+// ── B160: prefetch ───────────────────────────────────────────────────────────────────────────────
+// The button used to start its work when the sheet appeared, so the first second of the sheet was
+// spent on our HTTP round trip and then Coinflow's page load, in series. The tap that OPENS the sheet
+// starts the intent instead, so the round trip happens behind the modal's slide-in animation.
+// Quiet by design: no location/DOB prompt can come out of this, and it only ever asks for the default
+// amount. If the player types a different amount the component mints its own intent as before.
+let PRE = null;  // { key, amountCents, nonce, promise, at, used }
+const PRE_TTL_MS = 3 * 60 * 1000;        // under the server's 5-min session-key cache
+const DEFAULT_AMOUNT = '10';
+export function prefetchDepositIntent({ httpsBase, supabaseToken, amountCents = 1000 }) {
+  if (!httpsBase || !supabaseToken) return;
+  if (PRE && PRE.amountCents === amountCents && !PRE.used && Date.now() - PRE.at < PRE_TTL_MS) return;
+  const nonce = Crypto.randomUUID();
+  const idem = `${nonce}-${amountCents}`;
+  const promise = (async () => {
+    const deviceId = await installId();
+    const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supabaseToken, amountCents, idempotencyKey: idem, deviceId, method: 'applePay' }) });
+    const j = await res.json().catch(() => null);
+    return (res.ok && j && j.ok && !j.deduped) ? j : null;     // a deduped/in-flight row needs the component's polling, not a silent adopt
+  })().catch(() => null);
+  PRE = { amountCents, nonce, promise, at: Date.now(), used: false };
+}
+
 function humanError(code, j) {
   switch (code) {
     case 'cooldown': case 'rate_limited': return 'Too many attempts — try again in an hour';
@@ -77,7 +101,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const s = useScale();
   const env = (payments && payments.coinflow && payments.coinflow.env) || 'sandbox';      // never default to prod
   const merchantId = (payments && payments.coinflow && payments.coinflow.merchantId) || 'sensegame';
-  const [amount, setAmount] = useState('10');
+  const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [method, setMethod] = useState(METHODS[0]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lim, setLim] = useState(null);         // /api/deposit/limits
@@ -87,10 +111,14 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const [err, setErr] = useState('');
   const [overlay, setOverlay] = useState(false); // PayPal/Venmo approval modal is open — it needs the whole sheet
   const inFlightRef = useRef(false);
-  // One nonce per deposit attempt; the key sent to the server is nonce+amount+method, so changing
-  // the amount mints a new key and re-trying the same amount replays the same intent.
-  const idemNonce = useRef(Crypto.randomUUID());
-  const idemKey = (c, m) => `${idemNonce.current}-${c}-${m}`;
+  // One nonce per deposit attempt; the key sent to the server is nonce+amount, so changing the amount
+  // mints a new key and re-trying the same amount replays the same intent.
+  // B160: the METHOD is deliberately NOT part of the key or of the intent's identity. Coinflow's
+  // session key and our webhookInfo are rail-independent, so one intent serves Apple Pay, PayPal and
+  // Venmo at once — which is what lets all three buttons stay loaded and switching be instant. The
+  // rail the player actually chose is reported separately (/api/deposit/method) for the books.
+  const idemNonce = useRef((PRE && !PRE.used && Date.now() - PRE.at < PRE_TTL_MS) ? PRE.nonce : Crypto.randomUUID());
+  const idemKey = (c) => `${idemNonce.current}-${c}`;
   const pollingRef = useRef(false);
   const intentTimer = useRef(null);
   const typedRef = useRef(false);   // B146: true while the last amount change came from the keypad
@@ -142,16 +170,23 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // is quiet: it must never pop a system dialog while someone is still typing an amount.
   const ensureIntent = useCallback(async (loud) => {
     if (!canDeposit || !amountOk || inFlightRef.current) return null;
-    if (intent && intent.amountCents === cents && intent.method === method.id) return intent;
+    if (intent && intent.amountCents === cents) return intent;
     inFlightRef.current = true; if (loud) setBusy(true);
     try {
-      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents, method.id), deviceId: await installId(), method: method.id };
+      // The tap that opened the sheet may already have this in flight — join it instead of starting a second.
+      if (PRE && !PRE.used && PRE.amountCents === cents && PRE.nonce === idemNonce.current && Date.now() - PRE.at < PRE_TTL_MS) {
+        PRE.used = true;
+        const pj = await PRE.promise;
+        if (!alive.current) return null;
+        if (pj && pj.ok) { const next = { ...pj }; setIntent(next); setErr(''); return next; }
+      }
+      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents), deviceId: await installId(), method: method.id };
       const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j = await res.json().catch(() => ({}));
       if (!alive.current) return null;
       if (res.ok && j && j.ok) {
         if (j.deduped && j.status && j.status !== 'created' && j.status !== 'expired') { pollUntilSettled(j.depositId, cents); return null; }
-        const next = { ...j, method: method.id }; setIntent(next); setErr(''); return next;
+        const next = { ...j }; setIntent(next); setErr(''); return next;
       }
       if (loud && j && j.needGps && onNeedGps) { onNeedGps(() => ensureIntent(true)); return null; }
       if (loud && j && j.needDob && onNeedDob) { onNeedDob(() => ensureIntent(true)); return null; }
@@ -163,17 +198,35 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   }, [canDeposit, amountOk, cents, method, intent, supabaseToken, httpsBase, onNeedGps, onNeedDob]);
 
   // Debounced eager intent so the real Apple Pay button is mounted before the first tap.
+  // NOTE: `method` is not a dependency any more (B160) — switching rails must not touch the intent.
   useEffect(() => {
     if (intentTimer.current) clearTimeout(intentTimer.current);
     if (phase !== 'amount' || !amountOk || !canDeposit) return;
-    if (intent && (intent.amountCents !== cents || intent.method !== method.id)) setIntent(null);
+    if (intent && intent.amountCents !== cents) setIntent(null);
     intentTimer.current = setTimeout(() => { ensureIntent(false); }, typedRef.current ? INTENT_DEBOUNCE_MS : 0);
     return () => { if (intentTimer.current) clearTimeout(intentTimer.current); };
-  }, [cents, method, amountOk, canDeposit, phase]);
+  }, [cents, amountOk, canDeposit, phase]);
+
+  // Tell the server which rail was actually chosen. Cosmetic (it only labels the deposits row for the
+  // books), fire-and-forget, never gates the button.
+  useEffect(() => {
+    if (!intent || !intent.depositId || !supabaseToken) return;
+    fetch(`${httpsBase}/api/deposit/method`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supabaseToken, depositId: intent.depositId, method: method.id }) }).catch(() => {});
+  }, [intent && intent.depositId, method.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // B160: every brand button stays mounted once it has been shown, so switching back to it is instant.
+  // The SELECTED one mounts first and alone; the others follow once it has painted, so nothing competes
+  // with it for bandwidth on the open.
+  const [warm, setWarm] = useState([]);
+  const depositId = intent && intent.depositId;
+  useEffect(() => { setWarm([]); }, [depositId]);           // a new intent = new urls; start over
+  useEffect(() => { if (depositId && STANDALONE_METHODS.includes(method.id) && !warm.includes(method.id)) setWarm((w) => (w.includes(method.id) ? w : [...w, method.id])); }, [depositId, method.id, warm]);
+  const warmRest = useCallback(() => { if (depositId) setWarm((w) => (w.length >= STANDALONE_METHODS.length ? w : STANDALONE_METHODS.slice())); }, [depositId]);
 
   const onPaid = useCallback(() => { if (intent) pollUntilSettled(intent.depositId, intent.amountCents); }, [intent]); // eslint-disable-line react-hooks/exhaustive-deps
   async function openSheet() { // non-Apple-Pay methods: Coinflow's checkout with only that method
-    const it = intent && intent.amountCents === cents && intent.method === method.id ? intent : await ensureIntent(true);
+    const it = intent && intent.amountCents === cents ? intent : await ensureIntent(true);
     if (it) setPhase('checkout');
   }
 
@@ -181,7 +234,11 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const ctaBase = { marginHorizontal: 45 * s, borderRadius: 44 * s, height: 140 * s, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 16 * s };
   const shell = (children) => (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
-      <View style={{ flex: 1, backgroundColor: '#0B0E09', paddingTop: Platform.OS === 'ios' ? 18 * s : 30 * s }}>{children}</View>
+      {/* B160: the pay button and the terms line under it were sitting on the home indicator, which is
+          what clipped the PayPal button's bottom edge. A pageSheet gets no safe-area inset of its own
+          and this app does not carry safe-area-context, so the inset is explicit. */}
+      <View style={{ flex: 1, backgroundColor: '#0B0E09', paddingTop: Platform.OS === 'ios' ? 18 * s : 30 * s,
+        paddingBottom: Platform.OS === 'ios' ? 34 : 12 }}>{children}</View>
     </Modal>);
   const closeBtn = (
     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 40 * s }}>
@@ -230,7 +287,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   }
 
   // ── amount (Triumph order: close · balance · amount · METHOD · chips · keypad · pay · terms) ──
-  const intentReady = !!(intent && intent.amountCents === cents && intent.method === method.id);
+  const intentReady = !!(intent && intent.amountCents === cents);
   // Apple Pay / PayPal / Venmo have a real hosted button of their own; Cash App and crypto don't,
   // so those keep our labelled CTA that opens the checkout sheet.
   const isStandalone = STANDALONE_METHODS.includes(method.id) && amountOk && canDeposit;
@@ -275,19 +332,30 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           drops straight into it. If the intent FAILED we fall through to a tappable retry, or the
           player would be staring at a dead button (a location prompt lands here, for instance). */}
       {isStandalone && !intentReady && !err ? (
-        <CoinflowMethodButton inert method={method.id} color="white" height={140 * s} radius={44 * s}
+        <CoinflowMethodButton inert method={method.id} color="white" height={(method.id === 'applePay' ? 140 : 175) * s} radius={44 * s}
           inertColor={brand.bg} style={{ marginHorizontal: 45 * s }} />
       ) : showBrandButton ? (
-        // Coinflow's OWN hosted button for this brand — one tap, the brand's real mark and sheet.
-        // Keyed on the intent so a new amount remounts it with a fresh subtotal (see header note).
-        <CoinflowMethodButton key={intent.depositId + method.id} method={method.id} color="white" height={140 * s} radius={44 * s}
-          expanded={overlay} onOverlay={setOverlay} style={overlay ? undefined : { marginHorizontal: 45 * s }}
-          env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
-          sessionKey={intent.sessionKey} cents={intent.amountCents} webhookInfo={intent.webhookInfo}
-          email={(intent.checkout && intent.checkout.email) || signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME} // B156: the server's email from the login, so Apple Pay never asks for one
-          chargebackProtectionData={intent.checkout && intent.checkout.chargebackProtectionData}
-          chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
-          onApprove={onPaid} onError={() => setErr(method.label + ' could not start — try another method')} />
+        // Coinflow's OWN hosted button for each brand — one tap, the brand's real mark and sheet.
+        // B160: ALL the warmed brands render here; only the selected one is in the layout and tappable.
+        // Keyed on the intent (not the method) so a new amount remounts them with a fresh subtotal and
+        // a method switch remounts nothing at all.
+        <View style={overlay ? { position: 'relative', flex: 1 } : { position: 'relative' }}>
+          {(warm.length ? warm : [method.id]).map((mid) => {
+            const sel = mid === method.id;
+            return (
+              <CoinflowMethodButton key={intent.depositId + mid} hidden={!sel} method={mid} color="white"
+                height={(mid === 'applePay' ? 140 : 175) * s} radius={44 * s}
+                expanded={sel && overlay} onOverlay={sel ? setOverlay : undefined}
+                style={(sel && overlay) ? undefined : { marginHorizontal: 45 * s }}
+                env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
+                sessionKey={intent.sessionKey} cents={intent.amountCents} webhookInfo={intent.webhookInfo}
+                email={(intent.checkout && intent.checkout.email) || signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME} // B156: the server's email from the login, so Apple Pay never asks for one
+                chargebackProtectionData={intent.checkout && intent.checkout.chargebackProtectionData}
+                chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
+                onLoad={sel ? warmRest : undefined}
+                onApprove={onPaid} onError={sel ? (() => setErr(method.label + ' could not start — try another method')) : undefined} />);
+          })}
+        </View>
       ) : (
         <PressBtn onPress={isStandalone ? () => ensureIntent(true) : openSheet} disabled={!canDeposit || !amountOk || busy}
           style={[ctaBase, { backgroundColor: brand.bg, opacity: (!canDeposit || !amountOk || busy) ? 0.5 : 1 }]}>

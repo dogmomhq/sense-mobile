@@ -102,10 +102,20 @@ export const STANDALONE_METHODS = Object.keys(FORM_ROUTE);
 // `inert` draws the button's chrome with no WebView under it. The parent uses it while the deposit
 // intent is still being created — there is no session key to point a real button at yet — so the
 // live button drops into an identical box instead of replacing a differently-shaped one.
+// `hidden` keeps the WebView mounted and loading but takes it out of the layout and out of reach of
+// touches (B160). The parent mounts every brand button once and swaps which one is visible, so
+// changing payment method is instant instead of tearing down a WebView and loading a page again.
 export function CoinflowMethodButton({ method = 'applePay', color = 'white', height = 56, radius = 28, expanded = false,
-  inert = false, inertColor, onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
+  inert = false, inertColor, hidden = false, onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
   const ref = useRef(null);
   const isApple = method === 'applePay';
+  // B160: PayPal's and Venmo's own SDK draws a button taller than our pill (their mark plus the
+  // funding line), and the box clips — which is the bottom-cut-off button CJ saw. Coinflow's form
+  // page will report its real content height if we ask for it (`useHeightChange`), so the box grows
+  // to fit. The floor is generous enough that the button is whole even if that message never lands.
+  const [contentH, setContentH] = useState(0);
+  const heightId = useMemo(() => (isApple ? null : 'h' + Math.random().toString(36).slice(2, 8)), [isApple]);
+  const boxH = isApple ? height : Math.max(height, Math.min(contentH || 0, height * 2.2));
   // B146: `ready` = Coinflow's page has told us its button is up. Until then a tap lands on a WebView
   // that is still loading and does nothing — which read as "the button is broken". The pill is drawn
   // ONCE, white, and never changes colour or size; only a small spinner at the right edge says
@@ -113,7 +123,14 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   const [ready, setReady] = useState(false);
   // The identifier is deliberately kept OUT of the url (SDK does the same) and posted in after load,
   // so changing it never reloads the page.
-  const url = useMemo(() => coinflowUrl({ ...props, email: isApple ? email : undefined, which: 'form', routePrefix: 'form', route: FORM_ROUTE[method] || FORM_ROUTE.applePay }), [props, method, isApple, email]);
+  // NOTE: the url must NOT change when the parent re-renders, or the WebView reloads and the button
+  // goes dead for a second. `props` is spread by the caller, so depend on the fields, not the object.
+  const { env, merchantId, sessionKey, cents, webhookInfo, theme, deviceId, chargebackProtectionData, chargebackProtectionAccountType } = props;
+  const url = useMemo(() => coinflowUrl({ env, merchantId, sessionKey, cents, webhookInfo, theme, deviceId,
+    chargebackProtectionData, chargebackProtectionAccountType, email: isApple ? email : undefined,
+    which: 'form', routePrefix: 'form', route: FORM_ROUTE[method] || FORM_ROUTE.applePay, handleHeightChangeId: heightId || undefined }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [env, merchantId, sessionKey, cents, method, isApple, email, heightId, JSON.stringify(webhookInfo || null)]);
   const post = useCallback((msg) => { try { ref.current && ref.current.postMessage(msg); } catch {} }, []);
   const handleLoad = useCallback(() => {
     // iOS disables JS injection in a WebView with enableApplePay, so postMessage is a no-op there —
@@ -124,7 +141,17 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   }, [isApple, method, email, post, onLoad]);
   const onMessage = useCallback((ev) => {
     const raw = ev && ev.nativeEvent && ev.nativeEvent.data;
-    if (typeof raw === 'string') { try { const m = JSON.parse(raw); if (m && m.method === 'overlay' && onOverlay) onOverlay(m.data === 'open'); } catch {} }
+    if (typeof raw === 'string') {
+      try {
+        const m = JSON.parse(raw);
+        if (m && m.method === 'overlay' && onOverlay) onOverlay(m.data === 'open');
+        if (m && typeof m.method === 'string' && m.method.startsWith('heightChange')) {
+          const h = Number(m.data != null ? m.data : (m.info && m.info.height));
+          // CSS px ≈ pt here (the page is not zoomed); ignore nonsense so a bad message can't collapse the pill
+          if (Number.isFinite(h) && h > 20 && h < 2000) setContentH(Math.ceil(h));
+        }
+      } catch {}
+    }
     makeMessageHandler({ onLoad: handleLoad, onSuccess: onApprove, onError })(ev);
   }, [handleLoad, onApprove, onError, onOverlay]);
   // No width here: the view stretches to its parent, so the caller's horizontal margin is respected.
@@ -133,7 +160,10 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   // two before its button is styled, and the corners showed outside our pill as a white square. For Apple
   // Pay the WebView is also painted invisible — our chrome is the only visual; the WebView stays fully
   // tappable underneath (opacity does not block touches).
-  const box = [expanded ? { flex: 1 } : { height }, { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: 'hidden' }, style];
+  // `hidden` parks the view off-layout at full size so its page still loads and lays out; it cannot be
+  // touched and it occupies no space, so the visible button's position is unaffected.
+  const box = [expanded ? { flex: 1 } : { height: boxH }, { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: 'hidden' }, style,
+    hidden ? { position: 'absolute', left: 0, right: 0, bottom: 0, opacity: 0, zIndex: -1 } : null];
   const waiting = inert || !ready;
   // The one Apple Pay visual. Same JSX in the inert and live branches, at the same tree position, so
   // React keeps the very same view across the swap — nothing remounts, nothing flashes.
@@ -149,7 +179,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
         : <View style={[StyleSheet.absoluteFillObject, { borderRadius: radius, opacity: 0.35, backgroundColor: inertColor || 'rgba(245,241,230,0.14)' }]} />}
     </View>);
   return (
-    <View style={box}>
+    <View style={box} pointerEvents={hidden ? 'none' : 'auto'}>
       {isApple ? appleChrome : null}
       <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: isApple ? 0.02 : 1 }} originWhitelist={['*']}
         enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
