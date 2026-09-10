@@ -24,7 +24,7 @@
 // Protocol (page → native), from common/CoinflowLibMessageHandlers.js:
 //   loaded · success{info} · authDeclined{info} · inputError{info} · inputValid · heightChange:<id>
 //   rnredirect{info:{callbackUrl, flow?:'venmo'}} · accountLinked · overlay · redirect(data=url)
-import React, { useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { View, ActivityIndicator, Linking, Platform, Image, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import LZString from 'lz-string';
@@ -134,14 +134,30 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
     which: 'form', routePrefix: 'form', route: FORM_ROUTE[method] || FORM_ROUTE.applePay, handleHeightChangeId: heightId || undefined }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [env, merchantId, sessionKey, cents, method, isApple, email, heightId, JSON.stringify(webhookInfo || null)]);
-  const post = useCallback((msg) => { try { ref.current && ref.current.postMessage(msg); } catch {} }, []);
+  // B162 — THE VENMO BUG. react-native-webview's `postMessage` delivers as
+  //   window.dispatchEvent(new MessageEvent('message', {data}))
+  // which has NO origin. Coinflow's form page drops every message whose origin is empty (verified
+  // against sandbox.coinflow.cash: that exact event leaves the Venmo button at opacity-50 /
+  // pointer-events-none; a real `window.postMessage(msg, '*')`, which carries the page's own origin,
+  // enables it). PayPal's page is not gated on the identifier, which is why only Venmo looked dead.
+  // So the identifier is delivered by injecting a real postMessage into the page instead.
+  const post = useCallback((msg) => {
+    try { ref.current && ref.current.injectJavaScript(`window.postMessage(${JSON.stringify(msg)}, '*'); true;`); } catch {}
+  }, []);
+  const identifier = useCallback(() => {
+    if (isApple || !IDENTIFIER_MSG[method]) return;
+    post(JSON.stringify({ method: IDENTIFIER_MSG[method], email: email || undefined }));
+  }, [isApple, method, email, post]);
   const handleLoad = useCallback(() => {
-    // iOS disables JS injection in a WebView with enableApplePay, so postMessage is a no-op there —
-    // which is fine, the Apple Pay page takes everything from the url.
-    if (!isApple && IDENTIFIER_MSG[method]) post(JSON.stringify({ method: IDENTIFIER_MSG[method], email: email || undefined }));
+    // iOS disables JS injection in a WebView with enableApplePay — fine, that page takes everything
+    // from the url. For PayPal/Venmo the identifier goes in now and again shortly after, so a page
+    // that registers its listener a tick after it says `loaded` still gets it.
+    identifier();
+    setTimeout(identifier, 400); setTimeout(identifier, 1500);
     setReady(true);
     if (onLoad) onLoad();
-  }, [isApple, method, email, post, onLoad]);
+  }, [identifier, onLoad]);
+  useEffect(() => { if (ready) identifier(); }, [email]);   // eslint-disable-line react-hooks/exhaustive-deps  — live email change, like the SDK
   const onMessage = useCallback((ev) => {
     const raw = ev && ev.nativeEvent && ev.nativeEvent.data;
     if (typeof raw === 'string') {
