@@ -29,6 +29,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci || npm install
+      - name: GATE 0 — no undefined identifiers (B163)
+        # B161 shipped `useEffect` without importing it. That crashed EVERY signed-in player at boot
+        # and the simulator gate could not see it: the gate plays as a guest, and the component that
+        # threw only mounts for a signed-in account. A ReferenceError is a static fact — catch it
+        # before anything is published, not after a phone finds it.
+        run: |
+          npm i --no-save --no-audit --no-fund eslint@8 eslint-plugin-react@7 eslint-plugin-react-hooks@4 @babel/eslint-parser@7 @babel/preset-react@7
+          npx eslint --no-eslintrc -c .eslintrc.undef.json --rule '{"no-unused-vars":"off"}' \
+            App.js ./*.js screens/*.js screens/components/*.js
       - name: Publish OTA update (channel/branch preview)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

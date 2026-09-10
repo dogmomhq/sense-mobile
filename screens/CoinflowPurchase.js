@@ -157,7 +157,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
     setReady(true);
     if (onLoad) onLoad();
   }, [identifier, onLoad]);
-  useEffect(() => { if (ready) identifier(); }, [email]);   // eslint-disable-line react-hooks/exhaustive-deps  — live email change, like the SDK
+  useEffect(() => { if (ready) identifier(); }, [email]); // live email change, like the SDK // eslint-disable-line react-hooks/exhaustive-deps
   const onMessage = useCallback((ev) => {
     const raw = ev && ev.nativeEvent && ev.nativeEvent.data;
     if (typeof raw === 'string') {

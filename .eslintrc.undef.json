@@ -1,0 +1,42 @@
+{
+ "root": true,
+ "parser": "@babel/eslint-parser",
+ "parserOptions": {
+  "requireConfigFile": false,
+  "babelOptions": {
+   "presets": [
+    "@babel/preset-react"
+   ]
+  },
+  "ecmaVersion": 2022,
+  "sourceType": "module"
+ },
+ "env": {
+  "es2022": true,
+  "browser": true,
+  "node": true
+ },
+ "plugins": [
+  "react",
+  "react-hooks"
+ ],
+ "rules": {
+  "no-undef": "error",
+  "react/jsx-uses-vars": "error",
+  "react/jsx-uses-react": "error",
+  "no-unused-vars": [
+   "warn",
+   {
+    "args": "none",
+    "varsIgnorePattern": "^_"
+   }
+  ],
+  "react-hooks/exhaustive-deps": "off",
+  "react-hooks/rules-of-hooks": "off"
+ },
+ "globals": {
+  "__DEV__": "readonly",
+  "fetch": "readonly",
+  "requestAnimationFrame": "readonly"
+ }
+}
