@@ -58,11 +58,12 @@ export default function DepositScreen({
   onRefresh,                 // () => void — pull fresh balance + ledger after success
   onDone,                    // () => void — pop back to tabs
   onNeedDob,                 // (retry) => void — B48: server wants a DOB before first deposit
+  onNeedGps,                 // (retry) => void — B131: server wants a location fix before a deposit (per-game geo, same as play)
   payments,                  // 2026-09-08: { provider:'coinflow'|'checkout', coinflow:{env,merchantId} } from GET /api/tiers
 }) {
   if (payments && payments.provider === 'coinflow') {
     return <DepositCoinflow httpsBase={httpsBase} supabaseToken={supabaseToken} signedInEmail={signedInEmail} balance={balance} payments={payments}
-      onToast={onToast} onRefresh={onRefresh} onDone={onDone} onNeedDob={onNeedDob} />;
+      onToast={onToast} onRefresh={onRefresh} onDone={onDone} onNeedDob={onNeedDob} onNeedGps={onNeedGps} />;
   }
   return <DepositCheckout httpsBase={httpsBase} supabaseToken={supabaseToken} signedInEmail={signedInEmail} balance={balance}
     onToast={onToast} onRefresh={onRefresh} onDone={onDone} onNeedDob={onNeedDob} />;

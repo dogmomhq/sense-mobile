@@ -639,7 +639,8 @@ export default function ReskinApp({ g }) {
           onToast={(t, kind) => g.showToast(t, kind)}
           onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
           onDone={() => { setRoute('tabs'); g.setTab('home'); }}
-          onNeedDob={g.askDobForDeposit} />
+          onNeedDob={g.askDobForDeposit}
+          onNeedGps={g.askGpsForDeposit} />
       </AppShell>
     );
   } else if (route === 'withdraw') {

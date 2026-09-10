@@ -1432,6 +1432,28 @@ export default function App() {
   // B48: first-deposit DOB ask (universal 18+ floor). DepositScreen hands us a resume
   // callback that re-runs the deposit once the birthday is saved.
   function askDobForDeposit(resume) { dobDepositResume.current = resume; setDobErr(null); setDobAsk(true); }
+  // B131: the deposit surface hit needGps. The queue flow's 'gps-check' websocket reply RE-QUEUES A GAME,
+  // so a deposit posts its fix over HTTP and then retries the deposit itself. One retry, no loop.
+  async function askGpsForDeposit(resume) {
+    let Location;
+    try { Location = require('expo-location'); } catch (e) { showToast('This version can\u2019t verify location \u2014 update the app to deposit', 'error'); return; }
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location needed', 'Deposits require location to confirm your state allows real-money play.', [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Enable Location', onPress: () => { try { Linking.openSettings(); } catch (e) {} } },
+        ]);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const r = await fetch(`${HTTPS_BASE}/api/gps-fix`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabaseToken: supabaseTokenRef.current || '', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }) });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.ok) { showToast('Couldn\u2019t verify your location \u2014 try again', 'error'); return; }
+      if (resume) resume();
+    } catch (e) { showToast('Couldn\u2019t get your location \u2014 try again', 'error'); }
+  }
   function requeueOnline(src) {
     const s = stakeRef.current || 0;
     if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
@@ -1483,7 +1505,7 @@ export default function App() {
       // live state
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp, oppTier,
-      dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, dobOnFile,
+      dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, askGpsForDeposit, dobOnFile,
       balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
