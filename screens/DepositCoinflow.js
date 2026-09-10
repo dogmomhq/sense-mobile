@@ -1,7 +1,7 @@
 // ── DEPOSIT via COINFLOW HOSTED CHECKOUT (B131, 2026-09-10; supersedes the 2026-09-08 card form) ──
 // Apple Pay · PayPal · Venmo · Cash App · crypto — Coinflow's own checkout, Triumph-style. No raw
 // card entry, no ACH (settles in ~3 days). Flow, and the one rule that matters:
-//   pick amount → POST /api/deposit/intent { amountCents, idempotencyKey }
+//   keypad amount + method dropdown → POST /api/deposit/intent { amountCents, idempotencyKey, method }
 //     (server runs EVERY gate: $10 floor, per-deposit ceiling, geo, freeze, tier caps; creates the
 //      deposits row; mints the Coinflow session key)
 //   → CoinflowPurchase (WebView) with the amount LOCKED and webhookInfo = { depositId … }
@@ -13,19 +13,30 @@
 // no numbers of its own beyond STRICT fallbacks for the instant before that fetch lands.
 // Errors from the server are CODES; the copy lives here.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, InputAccessoryView, Keyboard, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 import PressBtn from './components/PressBtn';
 import CoinflowPurchase from './CoinflowPurchase';
+import AmountKeypad, { toCents } from './components/AmountKeypad';
+
+// B132: the method is picked HERE (Triumph-style dropdown) and CoinflowPurchase is told to show only that one.
+// Coinflow's enum names; the label is what the player sees. No raw card, no ACH — deliberate (DECISIONS 2026-09-10).
+const METHODS = [
+  { id: 'applePay', label: 'Apple Pay', glyph: '\uF8FF', cta: 'PAY WITH APPLE PAY' },
+  { id: 'paypal',   label: 'PayPal',    glyph: 'P',      cta: 'PAY WITH PAYPAL' },
+  { id: 'venmo',    label: 'Venmo',     glyph: 'V',      cta: 'PAY WITH VENMO' },
+  { id: 'cashApp',  label: 'Cash App',  glyph: '$',      cta: 'PAY WITH CASH APP' },
+  { id: 'crypto',   label: 'Crypto',    glyph: '\u20BF', cta: 'PAY WITH CRYPTO' },
+];
 
 // Fallbacks only — must never be MORE permissive than the server, or a chip could be offered that
 // the server then rejects.
 const DEFAULT_MIN = 1000;   // $10 — server MIN_DEPOSIT_CENTS
 const DEFAULT_MAX = 50000;  // $500 — unverified per-deposit ceiling
-const ALL_CHIPS = [1000, 2500, 5000, 10000, 50000, 100000]; // shown only where min <= chip <= max
+const ALL_CHIPS = [1000, 2000, 5000, 10000]; // Triumph's row; shown only where min <= chip <= max
 const POLL_MS = 2000, POLL_MAX_MS = 90000;               // PayPal/Venmo round-trips are slower than a card
 
 const dollars = (cents) => '$' + (cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2));
@@ -76,8 +87,9 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const s = useScale();
   const env = (payments && payments.coinflow && payments.coinflow.env) || 'sandbox';      // never default to prod
   const merchantId = (payments && payments.coinflow && payments.coinflow.merchantId) || 'sensegame';
-  const [amountCents, setAmountCents] = useState(2500);
-  const [custom, setCustom] = useState('');
+  const [amount, setAmount] = useState('10');            // keypad string (B132)
+  const [method, setMethod] = useState(METHODS[0]);       // chosen pay-in method
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [lim, setLim] = useState(null);         // { minCents, cardMaxCents, maxCents, remainingTodayCents, tier, verifiedTier } from /api/deposit/limits
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('amount'); // amount | checkout | processing
@@ -98,14 +110,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const CHIP_CENTS = ALL_CHIPS.filter((c) => c >= MIN_CENTS && c <= MAX_CENTS);
 
   const canDeposit = !!supabaseToken;
-  const onCustom = (t) => {
-    const clean = (t || '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-    setCustom(clean);
-    const v = Math.round(parseFloat(clean) * 100);
-    if (Number.isFinite(v) && v > 0) setAmountCents(Math.min(v, MAX_CENTS));
-  };
-  const pickChip = (c) => { setAmountCents(c); setCustom(''); idemRef.current = null; };
-  const effCents = Math.max(MIN_CENTS, Math.min(MAX_CENTS, amountCents || 0));
+  const effCents = toCents(amount);
   const amountOk = effCents >= MIN_CENTS && effCents <= MAX_CENTS;
   const formOk = canDeposit && amountOk && !busy;
 
@@ -144,7 +149,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     setErr(''); setBusy(true);
     try {
       if (!idemRef.current) idemRef.current = Crypto.randomUUID();
-      const body = { supabaseToken, amountCents: effCents, idempotencyKey: idemRef.current, deviceId: await installId() };
+      const body = { supabaseToken, amountCents: effCents, idempotencyKey: idemRef.current, deviceId: await installId(), method: method.id };
       let res, j;
       try { res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); j = await res.json().catch(() => ({})); }
       catch { throw new Error('Network error reaching the server — try again'); }
@@ -182,11 +187,6 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   }, []);
   const backToAmount = () => { setPhase('amount'); setIntent(null); setErr(''); };
 
-  const fieldStyle = {
-    borderWidth: 2 * s, borderColor: 'rgba(215,248,74,0.5)', borderRadius: 16 * s,
-    paddingVertical: 26 * s, paddingHorizontal: 32 * s, color: COLORS.cream,
-    fontFamily: FONTS.interBold, fontSize: 34 * s, letterSpacing: 0.04 * 34 * s, backgroundColor: 'rgba(16,20,13,0.55)',
-  };
   const labelStyle = { fontFamily: FONTS.interExtra, fontSize: 24 * s, color: COLORS.creamDim, letterSpacing: 0.1 * 24 * s, marginBottom: 14 * s, marginLeft: 6 * s };
 
   // ── checkout / processing: Coinflow's UI owns the screen ─────────────────────────────────────
@@ -211,7 +211,8 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         ) : (
           <View style={{ flex: 1, marginHorizontal: 24 * s, borderRadius: 24 * s, overflow: 'hidden', backgroundColor: '#10140D', borderWidth: 2 * s, borderColor: 'rgba(215,248,74,0.35)' }}>
             <CoinflowPurchase env={c.env || env} merchantId={c.merchantId || merchantId} sessionKey={intent.sessionKey} cents={intent.amountCents}
-              webhookInfo={intent.webhookInfo} email={c.email || signedInEmail || undefined} allowedPaymentMethods={c.allowedPaymentMethods}
+              webhookInfo={intent.webhookInfo} email={c.email || signedInEmail || undefined}
+              allowedPaymentMethods={(c.allowedPaymentMethods || []).includes(method.id) ? [method.id] : c.allowedPaymentMethods}
               chargebackProtectionData={c.chargebackProtectionData} chargebackProtectionAccountType={c.chargebackProtectionAccountType}
               deviceId={_installId || undefined} theme={CHECKOUT_THEME}
               onSuccess={onPaid} onExternalRedirect={onExternal} onAuthDeclined={onDeclined}
@@ -219,42 +220,44 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           </View>
         )}
         <Text style={{ fontFamily: FONTS.interSemi, fontSize: 22 * s, color: COLORS.creamDim, textAlign: 'center', letterSpacing: 0.06 * 22 * s, marginTop: 20 * s, marginBottom: 30 * s, marginHorizontal: 45 * s }}>
-          APPLE PAY · PAYPAL · VENMO · CASH APP · SECURED BY COINFLOW</Text>
+          {method.label.toUpperCase()} · SECURED BY COINFLOW</Text>
       </View>
     );
   }
 
   // ── amount ───────────────────────────────────────────────────────────────────────────────────
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 * s }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets={true}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 * s }}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 150 * s, color: COLORS.wordmark, textAlign: 'center', includeFontPadding: false, marginBottom: 16 * s }}>ADD FUNDS</Text>
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', gap: 16 * s, marginBottom: 40 * s }}>
         <Text style={{ fontFamily: FONTS.interBold, fontSize: 32 * s, color: COLORS.cream, letterSpacing: 0.08 * 32 * s }}>BALANCE</Text>
         <Text style={{ fontFamily: FONTS.interBlack, fontSize: 44 * s, color: COLORS.lime }}>{balance}</Text>
       </View>
 
-      <Text style={[labelStyle, { marginHorizontal: 45 * s }]}>AMOUNT</Text>
-      <View style={{ marginHorizontal: 45 * s, marginBottom: 22 * s, flexDirection: 'row', flexWrap: 'wrap', gap: 22 * s }}>
-        {CHIP_CENTS.map((c) => { const on = !custom && amountCents === c; return (
-          <PressBtn key={c} onPress={() => pickChip(c)} style={{ width: '47%', flexGrow: 1, alignItems: 'center', paddingVertical: 46 * s, borderRadius: RADII.answer * s, borderWidth: 2 * s,
-            borderColor: on ? COLORS.lime : 'rgba(215,248,74,0.4)', backgroundColor: on ? 'rgba(212,242,60,0.18)' : 'rgba(16,20,13,0.82)' }}>
-            <Text style={{ fontFamily: FONTS.anton, fontSize: 78 * s, color: on ? COLORS.lime : COLORS.cream, includeFontPadding: false }}>{dollars(c)}</Text>
-          </PressBtn>); })}
-      </View>
-      <View style={{ marginHorizontal: 45 * s, marginBottom: 36 * s }}>
-        <TextInput placeholder={`OR CUSTOM AMOUNT (${dollars(MIN_CENTS)}–${dollars(MAX_CENTS)})`} placeholderTextColor={COLORS.creamDim} value={custom ? '$' + custom : ''} onChangeText={(t) => { onCustom(t); idemRef.current = null; }}
-          keyboardType="decimal-pad" inputAccessoryViewID="cfDone" style={[fieldStyle, custom ? { borderColor: COLORS.lime } : null]} />
-      </View>
+      <AmountKeypad value={amount} onChange={(v) => { setAmount(v); idemRef.current = null; }} maxCents={MAX_CENTS} allowCents={false}
+        hint={`MIN ${dollars(MIN_CENTS)} · MAX ${dollars(MAX_CENTS)}${lim && Number.isInteger(lim.remainingTodayCents) ? ' · ' + dollars(lim.remainingTodayCents) + ' LEFT TODAY' : ''}`}
+        chips={CHIP_CENTS.map((c) => ({ label: dollars(c), cents: c }))} />
 
-      {Platform.OS === 'ios' ? (
-        <InputAccessoryView nativeID="cfDone">
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', backgroundColor: '#1a1d14', paddingVertical: 16 * s, paddingHorizontal: 18 * s, borderTopWidth: 1, borderTopColor: 'rgba(215,248,74,0.25)' }}>
-            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={16}>
-              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 42 * s, color: COLORS.lime, paddingHorizontal: 22 * s, paddingVertical: 8 * s }}>Done</Text>
-            </Pressable>
+      {/* method dropdown — Triumph's pill + sheet */}
+      <View style={{ alignItems: 'center', marginTop: 26 * s, marginBottom: 30 * s }}>
+        <Pressable onPress={() => setPickerOpen(true)} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 * s, paddingVertical: 20 * s, paddingHorizontal: 40 * s, borderRadius: 50 * s, backgroundColor: 'rgba(245,241,230,0.08)', borderWidth: 1.5 * s, borderColor: 'rgba(245,241,230,0.14)' }}>
+          <Text style={{ fontFamily: FONTS.interBlack, fontSize: 30 * s, color: COLORS.cream, includeFontPadding: false }}>{method.glyph}</Text>
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.cream }}>{method.label}</Text>
+          <Text style={{ fontFamily: FONTS.interBold, fontSize: 22 * s, color: COLORS.creamDim }}>▼</Text>
+        </Pressable>
+      </View>
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setPickerOpen(false)}>
+          <View style={{ width: '70%', backgroundColor: '#1A2418', borderRadius: 28 * s, overflow: 'hidden', borderWidth: 1.5 * s, borderColor: 'rgba(245,241,230,0.14)' }}>
+            {METHODS.map((m, i) => (
+              <Pressable key={m.id} onPress={() => { setMethod(m); setPickerOpen(false); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 28 * s, paddingHorizontal: 34 * s, borderTopWidth: i ? 1 : 0, borderTopColor: 'rgba(245,241,230,0.12)', backgroundColor: m.id === method.id ? 'rgba(212,242,60,0.12)' : 'transparent' }}>
+                <Text style={{ fontFamily: FONTS.interSemi, fontSize: 32 * s, color: COLORS.cream }}>{m.label}</Text>
+                <Text style={{ fontFamily: FONTS.interBlack, fontSize: 30 * s, color: m.id === method.id ? COLORS.lime : COLORS.cream, includeFontPadding: false }}>{m.glyph}</Text>
+              </Pressable>))}
           </View>
-        </InputAccessoryView>
-      ) : null}
+        </Pressable>
+      </Modal>
+
 
       {env !== 'prod' ? (
         <View style={{ marginHorizontal: 45 * s, marginBottom: 30 * s, backgroundColor: 'rgba(212,242,60,0.10)', borderWidth: 1.5 * s, borderColor: 'rgba(215,248,74,0.35)', borderRadius: 16 * s, paddingVertical: 20 * s, paddingHorizontal: 26 * s }}>
@@ -272,7 +275,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         style={{ opacity: formOk ? 1 : 0.5, marginHorizontal: 45 * s, backgroundColor: COLORS.lime, borderRadius: RADII.cta * s, paddingVertical: 44 * s, alignItems: 'center',
           flexDirection: 'row', justifyContent: 'center', gap: 18 * s, shadowColor: '#000', shadowOffset: { width: 0, height: 10 * s }, shadowRadius: 30 * s, shadowOpacity: 0.55, elevation: 10 }}>
         {busy ? <ActivityIndicator color="#10140C" /> : <CheckIcon size={48 * s} />}
-        <Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C', letterSpacing: 0.03 * 60 * s, includeFontPadding: false }}>{busy ? 'ONE SEC…' : 'CONTINUE · ' + dollars(effCents)}</Text>
+        <Text style={{ fontFamily: FONTS.anton, fontSize: 60 * s, color: '#10140C', letterSpacing: 0.03 * 60 * s, includeFontPadding: false }}>{busy ? 'ONE SEC…' : method.cta + ' · ' + dollars(effCents)}</Text>
       </PressBtn>
 
       <Text style={{ fontFamily: FONTS.interSemi, fontSize: 22 * s, color: COLORS.creamDim, textAlign: 'center', letterSpacing: 0.06 * 22 * s, marginTop: 26 * s, marginHorizontal: 45 * s }}>
