@@ -50,7 +50,7 @@ const dollars = (cents) => '$' + (cents % 100 === 0 ? String(cents / 100) : (cen
 // Coinflow's theme object so the hosted checkout matches the app.
 const CHECKOUT_THEME = {
   background: '#10140D', cardBackground: '#10140D', backgroundAccent: '#1A2418', backgroundAccent2: '#1A2418',
-  textColor: '#F5F1E6', textColorAccent: 'rgba(245,241,230,0.7)', textColorAction: '#D4F23C', placeholderColor: 'rgba(245,241,230,0.4)',
+  textColor: '#F5F1E6', textColorAccent: 'rgba(245,241,230,0.7)', textColorAction: '#10140D', placeholderColor: 'rgba(245,241,230,0.4)',
   primary: '#D4F23C', ctaColor: '#D4F23C', style: 'rounded', fontSize: '18px', fontWeight: '600',
 };
 
