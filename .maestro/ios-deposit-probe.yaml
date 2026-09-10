@@ -1,0 +1,40 @@
+appId: com.dogmomhq.sensemobile
+# B164 DEPOSIT PROBE — no wager. The robot (signed in, seeded) taps the balance pill, which opens the
+# deposit sheet. With sense_debug_deposit=1 the sheet stamps every phase of the pay button's life on
+# screen (ms since open): intent, mount, url, loadStart, loadEnd, loadedMsg. Screenshots every ~1.5s
+# ARE the measurement. Then PayPal and Venmo are selected so their lit/disabled state is captured too.
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "PLAY NOW"
+    timeout: 45000
+- extendedWaitUntil:
+    visible: "BALANCE"
+    timeout: 20000
+- takeScreenshot: shots/dep-00-home
+- tapOn: "BALANCE"
+- takeScreenshot: shots/dep-01
+- extendedWaitUntil: { visible: "Apple Pay", timeout: 10000 }
+- takeScreenshot: shots/dep-02
+- takeScreenshot: shots/dep-03
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 2000, optional: true }
+- takeScreenshot: shots/dep-04
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 2000, optional: true }
+- takeScreenshot: shots/dep-05
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 3000, optional: true }
+- takeScreenshot: shots/dep-06
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 4000, optional: true }
+- takeScreenshot: shots/dep-07-applepay-12s
+- tapOn: "Apple Pay"
+- tapOn: "PayPal"
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 4000, optional: true }
+- takeScreenshot: shots/dep-08-paypal
+- tapOn: "PayPal"
+- tapOn: "Venmo"
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 4000, optional: true }
+- takeScreenshot: shots/dep-09-venmo
+- tapOn: "Venmo"
+- tapOn: "Apple Pay"
+- extendedWaitUntil: { visible: "NEVER-VISIBLE-SENTINEL", timeout: 2000, optional: true }
+- takeScreenshot: shots/dep-10-back-to-applepay

@@ -218,11 +218,21 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // B160: every brand button stays mounted once it has been shown, so switching back to it is instant.
   // The SELECTED one mounts first and alone; the others follow once it has painted, so nothing competes
   // with it for bandwidth on the open.
+  // B164: keyed on the METHOD only — a new intent is a new url loaded into the same WebView, and the
+  // selected button is born as the inert placeholder and goes live in place. Nothing ever remounts.
   const [warm, setWarm] = useState([]);
   const depositId = intent && intent.depositId;
-  useEffect(() => { setWarm([]); }, [depositId]);           // a new intent = new urls; start over
-  useEffect(() => { if (depositId && STANDALONE_METHODS.includes(method.id) && !warm.includes(method.id)) setWarm((w) => (w.includes(method.id) ? w : [...w, method.id])); }, [depositId, method.id, warm]);
-  const warmRest = useCallback(() => { if (depositId) setWarm((w) => (w.length >= STANDALONE_METHODS.length ? w : STANDALONE_METHODS.slice())); }, [depositId]);
+  useEffect(() => { if (STANDALONE_METHODS.includes(method.id)) setWarm((w) => (w.includes(method.id) ? w : [...w, method.id])); }, [method.id]);
+  const warmRest = useCallback(() => { setWarm((w) => (w.length >= STANDALONE_METHODS.length ? w : STANDALONE_METHODS.slice())); }, []);
+  // B164 DEBUG TIMELINE — only when the simulator rig (or CJ) sets AsyncStorage sense_debug_deposit=1.
+  // Every phase of the button's life is stamped in ms since the sheet opened and drawn on screen, so a
+  // screenshot IS the measurement. Invisible otherwise.
+  const [dbg, setDbg] = useState(false);
+  const t0 = useRef(Date.now());
+  const [tl, setTl] = useState([]);
+  useEffect(() => { AsyncStorage.getItem('sense_debug_deposit').then((v) => { if (alive.current && v === '1') setDbg(true); }).catch(() => {}); }, []);
+  const stamp = useCallback((label) => { const t = Date.now() - t0.current; console.log('[deposit-tl]', label, t); setTl((x) => (x.length > 40 ? x : [...x, `${label}@${t}`])); }, []);
+  useEffect(() => { if (depositId) stamp('intent:' + (PRE && PRE.used ? 'prefetched' : 'fresh')); }, [depositId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPaid = useCallback(() => { if (intent) pollUntilSettled(intent.depositId, intent.amountCents); }, [intent]); // eslint-disable-line react-hooks/exhaustive-deps
   async function openSheet() { // non-Apple-Pay methods: Coinflow's checkout with only that method
@@ -291,9 +301,9 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // Apple Pay / PayPal / Venmo have a real hosted button of their own; Cash App and crypto don't,
   // so those keep our labelled CTA that opens the checkout sheet.
   const isStandalone = STANDALONE_METHODS.includes(method.id) && amountOk && canDeposit;
-  const showBrandButton = isStandalone && intentReady;
   return shell(<>
     {overlay ? null : closeBtn}
+    {dbg ? <Text style={{ fontFamily: FONTS.interSemi, fontSize: 16 * s, color: '#D4F23C', marginHorizontal: 30 * s }}>{tl.join('  ')}</Text> : null}
     {overlay ? null : balancePill}
     {overlay ? null : (<View style={{ flex: 1, justifyContent: 'center' }}>
       <Text style={{ fontFamily: FONTS.anton, fontSize: 200 * s, color: COLORS.cream, textAlign: 'center', includeFontPadding: false }} numberOfLines={1} adjustsFontSizeToFit>
@@ -331,28 +341,24 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           nothing to point it at yet, so the same pill renders dimmed and inert and the live button
           drops straight into it. If the intent FAILED we fall through to a tappable retry, or the
           player would be staring at a dead button (a location prompt lands here, for instance). */}
-      {isStandalone && !intentReady && !err ? (
-        <CoinflowMethodButton inert method={method.id} color="white" height={method.id === 'applePay' ? 140 * s : 49} radius={44 * s}
-          inertColor={brand.bg} style={{ marginHorizontal: 45 * s }} />
-      ) : showBrandButton ? (
+      {isStandalone && (!err || intentReady) ? (
         // Coinflow's OWN hosted button for each brand — one tap, the brand's real mark and sheet.
         // B160: ALL the warmed brands render here; only the selected one is in the layout and tappable.
-        // Keyed on the intent (not the method) so a new amount remounts them with a fresh subtotal and
-        // a method switch remounts nothing at all.
+        // B164: keyed on the method, born inert, goes live in place when the intent lands.
         <View style={overlay ? { position: 'relative', flex: 1 } : { position: 'relative' }}>
           {(warm.length ? warm : [method.id]).map((mid) => {
             const sel = mid === method.id;
+            const c = (intentReady && intent.checkout) || {};
             return (
-              <CoinflowMethodButton key={intent.depositId + mid} hidden={!sel} method={mid} color="white"
+              <CoinflowMethodButton key={mid} hidden={!sel} inert={!intentReady} inertColor={(BRAND[mid] || BRAND.crypto).bg} method={mid} color="white"
                 height={mid === 'applePay' ? 140 * s : 49} radius={44 * s}   // 49pt = Coinflow's own #height-ref for the brand form pages (B161)
                 expanded={sel && overlay} onOverlay={sel ? setOverlay : undefined}
                 style={(sel && overlay) ? undefined : { marginHorizontal: 45 * s }}
-                env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
-                sessionKey={intent.sessionKey} cents={intent.amountCents} webhookInfo={intent.webhookInfo}
-                email={(intent.checkout && intent.checkout.email) || signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME} // B156: the server's email from the login, so Apple Pay never asks for one
-                chargebackProtectionData={intent.checkout && intent.checkout.chargebackProtectionData}
-                chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
-                onLoad={sel ? warmRest : undefined}
+                env={c.env || env} merchantId={c.merchantId || merchantId}
+                sessionKey={intentReady ? intent.sessionKey : undefined} cents={intentReady ? intent.amountCents : undefined} webhookInfo={intentReady ? intent.webhookInfo : undefined}
+                email={c.email || signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME} // B156: the server's email from the login, so Apple Pay never asks for one
+                chargebackProtectionData={c.chargebackProtectionData} chargebackProtectionAccountType={c.chargebackProtectionAccountType}
+                onLoad={sel ? warmRest : undefined} onEvent={(name) => stamp(mid + ':' + name)}
                 onApprove={onPaid} onError={sel ? (() => setErr(method.label + ' could not start — try another method')) : undefined} />);
           })}
         </View>

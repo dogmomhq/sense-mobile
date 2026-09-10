@@ -106,8 +106,10 @@ export const STANDALONE_METHODS = Object.keys(FORM_ROUTE);
 // touches (B160). The parent mounts every brand button once and swaps which one is visible, so
 // changing payment method is instant instead of tearing down a WebView and loading a page again.
 export function CoinflowMethodButton({ method = 'applePay', color = 'white', height = 56, radius = 28, expanded = false,
-  inert = false, inertColor, hidden = false, onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
+  inert = false, inertColor, hidden = false, onApprove, onError, onLoad, onOverlay, onEvent, style, email, ...props }) {
   const ref = useRef(null);
+  const ev = useCallback((name) => { try { onEvent && onEvent(name); } catch {} }, [onEvent]);
+  useEffect(() => { ev('mount'); return () => ev('unmount'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const isApple = method === 'applePay';
   // B161: MEASURED, not guessed. Coinflow's form page carries a `#height-ref` element and that is
   // exactly what its `useHeightChange` reports; loading /form/solana/paypal/… at phone width it is
@@ -129,11 +131,15 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   // NOTE: the url must NOT change when the parent re-renders, or the WebView reloads and the button
   // goes dead for a second. `props` is spread by the caller, so depend on the fields, not the object.
   const { env, merchantId, sessionKey, cents, webhookInfo, theme, deviceId, chargebackProtectionData, chargebackProtectionAccountType } = props;
-  const url = useMemo(() => coinflowUrl({ env, merchantId, sessionKey, cents, webhookInfo, theme, deviceId,
+  const url = useMemo(() => !sessionKey ? null : coinflowUrl({ env, merchantId, sessionKey, cents, webhookInfo, theme, deviceId,
     chargebackProtectionData, chargebackProtectionAccountType, email: isApple ? email : undefined,
     which: 'form', routePrefix: 'form', route: FORM_ROUTE[method] || FORM_ROUTE.applePay, handleHeightChangeId: heightId || undefined }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [env, merchantId, sessionKey, cents, method, isApple, email, heightId, JSON.stringify(webhookInfo || null)]);
+  // B164: ONE instance for the life of the sheet. It is born inert (no intent yet), goes live in place
+  // when the url arrives, and a new amount is a new url loaded into the SAME WebView. Nothing remounts,
+  // so the pill can never blink. `ready` follows the url.
+  useEffect(() => { setReady(false); if (url) ev('url'); }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
   // B162 — THE VENMO BUG. react-native-webview's `postMessage` delivers as
   //   window.dispatchEvent(new MessageEvent('message', {data}))
   // which has NO origin. Coinflow's form page drops every message whose origin is empty (verified
@@ -149,6 +155,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
     post(JSON.stringify({ method: IDENTIFIER_MSG[method], email: email || undefined }));
   }, [isApple, method, email, post]);
   const handleLoad = useCallback(() => {
+    ev('loadedMsg');
     // iOS disables JS injection in a WebView with enableApplePay — fine, that page takes everything
     // from the url. For PayPal/Venmo the identifier goes in now and again shortly after, so a page
     // that registers its listener a tick after it says `loaded` still gets it.
@@ -156,7 +163,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
     setTimeout(identifier, 400); setTimeout(identifier, 1500);
     setReady(true);
     if (onLoad) onLoad();
-  }, [identifier, onLoad]);
+  }, [identifier, onLoad, ev]);
   useEffect(() => { if (ready) identifier(); }, [email]); // live email change, like the SDK // eslint-disable-line react-hooks/exhaustive-deps
   const onMessage = useCallback((ev) => {
     const raw = ev && ev.nativeEvent && ev.nativeEvent.data;
@@ -189,26 +196,28 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   const box = [expanded ? { flex: 1 } : { height: boxH },
     { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: masked ? 'hidden' : 'visible' }, style,
     hidden ? { position: 'absolute', left: 0, right: 0, bottom: 0, opacity: 0, zIndex: -1 } : null];
-  const waiting = inert || !ready;
-  // The one Apple Pay visual. Same JSX in the inert and live branches, at the same tree position, so
-  // React keeps the very same view across the swap — nothing remounts, nothing flashes.
+  const live = !inert && !!url;
+  const waiting = !live || !ready;
+  // The one Apple Pay visual, always at the same tree position — React keeps the very same view from
+  // inert through live, so nothing remounts and nothing flashes.
   const appleChrome = (
     <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius,
       backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
       <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
       {waiting ? <ActivityIndicator size="small" color={color === 'white' ? '#000000' : '#FFFFFF'} style={{ position: 'absolute', right: height * 0.3 }} /> : null}
     </View>);
-  if (inert) return (
-    <View style={box}>
-      {isApple ? appleChrome
-        : <View style={[StyleSheet.absoluteFillObject, { borderRadius: radius, opacity: 0.35, backgroundColor: inertColor || 'rgba(245,241,230,0.14)' }]} />}
-    </View>);
   return (
     <View style={box} pointerEvents={hidden ? 'none' : 'auto'}>
-      {isApple ? appleChrome : null}
-      <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: isApple ? 0.02 : 1 }} originWhitelist={['*']}
-        enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
-        scrollEnabled={expanded} onMessage={onMessage} onLoadEnd={() => setReady(true)} onError={() => onError && onError('load')} />
+      {isApple ? appleChrome
+        : (!live ? <View style={[StyleSheet.absoluteFillObject, { borderRadius: radius, opacity: 0.35, backgroundColor: inertColor || 'rgba(245,241,230,0.14)' }]} /> : null)}
+      {live ? (
+        <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: isApple ? 0.02 : 1 }} originWhitelist={['*']}
+          enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
+          scrollEnabled={expanded} onMessage={onMessage}
+          onLoadStart={() => ev('loadStart')}
+          onLoadEnd={() => { ev('loadEnd'); setReady(true); }}
+          onError={() => { ev('error'); onError && onError('load'); }} />
+      ) : null}
     </View>);
 }
 

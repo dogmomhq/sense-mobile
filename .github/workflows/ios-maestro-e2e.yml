@@ -12,6 +12,10 @@ on:
         description: "Also run the paid $0.50 credits match (real ledger, auto-cleaned)"
         required: false
         default: "false"
+      run_deposit_probe:
+        description: "B164: sign the robot in, open the deposit sheet, stamp the pay button's load timeline on screen (no wager)"
+        required: false
+        default: "false"
       sim_location:
         description: "Simulator GPS as lat,lon. Default Fort Lauderdale FL (allowed). Try 42.3314,-83.0458 (Detroit MI) to prove the blocked-state refusal."
         required: false
@@ -172,7 +176,7 @@ jobs:
 
       - name: Paid setup (accounts + seed + flag)
         id: paidsetup
-        if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
+        if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true' || github.event.inputs.run_deposit_probe == 'true'
         env:
           SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
@@ -183,9 +187,10 @@ jobs:
           node e2e/paid-setup.mjs
 
       - name: Fresh install + inject robot session
-        if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
+        if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true' || github.event.inputs.run_deposit_probe == 'true'
         env:
           SIM_LOCATION: ${{ github.event.inputs.sim_location }}
+          PROBE: ${{ github.event.inputs.run_deposit_probe }}
         run: |
           set -e
           # fresh container purges the practice-era device account
@@ -220,10 +225,18 @@ jobs:
             rm -rf "$D"
             mkdir -p "$D"
             cp /tmp/e2e-session.json "$D/$H"
-            python3 -c "import json,os,sys; d,key,h=sys.argv[1],sys.argv[2],sys.argv[3]; json.dump({key: None, 'sense_balance': '300', 'sense_handle': h}, open(os.path.join(d,'manifest.json'),'w'))" "$D" "$KEY" "$HANDLE"
+            python3 -c "import json,os,sys; d,key,h=sys.argv[1],sys.argv[2],sys.argv[3]; json.dump({key: None, 'sense_balance': '300', 'sense_handle': h, **({'sense_debug_deposit': '1'} if os.environ.get('PROBE') == 'true' else {})}, open(os.path.join(d,'manifest.json'),'w'))" "$D" "$KEY" "$HANDLE"
             echo "seeded store: $D"
           done
           echo "injected session, handle=$HANDLE"
+
+      - name: Deposit probe (B164 — signed-in robot opens the sheet; the button's load timeline is on screen)
+        if: github.event.inputs.run_deposit_probe == 'true'
+        run: |
+          mkdir -p shots
+          maestro test .maestro/ios-deposit-probe.yaml || echo "probe flow ended non-zero (screenshots still collected)"
+          { find . -maxdepth 2 -name "dep-*.png" -not -path "./shots/*" 2>/dev/null; find "$HOME/.maestro" -name "dep-*.png" 2>/dev/null; } | while read -r f; do cp -n "$f" shots/ 2>/dev/null || true; done
+          echo "=== deposit timeline (console) ==="; grep -a "deposit-tl" shots/app.log | tail -80 || true
 
       - name: Paid queue gate (no real players waiting)
         if: github.event_name == 'schedule' || github.event.inputs.run_paid == 'true'
