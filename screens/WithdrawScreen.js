@@ -17,6 +17,7 @@ import { supabase } from '../supabaseClient';
 import { COLORS, FONTS, RADII, useScale } from './theme';
 import PressBtn from './components/PressBtn';
 import AmountKeypad, { toCents } from './components/AmountKeypad';
+import PayLogo from './components/PayLogo';
 
 const LINK_RETURN = 'https://dogmomhq.github.io/sense-legal/linked.html'; // Coinflow bounces here after linking; we intercept it
 const RED = '#FF5A48';
@@ -26,10 +27,10 @@ const digits = (s) => (s || '').replace(/\D+/g, '');
 // The four rows, in Triumph's order. `kind` matches the server's destination.kind; `link` is how an
 // unlinked row gets linked; fee/speed copy mirrors lib/withdraw-fees.js (3% min $2; bank free).
 const METHODS = [
-  { kind: 'paypal', title: 'PayPal',       fee: '3% or $2 min',  speed: 'INSTANT',   link: 'paypal', glyph: 'P' },
-  { kind: 'venmo',  title: 'Venmo',        fee: '3% or $2 min',  speed: 'INSTANT',   link: 'venmo',  glyph: 'V' },
-  { kind: 'card',   title: 'Debit card',   fee: '3% or $2 min',  speed: 'INSTANT',   link: 'card',   glyph: '▭' },
-  { kind: 'bank',   title: 'Bank account', fee: 'No fee',        speed: '1–3 DAYS',  link: 'bank',   glyph: '⌂' },
+  { kind: 'paypal', title: 'PayPal',       fee: '3% or $2 min',  speed: 'INSTANT',   link: 'paypal' },
+  { kind: 'venmo',  title: 'Venmo',        fee: '3% or $2 min',  speed: 'INSTANT',   link: 'venmo'  },
+  { kind: 'card',   title: 'Debit card',   fee: '3% or $2 min',  speed: 'INSTANT',   link: 'card'   },
+  { kind: 'bank',   title: 'Bank account', fee: 'No fee',        speed: '1–3 DAYS',  link: 'bank'   },
 ];
 const speedLabel = (sp) => sp === 'card' || sp === 'asap' || sp === 'paypal' || sp === 'venmo' ? 'INSTANT' : sp === 'same_day' ? 'SAME DAY' : '1–3 DAYS';
 const kindLabel = (k) => (METHODS.find((m) => m.kind === k) || {}).title || k;
@@ -287,9 +288,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
           const sub = m.fee + (d ? ' · ' + (d.alias || (d.last4 ? '••' + d.last4 : 'linked')) : '');
           return (
             <PressBtn key={m.kind} onPress={() => pickMethod(m)} style={{ marginHorizontal: 45 * s, marginBottom: 20 * s, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,241,230,0.06)', borderRadius: 32 * s, paddingVertical: 30 * s, paddingHorizontal: 30 * s, borderWidth: 1.5 * s, borderColor: d ? 'rgba(215,248,74,0.35)' : 'rgba(245,241,230,0.10)' }}>
-              <View style={{ width: 96 * s, height: 96 * s, borderRadius: 48 * s, backgroundColor: 'rgba(245,241,230,0.10)', alignItems: 'center', justifyContent: 'center', marginRight: 28 * s }}>
-                <Text style={{ fontFamily: FONTS.interBlack, fontSize: 40 * s, color: d ? COLORS.lime : COLORS.cream, includeFontPadding: false }}>{m.glyph}</Text>
-              </View>
+              <View style={{ width: 96 * s, alignItems: 'center', marginRight: 28 * s }}><PayLogo id={m.kind} size={40 * s} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: COLORS.cream }}>{m.title}</Text>
                 <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginTop: 6 * s }} numberOfLines={2}>{sub}</Text>
