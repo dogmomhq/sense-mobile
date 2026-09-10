@@ -106,6 +106,11 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   inert = false, inertColor, onApprove, onError, onLoad, onOverlay, style, email, ...props }) {
   const ref = useRef(null);
   const isApple = method === 'applePay';
+  // B146: `ready` = Coinflow's page has told us its button is up. Until then a tap lands on a WebView
+  // that is still loading and does nothing — which read as "the button is broken". The pill is drawn
+  // ONCE, white, and never changes colour or size; only a small spinner at the right edge says
+  // "not yet", and it disappears the moment the real button underneath can take the tap.
+  const [ready, setReady] = useState(false);
   // The identifier is deliberately kept OUT of the url (SDK does the same) and posted in after load,
   // so changing it never reloads the page.
   const url = useMemo(() => coinflowUrl({ ...props, email: isApple ? email : undefined, which: 'form', routePrefix: 'form', route: FORM_ROUTE[method] || FORM_ROUTE.applePay }), [props, method, isApple, email]);
@@ -114,6 +119,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
     // iOS disables JS injection in a WebView with enableApplePay, so postMessage is a no-op there —
     // which is fine, the Apple Pay page takes everything from the url.
     if (!isApple && IDENTIFIER_MSG[method]) post(JSON.stringify({ method: IDENTIFIER_MSG[method], email: email || undefined }));
+    setReady(true);
     if (onLoad) onLoad();
   }, [isApple, method, email, post, onLoad]);
   const onMessage = useCallback((ev) => {
@@ -124,22 +130,26 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   // No width here: the view stretches to its parent, so the caller's horizontal margin is respected.
   // Setting width:'100%' AND a margin made the button wider than the screen.
   const box = [expanded ? { flex: 1 } : { height }, { position: 'relative' }, style];
-  const appleChrome = (o) => (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius, opacity: o,
+  const waiting = inert || !ready;
+  // The one Apple Pay visual. Same JSX in the inert and live branches, at the same tree position, so
+  // React keeps the very same view across the swap — nothing remounts, nothing flashes.
+  const appleChrome = (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius,
       backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
       <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
+      {waiting ? <ActivityIndicator size="small" color={color === 'white' ? '#000000' : '#FFFFFF'} style={{ position: 'absolute', right: height * 0.3 }} /> : null}
     </View>);
   if (inert) return (
     <View style={box}>
-      {isApple ? appleChrome(0.45)
+      {isApple ? appleChrome
         : <View style={[StyleSheet.absoluteFillObject, { borderRadius: radius, opacity: 0.35, backgroundColor: inertColor || 'rgba(245,241,230,0.14)' }]} />}
     </View>);
   return (
     <View style={box}>
-      {isApple ? appleChrome(1) : null}
+      {isApple ? appleChrome : null}
       <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent' }} originWhitelist={['*']}
         enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
-        scrollEnabled={expanded} onMessage={onMessage} onError={() => onError && onError('load')} />
+        scrollEnabled={expanded} onMessage={onMessage} onLoadEnd={() => setReady(true)} onError={() => onError && onError('load')} />
     </View>);
 }
 

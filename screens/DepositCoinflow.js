@@ -43,7 +43,7 @@ const DEFAULT_MIN = 1000;   // $10 — server MIN_DEPOSIT_CENTS
 const DEFAULT_MAX = 50000;  // $500 — unverified per-deposit ceiling
 const ALL_CHIPS = [1000, 2000, 5000, 10000];
 const POLL_MS = 2000, POLL_MAX_MS = 90000;
-const INTENT_DEBOUNCE_MS = 400;   // time spent on the inert button before the live one lands
+const INTENT_DEBOUNCE_MS = 400;   // only while the player is TYPING an amount; a chip tap or the sheet opening fires at once (B146)
 
 const dollars = (cents) => '$' + (cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2));
 
@@ -102,6 +102,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const idemKey = (c, m) => `${idemNonce.current}-${c}-${m}`;
   const pollingRef = useRef(false);
   const intentTimer = useRef(null);
+  const typedRef = useRef(false);   // B146: true while the last amount change came from the keypad
   const alive = useRef(true);
   useEffect(() => { installId(); return () => { alive.current = false; if (intentTimer.current) clearTimeout(intentTimer.current); }; }, []);
   useEffect(() => {
@@ -175,7 +176,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     if (intentTimer.current) clearTimeout(intentTimer.current);
     if (phase !== 'amount' || !amountOk || !canDeposit) return;
     if (intent && (intent.amountCents !== cents || intent.method !== method.id)) setIntent(null);
-    intentTimer.current = setTimeout(() => { ensureIntent(false); }, INTENT_DEBOUNCE_MS);
+    intentTimer.current = setTimeout(() => { ensureIntent(false); }, typedRef.current ? INTENT_DEBOUNCE_MS : 0);
     return () => { if (intentTimer.current) clearTimeout(intentTimer.current); };
   }, [cents, method, amountOk, canDeposit, phase]);
 
@@ -268,13 +269,13 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     {overlay || !CHIP_CENTS.length ? null : (
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 * s, marginHorizontal: 40 * s, marginBottom: 8 * s }}>
         {CHIP_CENTS.map((c) => { const on = cents === c; return (
-          <Pressable key={c} onPress={() => setAmount(String(c / 100))} style={{ flex: 1, alignItems: 'center', paddingVertical: 26 * s, borderRadius: 40 * s,
+          <Pressable key={c} onPress={() => { typedRef.current = false; setAmount(String(c / 100)); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 26 * s, borderRadius: 40 * s,
             backgroundColor: on ? 'rgba(212,242,60,0.18)' : 'rgba(245,241,230,0.08)', borderWidth: on ? 2 * s : 0, borderColor: COLORS.lime }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: on ? COLORS.lime : COLORS.cream }}>{dollars(c)}</Text>
           </Pressable>); })}
       </View>)}
 
-    {overlay ? null : <AmountKeypad value={amount} onChange={setAmount} maxCents={MAX_CENTS} allowCents={false} hideDisplay compact />}
+    {overlay ? null : <AmountKeypad value={amount} onChange={(v) => { typedRef.current = true; setAmount(v); }} maxCents={MAX_CENTS} allowCents={false} hideDisplay compact />}
 
     <View style={overlay ? { flex: 1 } : { marginBottom: 10 * s }}>
       {/* ONE button per method, never two. For Apple Pay / PayPal / Venmo the button is always
