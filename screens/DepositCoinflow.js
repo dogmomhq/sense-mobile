@@ -43,7 +43,7 @@ const DEFAULT_MIN = 1000;   // $10 — server MIN_DEPOSIT_CENTS
 const DEFAULT_MAX = 50000;  // $500 — unverified per-deposit ceiling
 const ALL_CHIPS = [1000, 2000, 5000, 10000];
 const POLL_MS = 2000, POLL_MAX_MS = 90000;
-const INTENT_DEBOUNCE_MS = 700;
+const INTENT_DEBOUNCE_MS = 400;   // time spent on the inert button before the live one lands
 
 const dollars = (cents) => '$' + (cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2));
 
@@ -238,7 +238,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
 
   // ── amount (Triumph order: close · balance · amount · METHOD · chips · keypad · pay · terms) ──
   const intentReady = !!(intent && intent.amountCents === cents && intent.method === method.id);
-  const showBrandButton = STANDALONE_METHODS.includes(method.id) && intentReady && amountOk;
+  // Apple Pay / PayPal / Venmo have a real hosted button of their own; Cash App and crypto don't,
+  // so those keep our labelled CTA that opens the checkout sheet.
+  const isStandalone = STANDALONE_METHODS.includes(method.id) && amountOk && canDeposit;
+  const showBrandButton = isStandalone && intentReady;
   return shell(<>
     {overlay ? null : closeBtn}
     {overlay ? null : balancePill}
@@ -273,7 +276,16 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     {overlay ? null : <AmountKeypad value={amount} onChange={setAmount} maxCents={MAX_CENTS} allowCents={false} hideDisplay compact />}
 
     <View style={overlay ? { flex: 1 } : { marginBottom: 10 * s }}>
-      {showBrandButton ? (
+      {/* ONE button per method, never two. For Apple Pay / PayPal / Venmo the button is always
+          Coinflow's real branded one; while the deposit intent is still being created there is
+          nothing to point it at yet, so the same pill renders dimmed and inert and the live button
+          drops straight into it. If the intent FAILED we fall through to a tappable retry, or the
+          player would be staring at a dead button (a location prompt lands here, for instance). */}
+      {isStandalone && !intentReady && !err ? (
+        <View pointerEvents="none" style={[ctaBase, { backgroundColor: brand.bg, opacity: 0.4 }]}>
+          <PayLogo id={method.id} size={36 * s} on={brand.bg === '#FFFFFF' ? 'light' : 'dark'} />
+        </View>
+      ) : showBrandButton ? (
         // Coinflow's OWN hosted button for this brand — one tap, the brand's real mark and sheet.
         // Keyed on the intent so a new amount remounts it with a fresh subtotal (see header note).
         <CoinflowMethodButton key={intent.depositId + method.id} method={method.id} color="white" height={140 * s} radius={44 * s}
@@ -285,10 +297,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
           onApprove={onPaid} onError={() => setErr(method.label + ' could not start — try another method')} />
       ) : (
-        <PressBtn onPress={openSheet} disabled={!canDeposit || !amountOk || busy}
+        <PressBtn onPress={isStandalone ? () => ensureIntent(true) : openSheet} disabled={!canDeposit || !amountOk || busy}
           style={[ctaBase, { backgroundColor: brand.bg, opacity: (!canDeposit || !amountOk || busy) ? 0.5 : 1 }]}>
           {busy ? <ActivityIndicator color={brand.fg} /> : <PayLogo id={method.id} size={36 * s} on={brand.bg === '#FFFFFF' || brand.bg === COLORS.lime ? 'light' : 'dark'} />}
-          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: brand.fg, letterSpacing: 0.04 * 34 * s }}>{method.cta}</Text>
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: brand.fg, letterSpacing: 0.04 * 34 * s }}>{isStandalone ? 'TRY AGAIN' : method.cta}</Text>
         </PressBtn>
       )}
       {overlay ? null : (<Text style={{ fontFamily: FONTS.interSemi, fontSize: 20 * s, color: 'rgba(245,241,230,0.45)', textAlign: 'center', marginTop: 18 * s, marginHorizontal: 45 * s }}>
