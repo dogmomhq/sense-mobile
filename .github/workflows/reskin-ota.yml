@@ -38,6 +38,11 @@ jobs:
           npm i --no-save --no-audit --no-fund eslint@8 eslint-plugin-react@7 eslint-plugin-react-hooks@4 @babel/eslint-parser@7 @babel/preset-react@7
           npx eslint --no-eslintrc -c .eslintrc.undef.json --rule '{"no-unused-vars":"off"}' \
             App.js ./*.js screens/*.js screens/components/*.js
+      - name: GATE 0b — every server signal has an app handler (B168)
+        # The needGps-on-deposit dead end was a contract defect: server right, app right, the agreement
+        # between them broken. The server publishes what it emits at /api/contract; this refuses to ship
+        # a bundle that does not read one of those signals where it lands.
+        run: node scripts-contract-check.mjs
       - name: Publish OTA update (channel/branch preview)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
