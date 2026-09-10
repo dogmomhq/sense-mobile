@@ -23,7 +23,6 @@ import LeaderboardScreen from './LeaderboardScreen';
 import ProfileScreen from './ProfileScreen';
 import DepositScreen from './DepositScreen';
 import { prefetchDepositIntent } from './DepositCoinflow'; // B160: warm the deposit intent on the tap that opens the sheet
-import { CoinflowWarmer } from './CoinflowPurchase';        // B161: warm Coinflow's origin so the pay button is not cold
 import LocationGate from './LocationGate'; // B157: location check on every open (Triumph pattern)
 import WithdrawScreen from './WithdrawScreen'; // 2026-09-09: payouts (Coinflow) — shown only when /api/tiers payments.withdrawals is on
 import MatchDetailScreen from './MatchDetailScreen'; // 2026-09-07: tap a history match -> detail + analytics
@@ -319,6 +318,10 @@ export default function ReskinApp({ g }) {
   const [tierList, setTierList] = useState(ladder());
   const [serverOk, setServerOk] = useState(false); // 2026-09-07: true once /api/tiers answered — the sim rig's readiness marker (invisible)
   const [payInfo, setPayInfo] = useState(null);   // 2026-09-08: { provider, coinflow:{env,merchantId} } from /api/tiers — picks the deposit form (Coinflow vs legacy Checkout)
+  // B165: the Coinflow deposit sheet is mounted for the whole signed-in session (preloaded button) and
+  // revealed by route==='deposit'. Never for a guest, never before the location check has cleared —
+  // the intent needs a fresh fix, and a quiet failure would leave nothing preloaded.
+  const coinflowSheet = !!(g.authEmail && payInfo && payInfo.provider === 'coinflow' && !g.locGate);
   useEffect(() => {
     const ok = (c) => { const t = tierFor(c); return !!(t && t.enabled); };
     if (!ok(g.stake)) g.setStake(firstEnabled(ladder()));
@@ -628,7 +631,7 @@ export default function ReskinApp({ g }) {
         rank={g.rank && g.online && g.matchId && g.rank.lastMatchId === g.matchId ? g.rank : null}
         onPlayAgain={() => g.playAgain()} onHome={g.goHome} />
     );
-  } else if (route === 'deposit') {
+  } else if (route === 'deposit' && !coinflowSheet) {   // legacy Checkout form; the Coinflow sheet is the always-mounted overlay below
     body = (
       <AppShell streak={streakVal} balance={balanceShown} handle={handle} signedIn={signedIn}
         avatar={avatarSource(avatarKey)}
@@ -753,8 +756,12 @@ export default function ReskinApp({ g }) {
       {/* B161: pay the cold DNS/TLS/bundle cost for Coinflow's origin once, invisibly, so the pay
           button is already warm when the deposit sheet opens. Signed-in only — a guest never mounts
           it, which keeps it off the practice path the OTA gate walks. */}
-      {g.authEmail && payInfo && payInfo.provider === 'coinflow' && payInfo.coinflow
-        ? <CoinflowWarmer env={payInfo.coinflow.env} merchantId={payInfo.coinflow.merchantId} /> : null}
+      {coinflowSheet ? (
+        <DepositScreen visible={route === 'deposit'}
+          httpsBase={g.httpsBase} supabaseToken={authToken(g)} signedInEmail={g.authEmail || ''} balance={balanceShown} payments={payInfo}
+          onToast={(t, kind) => g.showToast(t, kind)} onRefresh={() => g.hydrateHistory(g.displayName || g.myName())}
+          onDone={() => setRoute('tabs')} onNeedDob={g.askDobForDeposit} onNeedGps={g.askGpsForDeposit} />
+      ) : null}
       {/* 2026-09-07: match detail + analytics sheet (from a History match row) */}
       {detailMatchId ? <MatchDetailScreen matchId={detailMatchId} httpsBase={g.httpsBase}
         authHeaders={g.playerAuthHeaders ? g.playerAuthHeaders() : undefined} onClose={() => setDetailMatchId(null)} /> : null}

@@ -20,7 +20,7 @@
 // count toward attempts-per-hour. Remounting the button on depositId gives the page a fresh
 // subtotal, which is why we don't need their hidden bridge WebView.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, Linking, Platform } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Modal, Linking, Platform, Animated, Easing, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { COLORS, FONTS, useScale } from './theme';
@@ -97,7 +97,13 @@ function humanError(code, j) {
   }
 }
 
-export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedInEmail = '', balance = '$0.00', payments, onToast, onRefresh, onDone, onNeedDob, onNeedGps }) {
+// B165: `visible` — the sheet is MOUNTED for the whole signed-in session and only revealed on the tap.
+// Everything expensive (the deposit intent, Coinflow's session key, the Apple Pay page: ~1.3 MB, 41
+// requests, ~2 s on a fast desktop and more on a phone) is done while the player is still on the home
+// screen, so the tap just slides an already-live button in. A native Modal cannot do this — a hidden
+// Modal unmounts its children — so the sheet is our own Animated overlay parked off-screen when hidden.
+// Coinflow session keys are valid 24 h (docs.coinflow.cash quickstart), so a preloaded page stays good.
+export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedInEmail = '', balance = '$0.00', payments, onToast, onRefresh, onDone, onNeedDob, onNeedGps, visible = true }) {
   const s = useScale();
   const env = (payments && payments.coinflow && payments.coinflow.env) || 'sandbox';      // never default to prod
   const merchantId = (payments && payments.coinflow && payments.coinflow.merchantId) || 'sensegame';
@@ -143,6 +149,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     if (toastText && onToast) onToast(toastText, kind);
     if (onRefresh) onRefresh();
     close();
+    setIntent(null); setAmount(DEFAULT_AMOUNT); typedRef.current = false; setPhase('amount'); setErr('');  // B165: preload the next one behind the scenes
   }, [onToast, onRefresh, close]);
 
   async function pollUntilSettled(depositId, expectCents) {
@@ -233,6 +240,19 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   useEffect(() => { AsyncStorage.getItem('sense_debug_deposit').then((v) => { if (alive.current && v === '1') setDbg(true); }).catch(() => {}); }, []);
   const stamp = useCallback((label) => { const t = Date.now() - t0.current; console.log('[deposit-tl]', label, t); setTl((x) => (x.length > 40 ? x : [...x, `${label}@${t}`])); }, []);
   useEffect(() => { if (depositId) stamp('intent:' + (PRE && PRE.used ? 'prefetched' : 'fresh')); }, [depositId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const H = Dimensions.get('window').height;
+  const slide = useRef(new Animated.Value(visible ? 0 : H)).current;
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    Animated.timing(slide, { toValue: visible ? 0 : H, duration: visible ? 320 : 240, easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic), useNativeDriver: true }).start();
+    if (visible && !wasVisible.current) {
+      t0.current = Date.now(); setTl([]);
+      // Revealed. If the quiet preload could not get an intent (location prompt, DOB, network) ask loudly now.
+      if (!intent && !inFlightRef.current) { setErr(''); ensureIntent(true); }
+    }
+    if (!visible && wasVisible.current) { setPickerOpen(false); setOverlay(false); if (phase !== 'amount') { setPhase('amount'); setErr(''); } }
+    wasVisible.current = visible;
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPaid = useCallback(() => { if (intent) pollUntilSettled(intent.depositId, intent.amountCents); }, [intent]); // eslint-disable-line react-hooks/exhaustive-deps
   async function openSheet() { // non-Apple-Pay methods: Coinflow's checkout with only that method
@@ -243,13 +263,15 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const brand = BRAND[method.id] || BRAND.crypto;
   const ctaBase = { marginHorizontal: 45 * s, borderRadius: 44 * s, height: 140 * s, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 16 * s };
   const shell = (children) => (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
-      {/* B160: the pay button and the terms line under it were sitting on the home indicator, which is
-          what clipped the PayPal button's bottom edge. A pageSheet gets no safe-area inset of its own
-          and this app does not carry safe-area-context, so the inset is explicit. */}
-      <View style={{ flex: 1, backgroundColor: '#0B0E09', paddingTop: Platform.OS === 'ios' ? 18 * s : 30 * s,
+    <Animated.View pointerEvents={visible ? 'auto' : 'none'}
+      style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 60, elevation: 60, transform: [{ translateY: slide }] }}>
+      {/* pageSheet look: a dim scrim, then the card with a rounded top sitting just under the status bar */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+      <View style={{ flex: 1, marginTop: Platform.OS === 'ios' ? 54 : 30, backgroundColor: '#0B0E09', borderTopLeftRadius: 30, borderTopRightRadius: 30, overflow: 'hidden',
+        paddingTop: Platform.OS === 'ios' ? 18 * s : 30 * s,
+        // B160: the pay button and the terms line used to sit on the home indicator; explicit inset (no safe-area-context here)
         paddingBottom: Platform.OS === 'ios' ? 34 : 12 }}>{children}</View>
-    </Modal>);
+    </Animated.View>);
   const closeBtn = (
     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 40 * s }}>
       <Pressable onPress={close} hitSlop={18} style={{ width: 84 * s, height: 84 * s, borderRadius: 42 * s, backgroundColor: 'rgba(245,241,230,0.12)', alignItems: 'center', justifyContent: 'center' }}>
