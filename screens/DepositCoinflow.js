@@ -284,7 +284,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           expanded={overlay} onOverlay={setOverlay} style={overlay ? undefined : { marginHorizontal: 45 * s }}
           env={(intent.checkout && intent.checkout.env) || env} merchantId={(intent.checkout && intent.checkout.merchantId) || merchantId}
           sessionKey={intent.sessionKey} cents={intent.amountCents} webhookInfo={intent.webhookInfo}
-          email={signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME}
+          email={(intent.checkout && intent.checkout.email) || signedInEmail || undefined} deviceId={installIdSync() || undefined} theme={CHECKOUT_THEME} // B156: the server's email from the login, so Apple Pay never asks for one
           chargebackProtectionData={intent.checkout && intent.checkout.chargebackProtectionData}
           chargebackProtectionAccountType={intent.checkout && intent.checkout.chargebackProtectionAccountType}
           onApprove={onPaid} onError={() => setErr(method.label + ' could not start — try another method')} />

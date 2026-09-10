@@ -129,7 +129,11 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   }, [handleLoad, onApprove, onError, onOverlay]);
   // No width here: the view stretches to its parent, so the caller's horizontal margin is respected.
   // Setting width:'100%' AND a margin made the button wider than the screen.
-  const box = [expanded ? { flex: 1 } : { height }, { position: 'relative' }, style];
+  // B156: the box CLIPS to the pill. Coinflow's page paints a white, square-cornered body for a frame or
+  // two before its button is styled, and the corners showed outside our pill as a white square. For Apple
+  // Pay the WebView is also painted invisible — our chrome is the only visual; the WebView stays fully
+  // tappable underneath (opacity does not block touches).
+  const box = [expanded ? { flex: 1 } : { height }, { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: 'hidden' }, style];
   const waiting = inert || !ready;
   // The one Apple Pay visual. Same JSX in the inert and live branches, at the same tree position, so
   // React keeps the very same view across the swap — nothing remounts, nothing flashes.
@@ -147,7 +151,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   return (
     <View style={box}>
       {isApple ? appleChrome : null}
-      <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent' }} originWhitelist={['*']}
+      <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: isApple ? 0.02 : 1 }} originWhitelist={['*']}
         enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
         scrollEnabled={expanded} onMessage={onMessage} onLoadEnd={() => setReady(true)} onError={() => onError && onError('load')} />
     </View>);
