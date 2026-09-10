@@ -391,13 +391,13 @@ export default function App() {
   const LOC_GATE_MS = 55 * 60 * 1000;
   const [locGate, setLocGate] = useState(false);
   const locOkUntil = useRef(0);
-  const locGateShownOnce = useRef(false);
   function locGateDone() { locOkUntil.current = Date.now() + LOC_GATE_MS; setLocGate(false); }
-  function locGateSkip() { locGateShownOnce.current = true; setLocGate(false); }
-  useEffect(() => { // cold start: show once the auth session has had a moment to restore
-    const t = setTimeout(() => { if (Date.now() > locOkUntil.current && !locGateShownOnce.current) { locGateShownOnce.current = true; setLocGate(true); } }, 1800);
-    return () => clearTimeout(t);
-  }, []);
+  function locGateSkip() { setLocGate(false); }
+  // B159: SIGNED-IN ONLY. The first cut showed this to everyone on boot, which covered the app for
+  // guests - and the OTA gate's simulator practice round is a guest, so B157/B158 failed the gate and
+  // auto-rolled back. A guest cannot play for money, so there is nothing to check: the gate appears
+  // when a Supabase session exists (cold start, once restored) and when someone signs in.
+  useEffect(() => { if (authEmail && Date.now() > locOkUntil.current) setLocGate(true); }, [authEmail]);
   useEffect(() => { // back from background with an expired fix (signed in only): ask again
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active' && supabaseTokenRef.current && Date.now() > locOkUntil.current) setLocGate(true); });
     return () => { try { sub.remove(); } catch (e) {} };

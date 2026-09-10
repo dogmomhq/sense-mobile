@@ -783,8 +783,8 @@ export default function ReskinApp({ g }) {
           taps pass through everywhere else. */}
       <ReskinBanners banners={g.banners}
         onPress={(b) => { g.setBanners((prev) => prev.filter((x) => x.id !== b.id)); g.navTo('history'); }} />
-      {g.locGate ? (<View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 150 }}>
-        <LocationGate httpsBase={g.httpsBase} supabaseToken={g.supabaseToken} canSkip={!g.authEmail} onDone={g.locGateDone} onSkip={g.locGateSkip} /></View>) : null}
+      {g.locGate && !g.mode ? (   /* B159: never over a live match */<View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 150 }}>
+        <LocationGate httpsBase={g.httpsBase} supabaseToken={g.supabaseToken} canSkip={false} onDone={g.locGateDone} onSkip={g.locGateSkip} /></View>) : null}
       {g.dobAsk ? <DobModal error={g.dobErr} onSubmit={g.submitDob} onCancel={g.cancelDob} /> : null}
       {g.toast ? <ReskinToast text={String(g.toast).toUpperCase()} kind={g.toastKind} /> : null}
       {g.notice && !g.mode ? <ReskinToast text={String(g.notice).toUpperCase()} /> : null}
