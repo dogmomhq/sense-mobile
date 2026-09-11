@@ -25,7 +25,9 @@
 //   loaded · success{info} · authDeclined{info} · inputError{info} · inputValid · heightChange:<id>
 //   rnredirect{info:{callbackUrl, flow?:'venmo'}} · accountLinked · overlay · redirect(data=url)
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { View, ActivityIndicator, Linking, Platform, Image, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, Linking, Platform, Image, StyleSheet } from 'react-native';
+import PayLogo, { BRAND } from './components/PayLogo';
+import { FONTS } from './theme';
 import { WebView } from 'react-native-webview';
 import LZString from 'lz-string';
 
@@ -106,7 +108,7 @@ export const STANDALONE_METHODS = Object.keys(FORM_ROUTE);
 // touches (B160). The parent mounts every brand button once and swaps which one is visible, so
 // changing payment method is instant instead of tearing down a WebView and loading a page again.
 export function CoinflowMethodButton({ method = 'applePay', color = 'white', height = 56, radius = 28, expanded = false,
-  inert = false, inertColor, hidden = false, onApprove, onError, onLoad, onOverlay, onEvent, style, email, ...props }) {
+  inert = false, inertColor, hidden = false, label, onApprove, onError, onLoad, onOverlay, onEvent, style, email, ...props }) {
   const ref = useRef(null);
   const ev = useCallback((name) => { try { onEvent && onEvent(name); } catch {} }, [onEvent]);
   useEffect(() => { ev('mount'); return () => ev('unmount'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -120,7 +122,7 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   const FORM_H = 49;
   const [contentH, setContentH] = useState(0);
   const heightId = useMemo(() => (isApple ? null : 'h' + Math.random().toString(36).slice(2, 8)), [isApple]);
-  const boxH = isApple ? height : Math.max(FORM_H, Math.min(contentH || 0, 400));
+  const boxH = height;   // B169: every pill is the same height; the page's 49px button sits centred underneath (see webStrip)
   // B146: `ready` = Coinflow's page has told us its button is up. Until then a tap lands on a WebView
   // that is still loading and does nothing — which read as "the button is broken". The pill is drawn
   // ONCE, white, and never changes colour or size; only a small spinner at the right edge says
@@ -192,31 +194,42 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   // for a frame or two before its button is styled. Once the page says it is up, the mask comes off —
   // so a brand's own button can never have its corners clipped by ours. Apple Pay keeps the mask: our
   // native chrome is painted over that WebView and IS the visual.
-  const masked = isApple || !ready;
+  // B169: EVERY brand button is drawn by us, natively — the treatment that made Apple Pay solid.
+  // Coinflow's page is an invisible tap target underneath; it becomes visible only when PayPal's
+  // in-page approval modal opens (`expanded`). Their page can blink, re-render or go blank after a
+  // cancelled popup and the player never sees it.
   const box = [expanded ? { flex: 1 } : { height: boxH },
-    { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: masked ? 'hidden' : 'visible' }, style,
+    { position: 'relative', borderRadius: expanded ? 0 : radius, overflow: 'hidden', backgroundColor: expanded ? '#0B0E09' : 'transparent' }, style,
     hidden ? { position: 'absolute', left: 0, right: 0, bottom: 0, opacity: 0, zIndex: -1 } : null];
   const live = !inert && !!url;
   const waiting = !live || !ready;
-  // The one Apple Pay visual, always at the same tree position — React keeps the very same view from
-  // inert through live, so nothing remounts and nothing flashes.
-  const appleChrome = (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius,
-      backgroundColor: color === 'white' ? '#FFFFFF' : '#000000', alignItems: 'center', justifyContent: 'center' }]}>
-      <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
-      {waiting ? <ActivityIndicator size="small" color={color === 'white' ? '#000000' : '#FFFFFF'} style={{ position: 'absolute', right: height * 0.3 }} /> : null}
+  const brand = BRAND[method] || BRAND.crypto;
+  const chrome = expanded ? null : (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { zIndex: 20, borderRadius: radius, flexDirection: 'row', gap: height * 0.11,
+      backgroundColor: isApple ? (color === 'white' ? '#FFFFFF' : '#000000') : brand.bg, alignItems: 'center', justifyContent: 'center' }]}>
+      {isApple
+        ? <Image source={color === 'white' ? APPLE_MARK.black : APPLE_MARK.white} style={{ height: height * 0.42, aspectRatio: 2.43, resizeMode: 'contain' }} />
+        : <>
+            <PayLogo id={method} size={height * 0.5} on={brand.bg === '#FFFFFF' ? 'light' : 'dark'} />
+            <Text style={{ fontFamily: FONTS.interExtra, fontSize: height * 0.24, color: brand.fg, letterSpacing: height * 0.01 }}>{label || (method === 'paypal' ? 'PAY WITH PAYPAL' : 'PAY WITH VENMO')}</Text>
+          </>}
+      {waiting ? <ActivityIndicator size="small" color={isApple ? (color === 'white' ? '#000000' : '#FFFFFF') : brand.fg} style={{ position: 'absolute', right: height * 0.3 }} /> : null}
     </View>);
+  // The page's own button is 49 CSS px (measured, B161). When collapsed, the WebView is a 49pt strip
+  // centred in our pill so the whole pill face is the page's button; when expanded it fills the sheet.
+  const webStrip = expanded ? { flex: 1 } : { position: 'absolute', left: 0, right: 0, top: Math.max(0, (boxH - FORM_H) / 2), height: FORM_H };
   return (
     <View style={box} pointerEvents={hidden ? 'none' : 'auto'}>
-      {isApple ? appleChrome
-        : (!live ? <View style={[StyleSheet.absoluteFillObject, { borderRadius: radius, opacity: 0.35, backgroundColor: inertColor || 'rgba(245,241,230,0.14)' }]} /> : null)}
+      {chrome}
       {live ? (
-        <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: isApple ? 0.02 : 1 }} originWhitelist={['*']}
-          enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
-          scrollEnabled={expanded} onMessage={onMessage}
-          onLoadStart={() => ev('loadStart')}
-          onLoadEnd={() => { ev('loadEnd'); setReady(true); }}
-          onError={() => { ev('error'); onError && onError('load'); }} />
+        <View style={webStrip}>
+          <WebView ref={ref} source={{ uri: url }} style={{ flex: 1, backgroundColor: 'transparent', opacity: expanded ? 1 : 0.02 }} originWhitelist={['*']}
+            enableApplePay={isApple && Platform.OS === 'ios'} keyboardDisplayRequiresUserAction={false} showsVerticalScrollIndicator={false}
+            scrollEnabled={expanded} onMessage={onMessage}
+            onLoadStart={() => ev('loadStart')}
+            onLoadEnd={() => { ev('loadEnd'); setReady(true); }}
+            onError={() => { ev('error'); onError && onError('load'); }} />
+        </View>
       ) : null}
     </View>);
 }
