@@ -7,7 +7,7 @@
 //   amount settles → POST /api/deposit/intent { amountCents, idempotencyKey, method }
 //     (server runs EVERY gate: $10 floor, per-deposit ceiling, geo, freeze, tier caps; creates the
 //      deposits row; mints the Coinflow session key)
-//   → Apple Pay / PayPal / Venmo: the CTA is COINFLOW'S OWN hosted button for that brand, so the
+//   → Apple Pay / PayPal: the CTA is COINFLOW'S OWN hosted button for that brand, so the
 //     mark is drawn by the brand's SDK (which is what their brand rules require) and it is one tap.
 //     Cash App has no page at all (API-only per Coinflow's guide): POST /api/deposit/rail mints the
 //     payment server-side and we deep-link out to it. Crypto still opens the checkout with only that method.
@@ -44,6 +44,7 @@ const METHODS = [
 const DEFAULT_MIN = 1000;   // $10 — server MIN_DEPOSIT_CENTS
 const DEFAULT_MAX = 50000;  // $500 — unverified per-deposit ceiling
 const ALL_CHIPS = [1000, 2000, 5000, 10000];
+const HANDOFF_RAILS = ['cashApp', 'venmo']; // no embeddable page — server mints, we open the URL
 const POLL_MS = 2000, POLL_MAX_MS = 90000;
 const INTENT_DEBOUNCE_MS = 400;   // only while the player is TYPING an amount; a chip tap or the sheet opening fires at once (B146)
 
@@ -266,31 +267,35 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     if (it) setPhase('checkout');
   }
 
-  // ── CASH APP (B172) ───────────────────────────────────────────────────────────────────────────
-  // Cash App is the one rail with no embeddable page at all: Coinflow's own guide is API-only
-  // (create order -> open the returned link -> poll -> Settled webhook). So the SERVER mints the
-  // payment against this deposit row — which is stronger than the card path, because the webhook
-  // then matches on payment_id instead of trusting a webhookInfo the phone supplied.
-  // We start polling BEFORE handing off to Cash App, so coming back lands on 'processing'.
-  async function openCashApp() {
+  // ── BROWSER HAND-OFF RAILS: Cash App (B172) + Venmo (B173) ───────────────────────────────────
+  // Neither rail has a page we can embed. Cash App is API-only by Coinflow's own guide; Venmo has no
+  // React Native button in their SDK at all (only the web SDK has CoinflowVenmoButton, and it needs a
+  // DOM overlay element). Both follow the same shape: the SERVER mints the payment against this
+  // deposit row and returns a URL, we open it outside the app, and the money is only ever credited by
+  // the signed Settled webhook. Server-minted is stronger than the card path — the webhook matches on
+  // payment_id rather than trusting a webhookInfo the phone supplied.
+  // We start polling BEFORE handing off, so coming back lands on 'processing'.
+  async function openRail(rail) {
+    const label = rail === 'venmo' ? 'Venmo' : 'Cash App';
     const it = intent && intent.amountCents === cents ? intent : await ensureIntent(true);
     if (!it) return;
-    setBusy(true); stamp('cashApp:mint');
+    setBusy(true); stamp(rail + ':mint');
     try {
       const r = await fetch(`${httpsBase}/api/deposit/rail`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail: 'cashApp', build: clog.buildTag() || undefined }) });
+        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail, build: clog.buildTag() || undefined }) });
       const j = await r.json().catch(() => ({}));
       if (!alive.current) return;
-      if (!r.ok || !j || !j.ok || !j.link) {
+      const dest = j && (j.link || j.url);
+      if (!r.ok || !j || !j.ok || !dest) {
         // A spent intent means this row already has a payment on it (they backed out to another rail).
         // Drop it and mint a fresh one rather than welding a second payment to the same row.
-        if (j && j.code === 'intent_spent') { setIntent(null); idemNonce.current = Crypto.randomUUID(); setErr('Tap again to start a new Cash App payment'); return; }
-        stamp('cashApp:mintFail:' + (r.status || 0));
-        setErr('Cash App could not start — try another method'); return;
+        if (j && j.code === 'intent_spent') { setIntent(null); idemNonce.current = Crypto.randomUUID(); setErr('Tap again to start a new ' + label + ' payment'); return; }
+        stamp(rail + ':mintFail:' + (r.status || 0));
+        setErr(label + ' could not start — try another method'); return;
       }
-      stamp('cashApp:open');
+      stamp(rail + ':open');
       pollUntilSettled(it.depositId, it.amountCents);   // phase -> 'processing'; only the server calls it settled
-      Linking.openURL(j.link).catch(() => { if (alive.current) setErr('Could not open Cash App'); });
+      Linking.openURL(dest).catch(() => { if (alive.current) setErr('Could not open ' + label); });
     } catch { if (alive.current) setErr('Network error reaching the server — try again'); }
     finally { if (alive.current) setBusy(false); }
   }
@@ -420,7 +425,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           })}
         </View>
       ) : (
-        <PressBtn onPress={isStandalone ? () => ensureIntent(true) : (method.id === 'cashApp' ? openCashApp : openSheet)} disabled={!canDeposit || !amountOk || busy}
+        <PressBtn onPress={isStandalone ? () => ensureIntent(true) : (HANDOFF_RAILS.includes(method.id) ? () => openRail(method.id) : openSheet)} disabled={!canDeposit || !amountOk || busy}
           style={[ctaBase, { backgroundColor: brand.bg, opacity: (!canDeposit || !amountOk || busy) ? 0.5 : 1 }]}>
           {busy ? <ActivityIndicator color={brand.fg} /> : <PayLogo id={method.id} size={36 * s} on={brand.bg === '#FFFFFF' || brand.bg === COLORS.lime ? 'light' : 'dark'} />}
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: brand.fg, letterSpacing: 0.04 * 34 * s }}>{isStandalone ? 'TRY AGAIN' : method.cta}</Text>

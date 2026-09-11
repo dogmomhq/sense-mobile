@@ -93,8 +93,13 @@ function makeMessageHandler({ onLoad, onSuccess, onAuthDeclined, onInputError, o
 // PNG and is overlaid above the WebView with pointerEvents="none" — the button looks right
 // instantly and touches fall through to the real hosted button underneath.
 const APPLE_MARK = { white: require('../assets/pay/ApplePayWhite.png'), black: require('../assets/pay/ApplePayBlack.png') };
-const FORM_ROUTE = { applePay: '/apple-pay/<MID>', paypal: '/paypal/<MID>', venmo: '/venmo/<MID>' };
-const IDENTIFIER_MSG = { paypal: 'paypalIdentifier', venmo: 'venmoIdentifier' };
+// B173: Venmo is NOT here. Read from @coinflowlabs/react-native@4.21.0: the RN SDK exports
+// CoinflowApplePayButton and CoinflowPayPalButton and NOTHING else — CoinflowVenmoButton exists only
+// in the WEB SDK (@coinflowlabs/react@5.22.0), where it needs an `overlayId` DOM element to expand
+// into. An embedded Venmo button is not a surface Coinflow supports in React Native, so we stopped
+// pretending it was; Venmo now goes out through the browser hand-off (DepositCoinflow.openRail).
+const FORM_ROUTE = { applePay: '/apple-pay/<MID>', paypal: '/paypal/<MID>' };
+const IDENTIFIER_MSG = { paypal: 'paypalIdentifier' };
 export const STANDALONE_METHODS = Object.keys(FORM_ROUTE);
 
 // `onOverlay(open)` fires when PayPal/Venmo open their in-page approval modal: the parent must give
@@ -140,13 +145,12 @@ export function CoinflowMethodButton({ method = 'applePay', color = 'white', hei
   // when the url arrives, and a new amount is a new url loaded into the SAME WebView. Nothing remounts,
   // so the pill can never blink. `ready` follows the url.
   useEffect(() => { setReady(false); if (url) ev('url'); }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
-  // B162 — THE VENMO BUG. react-native-webview's `postMessage` delivers as
-  //   window.dispatchEvent(new MessageEvent('message', {data}))
-  // which has NO origin. Coinflow's form page drops every message whose origin is empty (verified
-  // against sandbox.coinflow.cash: that exact event leaves the Venmo button at opacity-50 /
-  // pointer-events-none; a real `window.postMessage(msg, '*')`, which carries the page's own origin,
-  // enables it). PayPal's page is not gated on the identifier, which is why only Venmo looked dead.
-  // So the identifier is delivered by injecting a real postMessage into the page instead.
+  // B162 revisited (B173). The old note here blamed Coinflow's page for dropping origin-less
+// messages. That was wrong, and the WEB SDK source says so: the opacity-50 / pointer-events-none
+// styling is applied by @coinflowlabs/react's OWN wrapper div when no email/phone/token identifier
+// was supplied (CoinflowVenmoButton.js, `hasIdentifier`) — it is not the iframe reacting to
+// anything. We keep injecting a real window.postMessage anyway because react-native-webview's
+// ref.postMessage delivers a MessageEvent with no origin, and the page's own listener filters on it.
   const post = useCallback((msg) => {
     try { ref.current && ref.current.injectJavaScript(`window.postMessage(${JSON.stringify(msg)}, '*'); true;`); } catch {}
   }, []);
