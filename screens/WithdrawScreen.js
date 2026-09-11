@@ -119,7 +119,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     setQuote(null);
     if (!dest || !amountOk) return;
     quoteTimer.current = setTimeout(async () => {
-      try { const r = await fetch(`${httpsBase}/api/withdraw/quote?token=${encodeURIComponent(dest.token)}&cents=${cents}`, { headers: hdr }); const j = await r.json().catch(() => null); if (alive.current && j && j.ok) setQuote({ feeCents: j.feeCents, netCents: j.netCents, speed: j.speed }); } catch {}
+      try { const r = await fetch(`${httpsBase}/api/withdraw/quote?token=${encodeURIComponent(dest.token)}&cents=${cents}`, { headers: hdr }); const j = await r.json().catch(() => null); if (alive.current && j && j.ok) setQuote({ feeCents: j.feeCents, netCents: j.netCents, receiveCents: j.receiveCents, speed: j.speed }); } catch {}
     }, 400);
     return () => { if (quoteTimer.current) clearTimeout(quoteTimer.current); };
   }, [dest, cents, amountOk]);
@@ -235,7 +235,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
         {amount && !amountOk ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: RED, textAlign: 'center', marginHorizontal: 51 * s, marginTop: 16 * s }}>{cents < minCents ? 'Minimum ' + dollars(minCents) : 'Up to ' + dollars(withdrawable) + ' is withdrawable right now'}</Text> : null}
         {quote ? (
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: COLORS.cream, textAlign: 'center', marginHorizontal: 45 * s, marginTop: 20 * s, marginBottom: 26 * s }}>
-            {quote.feeCents ? `FEE ${dollars(quote.feeCents)} · ` : 'NO FEE · '}YOU RECEIVE <Text style={{ color: COLORS.lime }}>{dollars(quote.netCents != null ? quote.netCents : cents)}</Text> · {speedLabel(quote.speed)}</Text>
+            {quote.feeCents ? `FEE ${dollars(quote.feeCents)} · ` : 'NO FEE · '}YOU RECEIVE <Text style={{ color: COLORS.lime }}>{dollars(quote.receiveCents != null ? quote.receiveCents : quote.netCents != null ? quote.netCents : cents)}</Text> · {speedLabel(quote.speed)}</Text>
         ) : <View style={{ height: 26 * s }} />}
 
         {phase === 'code' ? (
@@ -267,7 +267,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
           <Text style={{ fontFamily: FONTS.anton, fontSize: 64 * s, color: COLORS.lime, textAlign: 'center', includeFontPadding: false, marginBottom: 14 * s }}>{result.needsApproval ? 'SENT FOR REVIEW' : 'ON ITS WAY'}</Text>
           <Text style={{ fontFamily: FONTS.interSemi, fontSize: 26 * s, color: COLORS.creamDim, textAlign: 'center', lineHeight: 38 * s }}>
             {result.needsApproval ? `${dollars(result.amountCents)} is reserved. We review first withdrawals, new payout accounts and anything over $500 within 24 hours — you'll get a notification.`
-              : `${dollars(result.netCents != null ? result.netCents : result.amountCents)} is on its way to your ${dest ? kindLabel(dest.kind) : 'account'} (${speedLabel(result.speed).toLowerCase()}).`}</Text>
+              : `${dollars(result.receiveCents != null ? result.receiveCents : result.netCents != null ? result.netCents : result.amountCents)} is on its way to your ${dest ? kindLabel(dest.kind) : 'account'} (${speedLabel(result.speed).toLowerCase()}).`}</Text>
           <PressBtn onPress={() => { setPhase('list'); setAmount(''); setResult(null); setDest(null); if (onDone) onDone(); }} style={{ marginTop: 26 * s, backgroundColor: COLORS.lime, borderRadius: 20 * s, paddingVertical: 30 * s, alignItems: 'center' }}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 36 * s, color: '#10140C', letterSpacing: 0.06 * 36 * s }}>DONE</Text></PressBtn>
         </View>
