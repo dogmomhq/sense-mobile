@@ -9,7 +9,8 @@
 //      deposits row; mints the Coinflow session key)
 //   → Apple Pay / PayPal / Venmo: the CTA is COINFLOW'S OWN hosted button for that brand, so the
 //     mark is drawn by the brand's SDK (which is what their brand rules require) and it is one tap.
-//     Cash App / crypto have no standalone button: the CTA opens the checkout with only that method.
+//     Cash App has no page at all (API-only per Coinflow's guide): POST /api/deposit/rail mints the
+//     payment server-side and we deep-link out to it. Crypto still opens the checkout with only that method.
 //   → we POLL /api/deposit/status until Coinflow's signed `Settled` webhook credits it. THE PHONE
 //     NEVER DECIDES THAT MONEY ARRIVED: success is shown only when the server reports `settled`.
 //     If polling times out, the balance still updates by itself when the webhook lands.
@@ -265,6 +266,35 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     if (it) setPhase('checkout');
   }
 
+  // ── CASH APP (B172) ───────────────────────────────────────────────────────────────────────────
+  // Cash App is the one rail with no embeddable page at all: Coinflow's own guide is API-only
+  // (create order -> open the returned link -> poll -> Settled webhook). So the SERVER mints the
+  // payment against this deposit row — which is stronger than the card path, because the webhook
+  // then matches on payment_id instead of trusting a webhookInfo the phone supplied.
+  // We start polling BEFORE handing off to Cash App, so coming back lands on 'processing'.
+  async function openCashApp() {
+    const it = intent && intent.amountCents === cents ? intent : await ensureIntent(true);
+    if (!it) return;
+    setBusy(true); stamp('cashApp:mint');
+    try {
+      const r = await fetch(`${httpsBase}/api/deposit/rail`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail: 'cashApp', build: clog.buildTag() || undefined }) });
+      const j = await r.json().catch(() => ({}));
+      if (!alive.current) return;
+      if (!r.ok || !j || !j.ok || !j.link) {
+        // A spent intent means this row already has a payment on it (they backed out to another rail).
+        // Drop it and mint a fresh one rather than welding a second payment to the same row.
+        if (j && j.code === 'intent_spent') { setIntent(null); idemNonce.current = Crypto.randomUUID(); setErr('Tap again to start a new Cash App payment'); return; }
+        stamp('cashApp:mintFail:' + (r.status || 0));
+        setErr('Cash App could not start — try another method'); return;
+      }
+      stamp('cashApp:open');
+      pollUntilSettled(it.depositId, it.amountCents);   // phase -> 'processing'; only the server calls it settled
+      Linking.openURL(j.link).catch(() => { if (alive.current) setErr('Could not open Cash App'); });
+    } catch { if (alive.current) setErr('Network error reaching the server — try again'); }
+    finally { if (alive.current) setBusy(false); }
+  }
+
   const brand = BRAND[method.id] || BRAND.crypto;
   const ctaBase = { marginHorizontal: 45 * s, borderRadius: 44 * s, height: 140 * s, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 16 * s };
   const shell = (children) => (
@@ -390,7 +420,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           })}
         </View>
       ) : (
-        <PressBtn onPress={isStandalone ? () => ensureIntent(true) : openSheet} disabled={!canDeposit || !amountOk || busy}
+        <PressBtn onPress={isStandalone ? () => ensureIntent(true) : (method.id === 'cashApp' ? openCashApp : openSheet)} disabled={!canDeposit || !amountOk || busy}
           style={[ctaBase, { backgroundColor: brand.bg, opacity: (!canDeposit || !amountOk || busy) ? 0.5 : 1 }]}>
           {busy ? <ActivityIndicator color={brand.fg} /> : <PayLogo id={method.id} size={36 * s} on={brand.bg === '#FFFFFF' || brand.bg === COLORS.lime ? 'light' : 'dark'} />}
           <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: brand.fg, letterSpacing: 0.04 * 34 * s }}>{isStandalone ? 'TRY AGAIN' : method.cta}</Text>
