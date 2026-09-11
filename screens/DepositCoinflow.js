@@ -50,7 +50,7 @@ const POLL_MS = 2000, POLL_MAX_MS = 90000;   // B176: 90 s of FOREGROUND time �
 // B176: the `sense://` URL scheme is registered by the NATIVE binary (app.json "scheme"), so only
 // builds from this number up can be re-opened by Venmo's "return to the app" link. An older binary
 // asked to open sense:// would get Safari's "cannot open the page" — so it never asks for one.
-const DEEP_LINK_MIN_BUILD = 9999;   // set to the real TestFlight build number once it exists
+const DEEP_LINK_MIN_BUILD = 25;     // TestFlight build 25 (2026-09-11) is the first with CFBundleURLSchemes ['sense', …] — verified in its Info.plist
 const DEEP_LINK_OK = Platform.OS === 'ios' && Number(Constants.nativeBuildVersion || 0) >= DEEP_LINK_MIN_BUILD;
 const RETURN_PATH = 'deposit/return';
 const INTENT_DEBOUNCE_MS = 400;   // only while the player is TYPING an amount; a chip tap or the sheet opening fires at once (B146)
