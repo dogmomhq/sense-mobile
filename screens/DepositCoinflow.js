@@ -373,7 +373,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
             const c = (intentReady && intent.checkout) || {};
             return (
               <CoinflowMethodButton key={mid} hidden={!sel} inert={!intentReady} inertColor={(BRAND[mid] || BRAND.crypto).bg} method={mid} color="white"
-                height={140 * s} radius={44 * s} label={(METHODS.find((m) => m.id === mid) || {}).cta}   // B169: one pill size for every brand; the page's 49px button sits centred underneath
+                height={mid === 'applePay' ? 140 * s : 49} radius={44 * s}   // 49pt = Coinflow's own #height-ref for the brand form pages (B161)
                 expanded={sel && overlay} onOverlay={sel ? setOverlay : undefined}
                 style={(sel && overlay) ? undefined : { marginHorizontal: 45 * s }}
                 env={c.env || env} merchantId={c.merchantId || merchantId}
