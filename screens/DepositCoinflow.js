@@ -110,8 +110,14 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const s = useScale();
   const env = (payments && payments.coinflow && payments.coinflow.env) || 'sandbox';      // never default to prod
   const merchantId = (payments && payments.coinflow && payments.coinflow.merchantId) || 'sensegame';
+  // 2026-09-11: the picker is server-driven now. Cash App is off in sandbox — Coinflow hands back
+  // https://coinflow.cash (their homepage) instead of a cash.app/pay link, so the rail cannot be paid
+  // and every tap used to lock the account out of every other rail. Falls back to the full list only
+  // if the server said nothing, and can never offer a method METHODS doesn't know.
+  const rails = Array.isArray(payments && payments.rails) && payments.rails.length ? payments.rails : null;
+  const methods = rails ? METHODS.filter((m) => rails.includes(m.id)) : METHODS;
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
-  const [method, setMethod] = useState(METHODS[0]);
+  const [method, setMethod] = useState(METHODS[0]);   // reconciled against `methods` below once the server list lands
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lim, setLim] = useState(null);         // /api/deposit/limits
   const [intent, setIntent] = useState(null);   // { depositId, amountCents, sessionKey, webhookInfo, checkout:{…} }
@@ -233,6 +239,8 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const [warm, setWarm] = useState([]);
   const depositId = intent && intent.depositId;
   useEffect(() => { if (STANDALONE_METHODS.includes(method.id)) setWarm((w) => (w.includes(method.id) ? w : [...w, method.id])); }, [method.id]);
+  // If the server pulls the rail we're sitting on, fall back to the first one it still allows.
+  useEffect(() => { if (rails && !rails.includes(method.id)) setMethod(methods[0] || METHODS[0]); }, [rails && rails.join(',')]);
   const warmRest = useCallback(() => { setWarm((w) => (w.length >= STANDALONE_METHODS.length ? w : STANDALONE_METHODS.slice())); }, []);
   // B164 DEBUG TIMELINE — only when the simulator rig (or CJ) sets AsyncStorage sense_debug_deposit=1.
   // Every phase of the button's life is stamped in ms since the sheet opened and drawn on screen, so a
@@ -275,8 +283,8 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // the signed Settled webhook. Server-minted is stronger than the card path — the webhook matches on
   // payment_id rather than trusting a webhookInfo the phone supplied.
   // We start polling BEFORE handing off, so coming back lands on 'processing'.
-  async function openRail(rail) {
-    const label = rail === 'venmo' ? 'Venmo' : 'Cash App';
+  async function openRail(rail, retried = false) {
+    const label = rail === 'venmo' ? 'Venmo' : rail === 'cashApp' ? 'Cash App' : 'Crypto';
     const it = intent && intent.amountCents === cents ? intent : await ensureIntent(true);
     if (!it) return;
     setBusy(true); stamp(rail + ':mint');
@@ -289,7 +297,18 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
       if (!r.ok || !j || !j.ok || !dest) {
         // A spent intent means this row already has a payment on it (they backed out to another rail).
         // Drop it and mint a fresh one rather than welding a second payment to the same row.
-        if (j && j.code === 'intent_spent') { setIntent(null); idemNonce.current = Crypto.randomUUID(); setErr('Tap again to start a new ' + label + ' payment'); return; }
+        // 2026-09-11: this used to setErr('Tap again…') and stop, so the tap AFTER any completed or
+        // abandoned rail was always wasted — CJ: "makes me press twice every time". Mint the fresh
+        // intent and carry on with the SAME tap. Guarded by `retried` so it can never loop.
+        if (j && j.code === 'intent_spent') {
+          setIntent(null); idemNonce.current = Crypto.randomUUID();
+          if (retried) { setErr('Start a new deposit and try again'); return; }
+          stamp(rail + ':respin');
+          const fresh = await ensureIntent(true);
+          if (!alive.current) return;
+          if (!fresh) return;                       // ensureIntent already surfaced the reason
+          return openRail(rail, true);
+        }
         stamp(rail + ':mintFail:' + (r.status || 0));
         setErr(label + ' could not start — try another method'); return;
       }
@@ -440,7 +459,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setPickerOpen(false)}>
         <View style={{ width: '74%', backgroundColor: '#232621', borderRadius: 28 * s, overflow: 'hidden' }}>
-          {METHODS.map((m, i) => (
+          {methods.map((m, i) => (
             <Pressable key={m.id} onPress={() => { setMethod(m); setPickerOpen(false); setErr(''); }}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 30 * s, paddingHorizontal: 34 * s,
                 borderTopWidth: i ? 1 : 0, borderTopColor: 'rgba(245,241,230,0.12)', backgroundColor: m.id === method.id ? 'rgba(212,242,60,0.10)' : 'transparent' }}>
