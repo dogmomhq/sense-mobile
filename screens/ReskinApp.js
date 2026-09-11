@@ -12,6 +12,7 @@ import { View, Text, Pressable, Platform, Alert, AppState, TextInput, Linking } 
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeScreen, { BUILD_TAG } from './HomeScreen';
+import * as clog from '../clientlog'; // B171
 import QuestionScreen from './QuestionScreen';
 import { ROUND_S } from './components/TimerRing'; // B76: single source of round length (8s)
 import CountdownScreen from './CountdownScreen';
@@ -325,8 +326,12 @@ export default function ReskinApp({ g }) {
   useEffect(() => {
     const ok = (c) => { const t = tierFor(c); return !!(t && t.enabled); };
     if (!ok(g.stake)) g.setStake(firstEnabled(ladder()));
+    clog.configure({ httpsBase: g.httpsBase, buildTag: BUILD_TAG }); // B171: stamp every client event with the bundle it came from
     fetch(g.httpsBase + '/api/tiers').then((r) => r.json()).then((j) => {
       if (j && j.payments) setPayInfo(j.payments);
+      // B171: PostHog replay can only be switched on when PostHog is CONSTRUCTED, so all we can do here
+      // is cache the server's answer. App.js reads it at the next launch. Toggling is /api/admin/replay.
+      if (j && j.replay) { AsyncStorage.setItem('sense_replay_cfg', JSON.stringify({ enabled: !!j.replay.enabled, debounceMs: j.replay.debounceMs })).catch(() => {}); }
       const rows = (j && j.tiers) || [];
       if (!rows.length) return;
       LIVE_LADDER = rows.map((t) => ({ index: t.index, entryCents: t.entryCents, prizeCents: t.prizeCents, enabled: !!t.enabled }));

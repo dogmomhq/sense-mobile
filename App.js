@@ -1,6 +1,7 @@
 import { now as mono } from './screens/clock'; // P2.3 monotonic round clock
 import React, { useState, useEffect, useRef } from 'react';
-import { installId, installIdSync } from './installId'; // B151: one account per phone — the id rides on register + queue
+import { installId, installIdSync } from './installId';
+import * as clog from './clientlog'; // B171: fire-and-forget client event log (deposit button timeline) // B151: one account per phone — the id rides on register + queue
 import { View, Text, Image, ImageBackground, Pressable, StyleSheet, SafeAreaView, StatusBar, ScrollView, Animated, Easing, Platform, useWindowDimensions, TextInput, Share, PanResponder, AppState, Alert, Linking } from 'react-native';
 // Skia on native only (Expo Go SDK56 bundles it). Web/CI uses the RN-View fallback (CanvasKit renders blank headless).
 let SK = null; // Skia removed: explosion renders via react-native-svg (Confetti)
@@ -73,11 +74,17 @@ function initSfx() {
 function playSfx(name) { if (!soundOn || !SFX || !SFX[name]) return; try { SFX[name].seekTo(0); SFX[name].play(); } catch (e) {} }
 // ===== analytics (PostHog; native only, guarded — never breaks web/CI) =====
 let PH = null; let PHProvider = null;
-function initAnalytics() {
+// B171: session replay is a CONSTRUCTION-TIME flag in posthog-react-native 3.16 (startSessionReplay is
+// private) — it cannot be turned on mid-session. So the server's replay_enabled flag rides on /api/tiers,
+// ReskinApp caches it, and it takes effect on the NEXT launch. Default OFF. debounceMs is the screenshot
+// interval: PostHog's default 1000ms is what janked the video rounds in B74; we ship 3000.
+function initAnalytics(replay) {
   if (PH || Platform.OS === 'web') return;
   try {
     const lib = require('posthog-react-native');
-    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: false, sessionReplayConfig: { maskAllImages: false, maskAllTextInputs: true } }); // B74: replay OFF — screenshot capture janked the main thread once video rounds shipped (timer stalls + frozen clips, CJ recording 8/22). Re-enable throttled only if we can prove it's smooth.
+    const rOn = !!(replay && replay.enabled);
+    let rMs = parseInt(replay && replay.debounceMs, 10); if (!Number.isFinite(rMs) || rMs < 1000 || rMs > 10000) rMs = 3000;
+    PH = new lib.PostHog('phc_w2H7XVqRQaFNGrZ4aJXCdxpMHVA6enLHXFLCbk5MFocG', { host: 'https://us.i.posthog.com', enableSessionReplay: rOn, sessionReplayConfig: { maskAllImages: false, maskAllTextInputs: true, iOSdebouncerDelayMs: rMs, androidDebouncerDelayMs: rMs } }); // B74: replay OFF — screenshot capture janked the main thread once video rounds shipped (timer stalls + frozen clips, CJ recording 8/22). Re-enable throttled only if we can prove it's smooth.
     PHProvider = lib.PostHogProvider || null;
   } catch (e) { PH = null; }
 }
@@ -267,6 +274,7 @@ export default function App() {
     Inter_900Black: require('./assets/fonts/Inter_900Black.ttf'),
   });
   const [tab, setTab] = useState('home');
+  const [phReady, setPhReady] = useState(0); // B171: bumped once analytics has been constructed, so PHProvider attaches
   const [mode, setMode] = useState(null);
   const [countdown, setCountdown] = useState(false);
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
@@ -424,7 +432,7 @@ export default function App() {
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active') refresh(); });
     return () => { try { sub.remove(); } catch (e) {} };
   }, []);
-  useEffect(() => { initSfx(); initAnalytics(); track('app_open'); /* P2: attest once per install + silent push-token refresh */ setTimeout(() => { try { runAttestation(HTTPS_BASE, authTok); ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: false }); } catch (e) {} }, 3000); try { loadAttestKey(); } catch (e) {} /* P3: cache keyId for queue msgs */ try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
+  useEffect(() => { initSfx(); (async () => { let rc = null; try { rc = JSON.parse((await AsyncStorage.getItem('sense_replay_cfg')) || 'null'); } catch (e) {} initAnalytics(rc); setPhReady((n) => n + 1); track('app_open'); })(); /* P2: attest once per install + silent push-token refresh */ setTimeout(() => { try { runAttestation(HTTPS_BASE, authTok); ensurePushRegistration(HTTPS_BASE, authTok, { askIfNeeded: false }); } catch (e) {} }, 3000); try { loadAttestKey(); } catch (e) {} /* P3: cache keyId for queue msgs */ try { if (Platform.OS !== 'web' && global.ErrorUtils && global.ErrorUtils.getGlobalHandler) { const _p = global.ErrorUtils.getGlobalHandler(); global.ErrorUtils.setGlobalHandler((e, fatal) => { captureError(e, { fatal }); if (_p) _p(e, fatal); }); } } catch (e) {} (async () => { try { const sv = await AsyncStorage.getItem('sense_sound2'); if (sv != null) setSound(sv === '1'); } catch (e) {} })(); }, []);
   useEffect(() => { soundOn = sound; setSfxEnabled(sound); AsyncStorage.setItem('sense_sound2', sound ? '1' : '0').catch(() => {}); }, [sound]); // setSfxEnabled: reskin SFX rides the same toggle. 1c (2026-07-10): key is sense_sound2 — legacy sense_sound was auto-written '0' on every install, reading it would keep everyone muted despite the new default-ON
   // BUG 2 FIX (2026-06-16): opening History (or Home) now also reconciles the PENDING map
   // against the server's open list, so a stale 'WAITING' card for an already-settled match
@@ -582,6 +590,7 @@ export default function App() {
     const dev = accountRef.current && accountRef.current.token;
     const sup = supabaseTokenRef.current;
     const tok = dev || sup;
+    try { clog.configure({ authToken: tok || null }); } catch (e) {} // B171: so client events are attributed to the account, when there is one
     return tok ? { 'x-auth-token': tok } : undefined;
   }
   // RANK LADDER (2026-08-26): pull the visible-rank snapshot (RP, tier, last delta). Server
@@ -628,6 +637,7 @@ export default function App() {
     if (isConnected()) reg(); else ensureConn(reg);
   }
   useEffect(() => { installId().catch(() => {}); }, []); // B151: mint the install id before the first register
+  useEffect(() => { clog.configure({ httpsBase: HTTPS_BASE }); }, []); // B171: base url for the client event log (build tag + token are set as they become known)
   useEffect(() => { const t = setTimeout(() => { try { claimDeviceAccount(() => prefetchPractice()); } catch (e) {} }, 3000); return () => clearTimeout(t); }, []); // B120: 3s lets the stored account / Supabase session restore first
   function startPractice() {
     track('practice_start');
@@ -1544,8 +1554,8 @@ export default function App() {
       stakeRef, accountRef, supabaseTokenRef, startRef, startOverrideRef, httpsBase: HTTPS_BASE, myName,
       resultBalBefore: resultBalBeforeRef.current, // AUDIT #4: frozen at result arrival, null in practice
     };
-    const AW = PHProvider || React.Fragment;
-    const ap = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
+    const AW = (phReady && PHProvider) || React.Fragment; // B171: phReady gates on the async analytics init
+    const ap = (phReady && PHProvider) ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
     return (<ErrorBoundary><AW {...ap}><ReskinApp g={g} /></AW></ErrorBoundary>);
   }
 
@@ -1702,8 +1712,8 @@ export default function App() {
     </>);
   }
 
-  const AWrap = PHProvider || React.Fragment;
-  const aProps = PHProvider ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
+  const AWrap = (phReady && PHProvider) || React.Fragment; // B171
+  const aProps = (phReady && PHProvider) ? { client: PH, autocapture: { captureScreens: false, captureTouches: true } } : {};
   return (<ErrorBoundary><AWrap {...aProps}><ImageBackground source={{uri:BG}} resizeMode="cover" style={{flex:1,backgroundColor:C.page}}>
     <StatusBar barStyle="dark-content" />
     <Animated.View style={{flex:1,opacity:fade}}><SafeAreaView style={{flex:1,paddingHorizontal:22}}>{body}</SafeAreaView></Animated.View>

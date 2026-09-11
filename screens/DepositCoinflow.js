@@ -28,6 +28,7 @@ import PressBtn from './components/PressBtn';
 import CoinflowPurchase, { CoinflowMethodButton, STANDALONE_METHODS } from './CoinflowPurchase';
 import AmountKeypad, { toCents } from './components/AmountKeypad';
 import PayLogo, { BRAND } from './components/PayLogo';
+import * as clog from '../clientlog'; // B171: the button timeline goes to the server, not just console.log
 
 const TERMS_URL = 'https://dogmomhq.github.io/sense-legal/terms.html';
 // Coinflow's enum ids; label is what the player sees. No raw card, no ACH — deliberate (DECISIONS 2026-09-10).
@@ -73,7 +74,7 @@ export function prefetchDepositIntent({ httpsBase, supabaseToken, amountCents = 
   const promise = (async () => {
     const deviceId = await installId();
     const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ supabaseToken, amountCents, idempotencyKey: idem, deviceId, method: 'applePay' }) });
+      body: JSON.stringify({ supabaseToken, amountCents, idempotencyKey: idem, deviceId, method: 'applePay', build: clog.buildTag() || undefined }) });
     const j = await res.json().catch(() => null);
     return (res.ok && j && j.ok && !j.deduped) ? j : null;     // a deduped/in-flight row needs the component's polling, not a silent adopt
   })().catch(() => null);
@@ -187,7 +188,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         if (!alive.current) return null;
         if (pj && pj.ok) { const next = { ...pj }; setIntent(next); setErr(''); return next; }
       }
-      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents), deviceId: await installId(), method: method.id };
+      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents), deviceId: await installId(), method: method.id, build: clog.buildTag() || undefined }; // B171: stamp the bundle on the deposits row
       const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j = await res.json().catch(() => ({}));
       if (!alive.current) return null;
@@ -238,7 +239,11 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const t0 = useRef(Date.now());
   const [tl, setTl] = useState([]);
   useEffect(() => { AsyncStorage.getItem('sense_debug_deposit').then((v) => { if (alive.current && v === '1') setDbg(true); }).catch(() => {}); }, []);
-  const stamp = useCallback((label) => { const t = Date.now() - t0.current; console.log('[deposit-tl]', label, t); setTl((x) => (x.length > 40 ? x : [...x, `${label}@${t}`])); }, []);
+  // B171: the SAME stamp that draws the debug line now also POSTs. Before this, every event that
+  // explained a dead pay button lived in console.log on CJ's phone and died there — five Apple Pay
+  // taps on 2026-09-11 left nothing behind but expired intents. sess groups one visit to the sheet.
+  const sess = useRef(clog.newSession('dep'));
+  const stamp = useCallback((label) => { const t = Date.now() - t0.current; console.log('[deposit-tl]', label, t); clog.logEvent('deposit', sess.current, label, t); setTl((x) => (x.length > 40 ? x : [...x, `${label}@${t}`])); }, []);
   useEffect(() => { if (depositId) stamp('intent:' + (PRE && PRE.used ? 'prefetched' : 'fresh')); }, [depositId]); // eslint-disable-line react-hooks/exhaustive-deps
   const H = Dimensions.get('window').height;
   const slide = useRef(new Animated.Value(visible ? 0 : H)).current;
@@ -246,11 +251,11 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   useEffect(() => {
     Animated.timing(slide, { toValue: visible ? 0 : H, duration: visible ? 320 : 240, easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic), useNativeDriver: true }).start();
     if (visible && !wasVisible.current) {
-      t0.current = Date.now(); setTl([]);
+      t0.current = Date.now(); setTl([]); sess.current = clog.newSession('dep'); // B171: one session per visit
       // Revealed. If the quiet preload could not get an intent (location prompt, DOB, network) ask loudly now.
       if (!intent && !inFlightRef.current) { setErr(''); ensureIntent(true); }
     }
-    if (!visible && wasVisible.current) { setPickerOpen(false); setOverlay(false); if (phase !== 'amount') { setPhase('amount'); setErr(''); } }
+    if (!visible && wasVisible.current) { clog.flush(); setPickerOpen(false); setOverlay(false); if (phase !== 'amount') { setPhase('amount'); setErr(''); } }
     wasVisible.current = visible;
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
