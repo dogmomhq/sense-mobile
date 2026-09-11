@@ -120,7 +120,13 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const [method, setMethod] = useState(METHODS[0]);   // reconciled against `methods` below once the server list lands
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lim, setLim] = useState(null);         // /api/deposit/limits
-  const [intent, setIntent] = useState(null);   // { depositId, amountCents, sessionKey, webhookInfo, checkout:{…} }
+  const [intent, _setIntent] = useState(null);   // { depositId, amountCents, sessionKey, webhookInfo, checkout:{…} }
+  // B175: React state is async, so `setIntent(null); await ensureIntent()` still saw the OLD intent and
+  // handed the spent row straight back — which is why the openRail respin never reached :open and CJ
+  // still had to press Venmo twice. Every read that decides "do I already have an intent" goes through
+  // this ref, which updates in the same tick.
+  const intentRef = useRef(null);
+  const setIntent = useCallback((v) => { intentRef.current = typeof v === 'function' ? v(intentRef.current) : v; _setIntent(intentRef.current); }, []);
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('amount'); // amount | checkout | processing
   const [err, setErr] = useState('');
@@ -186,7 +192,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // is quiet: it must never pop a system dialog while someone is still typing an amount.
   const ensureIntent = useCallback(async (loud) => {
     if (!canDeposit || !amountOk || inFlightRef.current) return null;
-    if (intent && intent.amountCents === cents) return intent;
+    if (intentRef.current && intentRef.current.amountCents === cents) return intentRef.current;
     inFlightRef.current = true; if (loud) setBusy(true);
     try {
       // The tap that opened the sheet may already have this in flight — join it instead of starting a second.
@@ -283,9 +289,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // the signed Settled webhook. Server-minted is stronger than the card path — the webhook matches on
   // payment_id rather than trusting a webhookInfo the phone supplied.
   // We start polling BEFORE handing off, so coming back lands on 'processing'.
-  async function openRail(rail, retried = false) {
+  async function openRail(rail, retried = false, pre = null) {
     const label = rail === 'venmo' ? 'Venmo' : rail === 'cashApp' ? 'Cash App' : 'Crypto';
-    const it = intent && intent.amountCents === cents ? intent : await ensureIntent(true);
+    const cur = pre || intentRef.current;
+    const it = cur && cur.amountCents === cents ? cur : await ensureIntent(true);
     if (!it) return;
     setBusy(true); stamp(rail + ':mint');
     try {
@@ -307,7 +314,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           const fresh = await ensureIntent(true);
           if (!alive.current) return;
           if (!fresh) return;                       // ensureIntent already surfaced the reason
-          return openRail(rail, true);
+          return openRail(rail, true, fresh);
         }
         stamp(rail + ':mintFail:' + (r.status || 0));
         setErr(label + ' could not start — try another method'); return;
