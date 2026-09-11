@@ -3,6 +3,7 @@
     "name": "sense-mobile",
     "slug": "sense-mobile",
     "version": "1.5.0",
+    "scheme": "sense",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

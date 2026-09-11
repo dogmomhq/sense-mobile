@@ -21,7 +21,8 @@
 // count toward attempts-per-hour. Remounting the button on depositId gives the page a fresh
 // subtotal, which is why we don't need their hidden bridge WebView.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, Linking, Platform, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Modal, Linking, Platform, Animated, Easing, Dimensions, AppState } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { COLORS, FONTS, useScale } from './theme';
@@ -45,7 +46,13 @@ const DEFAULT_MIN = 1000;   // $10 — server MIN_DEPOSIT_CENTS
 const DEFAULT_MAX = 50000;  // $500 — unverified per-deposit ceiling
 const ALL_CHIPS = [1000, 2000, 5000, 10000];
 const HANDOFF_RAILS = ['cashApp', 'venmo']; // no embeddable page — server mints, we open the URL
-const POLL_MS = 2000, POLL_MAX_MS = 90000;
+const POLL_MS = 2000, POLL_MAX_MS = 90000;   // B176: 90 s of FOREGROUND time — backgrounded time (in Venmo) no longer counts
+// B176: the `sense://` URL scheme is registered by the NATIVE binary (app.json "scheme"), so only
+// builds from this number up can be re-opened by Venmo's "return to the app" link. An older binary
+// asked to open sense:// would get Safari's "cannot open the page" — so it never asks for one.
+const DEEP_LINK_MIN_BUILD = 9999;   // set to the real TestFlight build number once it exists
+const DEEP_LINK_OK = Platform.OS === 'ios' && Number(Constants.nativeBuildVersion || 0) >= DEEP_LINK_MIN_BUILD;
+const RETURN_PATH = 'deposit/return';
 const INTENT_DEBOUNCE_MS = 400;   // only while the player is TYPING an amount; a chip tap or the sheet opening fires at once (B146)
 
 const dollars = (cents) => '$' + (cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2));
@@ -145,6 +152,33 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const typedRef = useRef(false);   // B146: true while the last amount change came from the keypad
   const alive = useRef(true);
   useEffect(() => { installId(); return () => { alive.current = false; if (intentTimer.current) clearTimeout(intentTimer.current); }; }, []);
+  // B176: time spent in Venmo / Cash App / Safari must not eat the poll budget. Track how long the app
+  // was NOT active and credit it back to the poll loop's clock.
+  const pausedMs = useRef(0); const bgAt = useRef(null);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') { if (bgAt.current == null) bgAt.current = Date.now(); }
+      else if (bgAt.current != null) { pausedMs.current += Date.now() - bgAt.current; bgAt.current = null; }
+    });
+    return () => sub.remove();
+  }, []);
+  // B176: sense://deposit/return?dep=…&rail=…&result=approved|cancel — Venmo's "return to the app" link
+  // (and PayPal's returnUrl/cancelUrl if Coinflow ever hands us approvalLink). Credit still ONLY comes
+  // from the signed Settled webhook; this just wakes the sheet up and stops a cancelled one spinning.
+  const returnRef = useRef(null);
+  useEffect(() => {
+    const handle = (url) => {
+      if (!url || typeof url !== 'string' || url.indexOf(RETURN_PATH) < 0) return;
+      let q = {}; try { const qs = url.split('?')[1] || ''; qs.split('&').forEach((kv) => { const [k, v] = kv.split('='); if (k) q[decodeURIComponent(k)] = decodeURIComponent(v || ''); }); } catch {}
+      stamp((q.rail || 'rail') + ':return:' + (q.result || '?'));
+      returnRef.current = { at: Date.now(), ...q };
+      if (q.result === 'cancel') { cancelRail.current = true; }
+    };
+    const sub = Linking.addEventListener('url', (e) => handle(e && e.url));
+    Linking.getInitialURL().then(handle).catch(() => {});
+    return () => sub.remove();
+  }, []);
+  const cancelRail = useRef(false);
   useEffect(() => {
     if (!supabaseToken) return;
     fetch(`${httpsBase}/api/deposit/limits`, { headers: { Authorization: 'Bearer ' + supabaseToken } }).then((r) => r.json()).then((j) => { if (alive.current && j && j.ok) setLim(j); }).catch(() => {});
@@ -171,9 +205,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     if (pollingRef.current) return 'already';
     pollingRef.current = true; setPhase('processing');
     try {
-      const t0 = Date.now();
-      while (alive.current && Date.now() - t0 < POLL_MAX_MS) {
+      const t0 = Date.now(); const paused0 = pausedMs.current; cancelRail.current = false;
+      while (alive.current && (Date.now() - t0) - (pausedMs.current - paused0) < POLL_MAX_MS) {
         await new Promise((r) => setTimeout(r, POLL_MS));
+        if (cancelRail.current) { cancelRail.current = false; setPhase('amount'); setErr('Cancelled — tap to try again'); return 'cancelled'; }
         let j = null;
         try { const r = await fetch(`${httpsBase}/api/deposit/status?id=${encodeURIComponent(depositId)}`, { headers: { Authorization: 'Bearer ' + supabaseToken } }); j = await r.json().catch(() => null); } catch { j = null; }
         if (!j || !j.status) continue;
@@ -297,7 +332,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     setBusy(true); stamp(rail + ':mint');
     try {
       const r = await fetch(`${httpsBase}/api/deposit/rail`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail, build: clog.buildTag() || undefined }) });
+        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail, build: clog.buildTag() || undefined, deepLink: DEEP_LINK_OK || undefined }) });
       const j = await r.json().catch(() => ({}));
       if (!alive.current) return;
       const dest = j && (j.link || j.url);
