@@ -416,7 +416,7 @@ export default function ReskinApp({ g }) {
       const tok = authToken(g);
       if (!tok) return;
       try {
-        const r = await fetch(`${g.httpsBase}/history/x?limit=200&token=${encodeURIComponent(tok)}`);
+        const r = await fetch(`${g.httpsBase}/history/x?limit=200`, { headers: { 'x-auth-token': tok } }); // B189 (P4.1): token in the header, never the URL — last caller of ?token=
         const d = await r.json();
         if (!alive) return;
         if (d && d.stats) setServerStats(d.stats);
