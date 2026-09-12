@@ -194,8 +194,8 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
       const tok = await new Promise((resolve, reject) => { cardTokRef.current = { resolve, reject }; cardWv.current.postMessage('tokenize'); setTimeout(() => { if (cardTokRef.current) { cardTokRef.current = null; reject(new Error('timeout')); } }, 20000); });
       const r = await fetch(`${httpsBase}/api/withdraw/link/card`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabaseToken, cardToken: tok.token, expMonth: String(tok.expMonth || '').padStart(2, '0'), expYear: String(tok.expYear || '').slice(-2) }) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok) { setErr(j.error === 'card_ineligible' ? 'This card can\'t receive instant payouts — try another debit card' : j.error === 'address_required' ? 'Finish identity verification first' : humanError(j.error, j)); return; }
-      setCardSheet(false); if (onToast) onToast('Card linked');
+      if (!r.ok || !j.ok) { setErr(j.error === 'card_not_usd' ? `That card is a ${j.currency || 'non-USD'} card — payouts need a US Visa or Mastercard debit` : j.error === 'card_ineligible' ? 'This card can\'t receive payouts — try a Visa or Mastercard DEBIT card' : j.error === 'address_required' ? 'Finish identity verification first' : humanError(j.error, j)); return; }
+      setCardSheet(false); if (onToast) onToast(j.instant === false ? 'Card linked — payouts to it take about a business day' : 'Card linked');
       await load(true);
       const cd = (j.destinations || []).find((d) => d.kind === 'card'); if (cd) { setDest(cd); setPhase('amount'); }
     } catch (e) { setErr(String(e && e.message || '').startsWith('Card') ? 'Check the card details' : 'Check the card details and try again'); }
@@ -480,7 +480,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setCardSheet(false); }}>
           <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 70 * s }} onPress={() => {}}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>DEBIT CARD</Text>
-            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 18 * s, lineHeight: 34 * s }}>Visa or Mastercard debit. Instant payouts. Card details go straight to Coinflow — Sense never sees the number.</Text>
+            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 18 * s, lineHeight: 34 * s }}>US Visa or Mastercard debit (no Amex, no credit cards). Card details go straight to Coinflow — Sense never sees the number.</Text>
             <View style={{ height: cardH, borderRadius: 22 * s, overflow: 'hidden', backgroundColor: '#10140D' }}>
               {cardSheet ? (
                 <WebView ref={cardWv} onMessage={onCardMsg} originWhitelist={['https://*']} javaScriptEnabled domStorageEnabled
