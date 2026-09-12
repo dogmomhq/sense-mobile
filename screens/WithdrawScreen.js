@@ -84,6 +84,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   // name (pre-filled from the DOB screen), address, SSN last 4 → POST /api/kyc/register → Coinflow's
   // instant check. Most players are approved on the spot and go straight to picking a method. The
   // SSN digits go to the server and on to Coinflow; they are never stored, never logged, never shown again.
+  const [venmoSheet, setVenmoSheet] = useState(false); const [venmoPhone, setVenmoPhone] = useState('');   // B181: link / change Venmo by phone
   const [kycSheet, setKycSheet] = useState(false); const [kycPending, setKycPending] = useState(null); // {kind} the player tapped, resumed after approval
   const [kyc, setKyc] = useState({ first: '', last: '', address: '', city: '', state: '', zip: '', ssn4: '' });
   const [dest, setDest] = useState(null);       // chosen destination object
@@ -145,6 +146,25 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
       const added = j && j.destinations ? j.destinations.find((d) => !before.has(d.token)) : null;
       if (added && alive.current) useDestination(added);
     } catch {}
+  }
+  async function linkVenmo() { // B181: phone → server → Coinflow add-Venmo (replaces the auto-linked one)
+    if (inFlightRef.current) return; inFlightRef.current = true; setErr(''); setBusy(true);
+    try {
+      const r = await fetch(`${httpsBase}/api/withdraw/link/venmo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabaseToken, phone: venmoPhone.replace(/\D/g, '') }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) { setErr(j.error === 'bad_phone' ? 'Enter the 10-digit US phone on your Venmo' : j.error === 'venmo_not_enabled' ? 'Venmo payouts are not enabled yet' : humanError(j.error, j)); return; }
+      setVenmoSheet(false); setVenmoPhone(''); if (onToast) onToast('Venmo updated');
+      await load(true);
+      const vm = (j.destinations || []).find((d) => d.kind === 'venmo'); if (vm) { setDest(vm); setPhase('amount'); }
+    } catch { setErr('Network error — try again'); }
+    finally { setBusy(false); inFlightRef.current = false; }
+  }
+  // B181: "Change" on a linked row. Venmo/PayPal re-link natively; bank/card go back to Coinflow's page.
+  function changeMethod(m) {
+    setErr('');
+    if (m.kind === 'venmo') { setVenmoPhone(''); setVenmoSheet(true); return; }
+    if (m.kind === 'paypal') { setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); return; }
+    openLink(m.kind);
   }
   async function linkPaypal() { // native: email → server → Coinflow add-PayPal
     if (inFlightRef.current) return; inFlightRef.current = true; setErr(''); setBusy(true);
@@ -353,7 +373,11 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
                 <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginTop: 6 * s }} numberOfLines={2}>
                   {m.fee}{acct ? ' · ' + acct : ''}</Text>
               </View>
-              <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginLeft: 16 * s }}>{m.speed}</Text>
+              {d ? (
+                <Pressable onPress={() => changeMethod(m)} hitSlop={14} style={{ marginLeft: 16 * s, paddingVertical: 10 * s, paddingHorizontal: 18 * s, borderRadius: 18 * s, backgroundColor: 'rgba(245,241,230,0.10)' }}>
+                  <Text style={{ fontFamily: FONTS.interBold, fontSize: 20 * s, color: COLORS.cream, letterSpacing: 0.06 * 20 * s }}>CHANGE</Text>
+                </Pressable>
+              ) : (<Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginLeft: 16 * s }}>{m.speed}</Text>)}
             </PressBtn>); })}
         {err ? (<Text style={{ fontFamily: FONTS.interBold, fontSize: 26 * s, color: RED, textAlign: 'center', marginHorizontal: 45 * s, marginTop: 16 * s }}>{err}</Text>) : null}
       </>) : null}
@@ -395,6 +419,21 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
                 {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>VERIFY</Text></PressBtn>
               <Pressable onPress={() => { setKycSheet(false); setKycPending(null); }} style={{ alignItems: 'center', marginTop: 22 * s }}><Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim }}>Not now</Text></Pressable>
             </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* B181: Venmo — link or change by phone (Coinflow's add-Venmo API) */}
+      <Modal visible={venmoSheet} animationType="slide" transparent onRequestClose={() => setVenmoSheet(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setVenmoSheet(false); }}>
+          <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 80 * s }} onPress={() => {}}>
+            <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>VENMO ACCOUNT</Text>
+            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 22 * s, lineHeight: 34 * s }}>The phone number on your Venmo. This replaces the Venmo currently linked; a new account goes through review on its first payout.</Text>
+            <TextInput placeholder="(415) 555-1234" placeholderTextColor={COLORS.creamDim} value={venmoPhone} onChangeText={(t) => setVenmoPhone(t.replace(/[^0-9()\-\s]/g, '').slice(0, 16))} keyboardType="phone-pad" textContentType="telephoneNumber" autoCorrect={false}
+              style={{ fontFamily: FONTS.interSemi, fontSize: 30 * s, color: COLORS.cream, backgroundColor: 'rgba(245,241,230,0.08)', borderRadius: 22 * s, paddingVertical: 26 * s, paddingHorizontal: 28 * s }} />
+            {err ? (<Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: RED, marginTop: 16 * s }}>{err}</Text>) : null}
+            <PressBtn onPress={linkVenmo} disabled={busy || venmoPhone.replace(/\D/g, '').replace(/^1(\d{10})$/, '$1').length !== 10} style={[cta(!busy && venmoPhone.replace(/\D/g, '').replace(/^1(\d{10})$/, '$1').length === 10), { marginHorizontal: 0, marginTop: 26 * s }]}>
+              {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>SAVE VENMO</Text></PressBtn>
           </Pressable>
         </Pressable>
       </Modal>
