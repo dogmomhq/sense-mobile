@@ -28,6 +28,11 @@ const digits = (s) => (s || '').replace(/\D+/g, '');
 
 // Per-destination copy for the LINKED rows. Fee/speed mirror lib/withdraw-fees.js (3% min $2; bank
 // free) — the picker itself is Coinflow's page, so this is only what we say about what you linked.
+// B184 (CJ): no "Powered by Coinflow" on their picker. Their page renders that footer unless the
+// merchant flag `hideBranding` is on (their bundle: `merchant.hideBranding ? null : <PoweredBy/>`),
+// which only Coinflow can set. Until they do, hide it in our WebView: any element whose own text
+// is "Powered by" and its row. It's a SPA, so watch for re-renders.
+const HIDE_POWERED_BY = `(function(){function hide(){try{var els=document.querySelectorAll('span,div,p');for(var i=0;i<els.length;i++){var e=els[i];if(e.children.length===0&&/^\\s*Powered by\\s*$/i.test(e.textContent||'')){var box=e.parentElement;for(var k=0;k<3&&box&&box.parentElement&&box.parentElement.children.length===1;k++)box=box.parentElement;box.style.display='none';}}}catch(x){}}hide();new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});})();true;`;
 const METHODS = [
   { kind: 'paypal', title: 'PayPal',       fee: '3% or $2 min',  speed: 'INSTANT'  },
   { kind: 'venmo',  title: 'Venmo',        fee: '3% or $2 min',  speed: 'INSTANT'  },
@@ -515,6 +520,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
           </View>
           {linkUrl ? (
             <WebView source={{ uri: linkUrl }} style={{ flex: 1, backgroundColor: '#fff' }} originWhitelist={['https://*']} javaScriptEnabled domStorageEnabled sharedCookiesEnabled mediaCapturePermissionGrantType="grant" allowsInlineMediaPlayback
+              injectedJavaScript={HIDE_POWERED_BY}
               onMessage={(e) => { try { const m = JSON.parse(e.nativeEvent.data); if (m && m.method === 'accountLinked') linkDone('Linked — you can withdraw now'); } catch {} }}
               onShouldStartLoadWithRequest={(req) => { if (String(req.url || '').startsWith(LINK_RETURN)) { linkDone('Linked — you can withdraw now'); return false; } return true; }}
               onError={() => { linkDone(); setErr('Could not open verification — try again'); }} />
