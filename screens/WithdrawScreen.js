@@ -37,7 +37,11 @@ const HIDE_POWERED_BY = `(function(){function hide(){try{var els=document.queryS
 // is native now, so hide it there to keep one choice per tap.
 const HIDE_DEBIT_ROW = `(function(){function hide(){try{var els=document.querySelectorAll('span,div,p,h3');for(var i=0;i<els.length;i++){var e=els[i];if(e.children.length===0&&/^\\s*Add a Debit Card\\s*$/i.test(e.textContent||'')){var row=e;for(var k=0;k<6&&row.parentElement;k++){row=row.parentElement;if(row.getAttribute('role')==='button'||/cursor-pointer/.test(row.className||'')){break;}}row.style.display='none';}}}catch(x){}}hide();new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});})();true;`;
 const METHODS = [
-  { kind: 'applePay', title: 'Apple Pay', fee: '3% or $2 min',  speed: 'INSTANT'  },   // B185 (CJ): back in the list — Coinflow's push-to-card for a Wallet card, via their page
+  // B186: Apple Pay payout REMOVED again. Coinflow's hosted "Apple Pay" row is their own user-initiated
+  // withdraw flow (amount / "Withdraw up to" a Coinflow wallet balance / gas fee / Continue with Pay) —
+  // not a link-a-card step — and our money is paid out from the merchant side, so it can never work
+  // there. The real route is native: PassKit disbursement sheet → POST /withdraw/apple-pay → our payout.
+  // Needs a native module + Apple entitlement → native build (backlog).
   { kind: 'paypal', title: 'PayPal',       fee: '3% or $2 min',  speed: 'INSTANT'  },
   { kind: 'venmo',  title: 'Venmo',        fee: '3% or $2 min',  speed: 'INSTANT'  },
   { kind: 'card',   title: 'Debit card',   fee: '3% or $2 min',  speed: 'INSTANT'  },
