@@ -80,6 +80,12 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   const [loadErr, setLoadErr] = useState('');
   const [linkUrl, setLinkUrl] = useState(null); // hosted KYC + link page open
   const [paypalSheet, setPaypalSheet] = useState(false); const [paypalEmail, setPaypalEmail] = useState('');
+  // B178 NATIVE KYC (CJ 2026-09-11, Skillz/Triumph-style): our own sheet at the first withdrawal —
+  // name (pre-filled from the DOB screen), address, SSN last 4 → POST /api/kyc/register → Coinflow's
+  // instant check. Most players are approved on the spot and go straight to picking a method. The
+  // SSN digits go to the server and on to Coinflow; they are never stored, never logged, never shown again.
+  const [kycSheet, setKycSheet] = useState(false); const [kycPending, setKycPending] = useState(null); // {kind} the player tapped, resumed after approval
+  const [kyc, setKyc] = useState({ first: '', last: '', address: '', city: '', state: '', zip: '', ssn4: '' });
   const [dest, setDest] = useState(null);       // chosen destination object
   const [amount, setAmount] = useState('');     // keypad string
   const [quote, setQuote] = useState(null);     // { feeCents, netCents, speed }
@@ -158,9 +164,38 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     if (!st || !st.enabled) return;
     const linked = linkedFor(m.kind)[0];
     if (linked) { useDestination(linked); return; }
-    if (!st.verified) { openLink('all'); return; }          // identity first — the hosted page does KYC, then linking
+    if (!st.verified) {                                       // identity first
+      if (st.kyc === 'none' || !st.kyc) {                    // never registered → our native sheet (B178)
+        const p = (st.profile && st.profile.legalName) || ''; const i = p.lastIndexOf(' ');
+        const a = (st.profile && st.profile.address) || {};
+        setKyc({ first: i > 0 ? p.slice(0, i) : p, last: i > 0 ? p.slice(i + 1) : '', address: a.address || '', city: a.city || '', state: a.state || '', zip: a.zip || '', ssn4: '' });
+        setKycPending({ kind: m.kind }); setKycSheet(true); return;
+      }
+      if (st.verificationLink) { Linking.openURL(st.verificationLink).catch(() => {}); return; }   // pending → selfie in Safari
+      openLink('all'); return;                               // anything else → Coinflow's page decides
+    }
     if (m.kind === 'paypal') { setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); return; }
     openLink(m.kind);                                        // bank | card | venmo → hosted page, that method only
+  }
+
+  const kycValid = /^[A-Za-z][A-Za-z'\-.]+$/.test(kyc.first.trim()) && /^[A-Za-z][A-Za-z'\-. ]+$/.test(kyc.last.trim()) && kyc.address.trim().length >= 3 && kyc.city.trim().length >= 2 && /^[A-Za-z]{2}$/.test(kyc.state.trim()) && /^\d{5}(-\d{4})?$/.test(kyc.zip.trim()) && /^\d{4}$/.test(kyc.ssn4);
+  async function submitKyc() {
+    if (!kycValid || busy) return;
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch(`${httpsBase}/api/kyc/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabaseToken, firstName: kyc.first.trim(), lastName: kyc.last.trim(), address: kyc.address.trim(), city: kyc.city.trim(), state: kyc.state.trim().toUpperCase(), zip: kyc.zip.trim(), ssn4: kyc.ssn4 }) });
+      const j = await r.json().catch(() => ({}));
+      setKyc((k) => ({ ...k, ssn4: '' }));                    // never keep the digits around
+      if (!j.ok) { setErr(j.error === 'name_invalid' ? 'Check your name' : j.error === 'address_invalid' ? 'Check your address' : j.error === 'ssn4_invalid' ? 'Enter the last 4 digits of your SSN' : 'Verification is unavailable right now — try again shortly'); return; }
+      setKycSheet(false);
+      if (j.verified) { if (onToast) onToast('VERIFIED'); const k = kycPending && kycPending.kind; setKycPending(null); await load(true); if (k) setTimeout(() => { const m = METHODS.find((x) => x.kind === k); if (m) tapMethod(m); }, 50); return; }
+      // instant check failed → Coinflow needs a selfie
+      await load(true);
+      if (j.verificationLink) { if (onToast) onToast('ONE MORE STEP — A QUICK SELFIE'); Linking.openURL(j.verificationLink).catch(() => {}); }
+      else if (onToast) onToast('Verification is being reviewed');
+    } catch { setErr('Network error — try again'); }
+    finally { setBusy(false); }
   }
 
   async function submitWithdraw(freshTok) { // shared tail of both step-up paths (email code + Apple re-auth)
@@ -336,6 +371,33 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
             </View>))}
         </View>
       ) : null}
+
+      {/* B178: native identity sheet — one time, before the first withdrawal */}
+      <Modal visible={kycSheet} animationType="slide" transparent onRequestClose={() => setKycSheet(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); }}>
+          <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 60 * s }} onPress={() => {}}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 1100 * s }}>
+              <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>VERIFY YOUR IDENTITY</Text>
+              <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 22 * s, lineHeight: 34 * s }}>One time, required by law before your first withdrawal. Checked instantly by Coinflow, our licensed payments partner. Sense never stores your SSN.</Text>
+              {[['first', 'First name', 'givenName', 'words', 'default'], ['last', 'Last name', 'familyName', 'words', 'default'], ['address', 'Street address', 'fullStreetAddress', 'words', 'default'], ['city', 'City', 'addressCity', 'words', 'default']].map(([k, ph, tct, cap, kb]) => (
+                <TextInput key={k} placeholder={ph} placeholderTextColor={COLORS.creamDim} value={kyc[k]} onChangeText={(t) => setKyc((x) => ({ ...x, [k]: t.slice(0, 120) }))} autoCapitalize={cap} autoCorrect={false} textContentType={tct} keyboardType={kb}
+                  style={{ fontFamily: FONTS.interSemi, fontSize: 28 * s, color: COLORS.cream, backgroundColor: 'rgba(245,241,230,0.08)', borderRadius: 22 * s, paddingVertical: 24 * s, paddingHorizontal: 28 * s, marginBottom: 16 * s }} />))}
+              <View style={{ flexDirection: 'row', gap: 16 * s }}>
+                <TextInput placeholder="State" placeholderTextColor={COLORS.creamDim} value={kyc.state} onChangeText={(t) => setKyc((x) => ({ ...x, state: t.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() }))} autoCapitalize="characters" autoCorrect={false} textContentType="addressState" maxLength={2}
+                  style={{ flex: 1, fontFamily: FONTS.interSemi, fontSize: 28 * s, color: COLORS.cream, backgroundColor: 'rgba(245,241,230,0.08)', borderRadius: 22 * s, paddingVertical: 24 * s, paddingHorizontal: 28 * s, marginBottom: 16 * s }} />
+                <TextInput placeholder="ZIP" placeholderTextColor={COLORS.creamDim} value={kyc.zip} onChangeText={(t) => setKyc((x) => ({ ...x, zip: t.replace(/[^0-9-]/g, '').slice(0, 10) }))} keyboardType="number-pad" textContentType="postalCode" maxLength={10}
+                  style={{ flex: 1.4, fontFamily: FONTS.interSemi, fontSize: 28 * s, color: COLORS.cream, backgroundColor: 'rgba(245,241,230,0.08)', borderRadius: 22 * s, paddingVertical: 24 * s, paddingHorizontal: 28 * s, marginBottom: 16 * s }} />
+                <TextInput placeholder="SSN last 4" placeholderTextColor={COLORS.creamDim} value={kyc.ssn4} onChangeText={(t) => setKyc((x) => ({ ...x, ssn4: t.replace(/\D/g, '').slice(0, 4) }))} keyboardType="number-pad" secureTextEntry maxLength={4}
+                  style={{ flex: 1.4, fontFamily: FONTS.interSemi, fontSize: 28 * s, color: COLORS.cream, backgroundColor: 'rgba(245,241,230,0.08)', borderRadius: 22 * s, paddingVertical: 24 * s, paddingHorizontal: 28 * s, marginBottom: 16 * s }} />
+              </View>
+              {err ? (<Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: RED, marginTop: 8 * s }}>{err}</Text>) : null}
+              <PressBtn onPress={submitKyc} disabled={busy || !kycValid} style={[cta(!busy && kycValid), { marginHorizontal: 0, marginTop: 22 * s }]}>
+                {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>VERIFY</Text></PressBtn>
+              <Pressable onPress={() => { setKycSheet(false); setKycPending(null); }} style={{ alignItems: 'center', marginTop: 22 * s }}><Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim }}>Not now</Text></Pressable>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* PayPal: native email sheet (Coinflow's add-PayPal API — no WebView) */}
       <Modal visible={paypalSheet} animationType="slide" transparent onRequestClose={() => setPaypalSheet(false)}>

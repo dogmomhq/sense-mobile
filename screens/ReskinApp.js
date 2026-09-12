@@ -41,6 +41,7 @@ const TERMS_URL = 'https://dogmomhq.github.io/sense-legal/terms.html'; // CJ 202
 function DobModal({ error, onSubmit, onCancel }) {
   const s = useScale();
   const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
+  const [legalName, setLegalName] = useState('');   // B178: full legal name, collected once with the DOB (pre-fills the withdrawal verification sheet)
   const [localErr, setLocalErr] = useState(null);
   const [confirm, setConfirm] = useState(null); // {y,m,d} under review — B47 typo guard (DOB is one-time)
   const [agreed, setAgreed] = useState(false);  // B48: terms checkbox on the review step gates CONFIRM
@@ -50,6 +51,7 @@ function DobModal({ error, onSubmit, onCancel }) {
   function go() {
     const m = Number(mm), d = Number(dd), y = Number(yy);
     const now = new Date();
+    if (!/^[A-Za-z][A-Za-z'\-.]+(\s+[A-Za-z][A-Za-z'\-.]+)+$/.test(legalName.trim())) { setLocalErr('Enter your full legal name (first and last).'); return; }
     if (!m || !d || !y || yy.length !== 4 || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > now.getFullYear()) { setLocalErr('Enter a valid date of birth.'); return; }
     const dt = new Date(y, m - 1, d);
     if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d || dt > now) { setLocalErr('Enter a valid date of birth.'); return; }
@@ -58,7 +60,7 @@ function DobModal({ error, onSubmit, onCancel }) {
   }
   const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
   function send() {
-    onSubmit(String(confirm.y) + '-' + String(confirm.m).padStart(2, '0') + '-' + String(confirm.d).padStart(2, '0'));
+    onSubmit(String(confirm.y) + '-' + String(confirm.m).padStart(2, '0') + '-' + String(confirm.d).padStart(2, '0'), legalName.trim().replace(/\s+/g, ' '));
   }
   const err = localErr || error;
   return (
@@ -73,7 +75,7 @@ function DobModal({ error, onSubmit, onCancel }) {
           <View style={{ marginTop: 32 * s, alignItems: 'center' }}>
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }}>YOU ENTERED</Text>
             <Text style={{ fontFamily: FONTS.interBold, fontSize: 31 * s, color: COLORS.cream, marginTop: 10 * s, textAlign: 'center' }}>
-              {MONTHS[confirm.m - 1]} {confirm.d}, {confirm.y}</Text>
+              {legalName.trim().replace(/\s+/g, ' ')}{'\n'}{MONTHS[confirm.m - 1]} {confirm.d}, {confirm.y}</Text>
             <Pressable onPress={() => setAgreed(v => !v)} hitSlop={14} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 26 * s, paddingVertical: 14 * s, paddingHorizontal: 4 * s }}>
               <View style={{ width: 52 * s, height: 52 * s, borderRadius: 13 * s, borderWidth: 3, borderColor: agreed ? COLORS.lime : 'rgba(255,255,255,0.45)', backgroundColor: agreed ? COLORS.lime : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 20 * s }}>
                 {agreed ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 34 * s, color: '#0A0A0A' }}>{'\u2713'}</Text> : null}
@@ -83,8 +85,10 @@ function DobModal({ error, onSubmit, onCancel }) {
                   style={{ color: COLORS.lime, textDecorationLine: 'underline' }}>Terms of Service</Text></Text>
             </Pressable>
           </View>
-        ) : (
-        <View style={{ flexDirection: 'row', marginTop: 32 * s }}>
+        ) : (<>
+        <TextInput style={[box, { marginTop: 32 * s, textAlign: 'left', paddingHorizontal: 22 * s, fontSize: 26 * s }]} value={legalName} onChangeText={(t) => setLegalName(t.slice(0, 80))}
+          placeholder="Full legal name" placeholderTextColor="rgba(255,255,255,0.35)" autoCapitalize="words" autoCorrect={false} textContentType="name" maxLength={80} />
+        <View style={{ flexDirection: 'row', marginTop: 18 * s }}>
           <TextInput style={[box, { flex: 1 }]} value={mm} onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 2); setMm(v); if (v.length === 2 && ddRef.current) ddRef.current.focus(); }}
             placeholder="MM" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={2} />
           <TextInput ref={ddRef} style={[box, { flex: 1, marginHorizontal: 14 * s }]} value={dd} onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 2); setDd(v); if (v.length === 2 && yyRef.current) yyRef.current.focus(); }}
@@ -92,7 +96,7 @@ function DobModal({ error, onSubmit, onCancel }) {
           <TextInput ref={yyRef} style={[box, { flex: 1.5 }]} value={yy} onChangeText={(t) => setYy(t.replace(/\D/g, '').slice(0, 4))}
             placeholder="YYYY" placeholderTextColor="rgba(255,255,255,0.35)" keyboardType="number-pad" maxLength={4} />
         </View>
-        )}
+        </>)}
         {err ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 19 * s, color: '#FF7A6B', textAlign: 'center', marginTop: 18 * s }}>{err}</Text> : null}
         <Pressable onPress={confirm ? (agreed ? send : undefined) : go} style={{ backgroundColor: COLORS.lime, borderRadius: 22 * s, paddingVertical: 26 * s, alignItems: 'center', marginTop: 30 * s, opacity: confirm && !agreed ? 0.4 : 1 }}>
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: '#0A0A0A', letterSpacing: 1.5 }}>{confirm ? 'CONFIRM' : 'CONTINUE'}</Text>

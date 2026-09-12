@@ -1449,11 +1449,11 @@ export default function App() {
   }
   // DOB CAPTURE (B44): modal submit. Refreshes the Supabase token first (same as
   // sendQueueMsg) so an expired session fails with a clear re-login message, not silently.
-  async function submitDob(dob) {
+  async function submitDob(dob, legalName) {
     setDobErr(null);
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} }
-    ensureConn(() => wsSend({ type: 'set-dob', dob, name: myName(), supabaseToken: supaTok, termsAccepted: true })); // CJ 2026-09-02: the modal's terms checkbox gates CONFIRM; record the consent server-side
+    ensureConn(() => wsSend({ type: 'set-dob', dob, legalName: legalName || undefined, name: myName(), supabaseToken: supaTok, termsAccepted: true })); // CJ 2026-09-02: the modal's terms checkbox gates CONFIRM; record the consent server-side
   }
   function cancelDob() {
     setDobAsk(false); setDobErr(null);
