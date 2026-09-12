@@ -12,7 +12,7 @@
 //   4. step-up (fresh email code, or Apple re-auth for Apple accounts — B129) → POST /api/withdraw.
 // First withdrawal, anything ≥ $500 or a destination linked < 24 h ago waits for CJ's approval — the server says so.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Modal, Platform, Keyboard, Linking } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Modal, Platform, Keyboard, Linking, KeyboardAvoidingView } from 'react-native';
 import WebView from 'react-native-webview';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../supabaseClient';
@@ -33,7 +33,11 @@ const digits = (s) => (s || '').replace(/\D+/g, '');
 // which only Coinflow can set. Until they do, hide it in our WebView: any element whose own text
 // is "Powered by" and its row. It's a SPA, so watch for re-renders.
 const HIDE_POWERED_BY = `(function(){function hide(){try{var els=document.querySelectorAll('span,div,p');for(var i=0;i<els.length;i++){var e=els[i];if(e.children.length===0&&/^\\s*Powered by\\s*$/i.test(e.textContent||'')){var box=e.parentElement;for(var k=0;k<3&&box&&box.parentElement&&box.parentElement.children.length===1;k++)box=box.parentElement;box.style.display='none';}}}catch(x){}}hide();new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});})();true;`;
+// B185: when the player picked Apple Pay, Coinflow's card page also lists "Add a Debit Card" — that one
+// is native now, so hide it there to keep one choice per tap.
+const HIDE_DEBIT_ROW = `(function(){function hide(){try{var els=document.querySelectorAll('span,div,p,h3');for(var i=0;i<els.length;i++){var e=els[i];if(e.children.length===0&&/^\\s*Add a Debit Card\\s*$/i.test(e.textContent||'')){var row=e;for(var k=0;k<6&&row.parentElement;k++){row=row.parentElement;if(row.getAttribute('role')==='button'||/cursor-pointer/.test(row.className||'')){break;}}row.style.display='none';}}}catch(x){}}hide();new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});})();true;`;
 const METHODS = [
+  { kind: 'applePay', title: 'Apple Pay', fee: '3% or $2 min',  speed: 'INSTANT'  },   // B185 (CJ): back in the list — Coinflow's push-to-card for a Wallet card, via their page
   { kind: 'paypal', title: 'PayPal',       fee: '3% or $2 min',  speed: 'INSTANT'  },
   { kind: 'venmo',  title: 'Venmo',        fee: '3% or $2 min',  speed: 'INSTANT'  },
   { kind: 'card',   title: 'Debit card',   fee: '3% or $2 min',  speed: 'INSTANT'  },
@@ -47,6 +51,7 @@ function humanError(code, j) {
   switch (code) {
     case 'otp_required': return 'Enter the code we emailed you';
     case 'kyc_required': return 'Finish identity verification first';
+    case 'paypal_not_enabled': return 'PayPal payouts are not switched on yet — use Venmo, a debit card or your bank for now';
     case 'payout_blocked': return 'Payouts are paused on your account — contact support';
     case 'destination_unknown': case 'destination_required': return 'Pick a transfer method';
     case 'exceeds_withdrawable': return 'You can withdraw up to ' + dollars((j && j.withdrawableCents) || 0) + ' right now — play through the rest first';
@@ -84,6 +89,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   const [st, setSt] = useState(null);          // /api/withdraw/status
   const [loadErr, setLoadErr] = useState('');
   const [linkUrl, setLinkUrl] = useState(null); // hosted KYC + link page open
+  const [linkMethod, setLinkMethod] = useState(null);
   const [paypalSheet, setPaypalSheet] = useState(false); const [paypalEmail, setPaypalEmail] = useState('');
   // B178 NATIVE KYC (CJ 2026-09-11, Skillz/Triumph-style): our own sheet at the first withdrawal —
   // name (pre-filled from the DOB screen), address, SSN last 4 → POST /api/kyc/register → Coinflow's
@@ -144,7 +150,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
 
   async function openLink(method) { // Venmo / card / bank (and identity verification) — Coinflow's hosted page
     setErr('');
-    try { const r = await fetch(`${httpsBase}/api/withdraw/link-url?method=${encodeURIComponent(method || 'all')}&redirect=${encodeURIComponent(LINK_RETURN)}`, { headers: hdr }); const j = await r.json().catch(() => null); if (!r.ok || !j || !j.url) { setErr(humanError(j && j.error)); return; } setLinkUrl(j.url); }
+    try { const r = await fetch(`${httpsBase}/api/withdraw/link-url?method=${encodeURIComponent(method || 'all')}&redirect=${encodeURIComponent(LINK_RETURN)}`, { headers: hdr }); const j = await r.json().catch(() => null); if (!r.ok || !j || !j.url) { setErr(humanError(j && j.error)); return; } setLinkMethod(method || 'all'); setLinkUrl(j.url); }
     catch { setErr('Network error — try again'); }
   }
   async function linkDone(msg) {
@@ -232,6 +238,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     }
     if (m.kind === 'paypal') { setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); return; }
     if (m.kind === 'card') { setCardReady(false); setCardSheet(true); return; }   // B183: native card sheet
+    if (m.kind === 'applePay') { openLink('applePay'); return; }                   // B185: Coinflow's Apple Pay push-to-card
     if (m.kind === 'venmo') { setVenmoPhone(''); setVenmoSheet(true); return; }   // B181: native phone sheet
     openLink(m.kind);                                        // bank → Coinflow's page (Plaid)
   }
@@ -436,6 +443,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
 
       {/* B178: native identity sheet — one time, before the first withdrawal */}
       <Modal visible={kycSheet} animationType="slide" transparent onRequestClose={() => setKycSheet(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); }}>
           <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 60 * s }} onPress={() => {}}>
             <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 1100 * s }}>
@@ -459,10 +467,12 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
             </ScrollView>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* B183: Debit card — Coinflow's secure card field inside our sheet; token → /api/withdraw/link/card */}
       <Modal visible={cardSheet} animationType="slide" transparent onRequestClose={() => setCardSheet(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setCardSheet(false); }}>
           <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 70 * s }} onPress={() => {}}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>DEBIT CARD</Text>
@@ -480,10 +490,12 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
               {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>LINK CARD</Text></PressBtn>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* B181: Venmo — link or change by phone (Coinflow's add-Venmo API) */}
       <Modal visible={venmoSheet} animationType="slide" transparent onRequestClose={() => setVenmoSheet(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setVenmoSheet(false); }}>
           <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 80 * s }} onPress={() => {}}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>VENMO ACCOUNT</Text>
@@ -495,10 +507,12 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
               {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>SAVE VENMO</Text></PressBtn>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* PayPal: native email sheet (Coinflow's add-PayPal API — no WebView) */}
       <Modal visible={paypalSheet} animationType="slide" transparent onRequestClose={() => setPaypalSheet(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setPaypalSheet(false); }}>
           <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 80 * s }} onPress={() => {}}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>LINK PAYPAL</Text>
@@ -509,6 +523,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
               {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>LINK PAYPAL</Text></PressBtn>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Coinflow hosted KYC + Venmo / card / bank linking */}
@@ -520,7 +535,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
           </View>
           {linkUrl ? (
             <WebView source={{ uri: linkUrl }} style={{ flex: 1, backgroundColor: '#fff' }} originWhitelist={['https://*']} javaScriptEnabled domStorageEnabled sharedCookiesEnabled mediaCapturePermissionGrantType="grant" allowsInlineMediaPlayback
-              injectedJavaScript={HIDE_POWERED_BY}
+              injectedJavaScript={HIDE_POWERED_BY + (linkMethod === 'applePay' ? HIDE_DEBIT_ROW : '')}
               onMessage={(e) => { try { const m = JSON.parse(e.nativeEvent.data); if (m && m.method === 'accountLinked') linkDone('Linked — you can withdraw now'); } catch {} }}
               onShouldStartLoadWithRequest={(req) => { if (String(req.url || '').startsWith(LINK_RETURN)) { linkDone('Linked — you can withdraw now'); return false; } return true; }}
               onError={() => { linkDone(); setErr('Could not open verification — try again'); }} />
