@@ -85,6 +85,12 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   // instant check. Most players are approved on the spot and go straight to picking a method. The
   // SSN digits go to the server and on to Coinflow; they are never stored, never logged, never shown again.
   const [venmoSheet, setVenmoSheet] = useState(false); const [venmoPhone, setVenmoPhone] = useState('');   // B181: link / change Venmo by phone
+  // B183 NATIVE DEBIT CARD (CJ: "we don't need the extra step"): Coinflow's secure card field
+  // (/form/v2/card-form — number, expiry, CVV live on THEIR page, the number never touches us) sits
+  // inside OUR sheet. Protocol from coinflow-react-native CoinflowCardFormV2: page posts
+  // {method:'loaded'|'heightChange'|'tokenize'}; we post 'tokenize' and get {token, expMonth, expYear}.
+  const [cardSheet, setCardSheet] = useState(false); const [cardReady, setCardReady] = useState(false); const [cardH, setCardH] = useState(260);
+  const cardWv = useRef(null);
   const [kycSheet, setKycSheet] = useState(false); const [kycPending, setKycPending] = useState(null); // {kind} the player tapped, resumed after approval
   const [kyc, setKyc] = useState({ first: '', last: '', address: '', city: '', state: '', zip: '', ssn4: '' });
   const [dest, setDest] = useState(null);       // chosen destination object
@@ -164,7 +170,32 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     setErr('');
     if (m.kind === 'venmo') { setVenmoPhone(''); setVenmoSheet(true); return; }
     if (m.kind === 'paypal') { setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); return; }
+    if (m.kind === 'card') { setCardReady(false); setCardSheet(true); return; }
     openLink(m.kind);
+  }
+  async function linkCard() { // B183: ask Coinflow's field for a token, then link it by API
+    if (inFlightRef.current || !cardWv.current) return; inFlightRef.current = true; setErr(''); setBusy(true);
+    try {
+      const tok = await new Promise((resolve, reject) => { cardTokRef.current = { resolve, reject }; cardWv.current.postMessage('tokenize'); setTimeout(() => { if (cardTokRef.current) { cardTokRef.current = null; reject(new Error('timeout')); } }, 20000); });
+      const r = await fetch(`${httpsBase}/api/withdraw/link/card`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabaseToken, cardToken: tok.token, expMonth: String(tok.expMonth || '').padStart(2, '0'), expYear: String(tok.expYear || '').slice(-2) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) { setErr(j.error === 'card_ineligible' ? 'This card can\'t receive instant payouts — try another debit card' : j.error === 'address_required' ? 'Finish identity verification first' : humanError(j.error, j)); return; }
+      setCardSheet(false); if (onToast) onToast('Card linked');
+      await load(true);
+      const cd = (j.destinations || []).find((d) => d.kind === 'card'); if (cd) { setDest(cd); setPhase('amount'); }
+    } catch (e) { setErr(String(e && e.message || '').startsWith('Card') ? 'Check the card details' : 'Check the card details and try again'); }
+    finally { setBusy(false); inFlightRef.current = false; }
+  }
+  const cardTokRef = useRef(null);
+  function onCardMsg(ev) {
+    let m = null; try { m = JSON.parse(ev.nativeEvent.data); } catch { return; }
+    if (m.method === 'loaded') setCardReady(true);
+    if (m.method === 'heightChange') { const h = Number(m.data); if (Number.isFinite(h) && h > 40) setCardH(Math.min(h, 520)); }
+    if (m.method === 'tokenize' && cardTokRef.current) {
+      const { resolve, reject } = cardTokRef.current; cardTokRef.current = null;
+      if (typeof m.data === 'string' && m.data.startsWith('ERROR')) return reject(new Error(m.data.replace('ERROR ', '')));
+      try { resolve(typeof m.data === 'string' ? JSON.parse(m.data) : m.data); } catch (e) { reject(e); }
+    }
   }
   async function linkPaypal() { // native: email → server → Coinflow add-PayPal
     if (inFlightRef.current) return; inFlightRef.current = true; setErr(''); setBusy(true);
@@ -195,7 +226,9 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
       openLink('all'); return;                               // anything else → Coinflow's page decides
     }
     if (m.kind === 'paypal') { setPaypalEmail(signedInEmail || ''); setPaypalSheet(true); return; }
-    openLink(m.kind);                                        // bank | card | venmo → hosted page, that method only
+    if (m.kind === 'card') { setCardReady(false); setCardSheet(true); return; }   // B183: native card sheet
+    if (m.kind === 'venmo') { setVenmoPhone(''); setVenmoSheet(true); return; }   // B181: native phone sheet
+    openLink(m.kind);                                        // bank → Coinflow's page (Plaid)
   }
 
   const kycValid = /^[A-Za-z][A-Za-z'\-.]+$/.test(kyc.first.trim()) && /^[A-Za-z][A-Za-z'\-. ]+$/.test(kyc.last.trim()) && kyc.address.trim().length >= 3 && kyc.city.trim().length >= 2 && /^[A-Za-z]{2}$/.test(kyc.state.trim()) && /^\d{5}(-\d{4})?$/.test(kyc.zip.trim()) && /^\d{4}$/.test(kyc.ssn4);
@@ -419,6 +452,27 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
                 {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>VERIFY</Text></PressBtn>
               <Pressable onPress={() => { setKycSheet(false); setKycPending(null); }} style={{ alignItems: 'center', marginTop: 22 * s }}><Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.creamDim }}>Not now</Text></Pressable>
             </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* B183: Debit card — Coinflow's secure card field inside our sheet; token → /api/withdraw/link/card */}
+      <Modal visible={cardSheet} animationType="slide" transparent onRequestClose={() => setCardSheet(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setCardSheet(false); }}>
+          <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 70 * s }} onPress={() => {}}>
+            <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>DEBIT CARD</Text>
+            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 18 * s, lineHeight: 34 * s }}>Visa or Mastercard debit. Instant payouts. Card details go straight to Coinflow — Sense never sees the number.</Text>
+            <View style={{ height: cardH, borderRadius: 22 * s, overflow: 'hidden', backgroundColor: '#10140D' }}>
+              {cardSheet ? (
+                <WebView ref={cardWv} onMessage={onCardMsg} originWhitelist={['https://*']} javaScriptEnabled domStorageEnabled
+                  source={{ uri: `${((st && st.env) || 'sandbox') === 'prod' ? 'https://coinflow.cash' : `https://${(st && st.env) || 'sandbox'}.coinflow.cash`}/form/v2/card-form?merchantId=${encodeURIComponent((st && st.merchantId) || 'sensegame')}&useHeightChange=true` }}
+                  style={{ flex: 1, backgroundColor: 'transparent' }} scrollEnabled={false} />
+              ) : null}
+              {!cardReady ? <ActivityIndicator color={COLORS.lime} style={{ position: 'absolute', top: 40 * s, alignSelf: 'center' }} /> : null}
+            </View>
+            {err ? (<Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: RED, marginTop: 16 * s }}>{err}</Text>) : null}
+            <PressBtn onPress={linkCard} disabled={busy || !cardReady} style={[cta(!busy && cardReady), { marginHorizontal: 0, marginTop: 22 * s }]}>
+              {busy ? <ActivityIndicator color="#10140C" /> : null}<Text style={ctaText}>LINK CARD</Text></PressBtn>
           </Pressable>
         </Pressable>
       </Modal>
