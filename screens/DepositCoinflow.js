@@ -21,7 +21,7 @@
 // count toward attempts-per-hour. Remounting the button on depositId gives the page a fresh
 // subtotal, which is why we don't need their hidden bridge WebView.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, Linking, Platform, Animated, Easing, Dimensions, AppState } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Modal, Linking, Platform, Animated, Easing, Dimensions, AppState, TextInput } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -137,6 +137,10 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   const setIntent = useCallback((v) => { intentRef.current = typeof v === 'function' ? v(intentRef.current) : v; _setIntent(intentRef.current); }, []);
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('amount'); // amount | checkout | processing
+  // B182: Venmo needs the phone tied to the player's Venmo (Coinflow: "phone/email tied to the Venmo
+  // account" — our login email is an Apple relay for many players, which Coinflow then auto-links as
+  // the payout Venmo). Asked ONCE; the server remembers it. venmoAsk holds the pending rail tap.
+  const [venmoAsk, setVenmoAsk] = useState(null); const [venmoPhone, setVenmoPhone] = useState('');
   const [err, setErr] = useState('');
   const [overlay, setOverlay] = useState(false); // PayPal/Venmo approval modal is open — it needs the whole sheet
   const inFlightRef = useRef(false);
@@ -325,7 +329,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
   // the signed Settled webhook. Server-minted is stronger than the card path — the webhook matches on
   // payment_id rather than trusting a webhookInfo the phone supplied.
   // We start polling BEFORE handing off, so coming back lands on 'processing'.
-  async function openRail(rail, retried = false, pre = null) {
+  async function openRail(rail, retried = false, pre = null, phone = null) {
     const label = rail === 'venmo' ? 'Venmo' : rail === 'cashApp' ? 'Cash App' : 'Crypto';
     const cur = pre || intentRef.current;
     const it = cur && cur.amountCents === cents ? cur : await ensureIntent(true);
@@ -333,7 +337,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
     setBusy(true); stamp(rail + ':mint');
     try {
       const r = await fetch(`${httpsBase}/api/deposit/rail`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail, build: clog.buildTag() || undefined, deepLink: DEEP_LINK_OK || undefined }) });
+        body: JSON.stringify({ supabaseToken, depositId: it.depositId, rail, build: clog.buildTag() || undefined, deepLink: DEEP_LINK_OK || undefined, venmoPhone: phone || undefined }) });
       const j = await r.json().catch(() => ({}));
       if (!alive.current) return;
       const dest = j && (j.link || j.url);
@@ -343,6 +347,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         // 2026-09-11: this used to setErr('Tap again…') and stop, so the tap AFTER any completed or
         // abandoned rail was always wasted — CJ: "makes me press twice every time". Mint the fresh
         // intent and carry on with the SAME tap. Guarded by `retried` so it can never loop.
+        if (j && j.code === 'venmo_phone_required') { stamp('venmo:askPhone'); setVenmoAsk({ rail, it }); return; }
         if (j && j.code === 'intent_spent') {
           setIntent(null); idemNonce.current = Crypto.randomUUID();
           if (retried) { setErr('Start a new deposit and try again'); return; }
@@ -350,7 +355,7 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           const fresh = await ensureIntent(true);
           if (!alive.current) return;
           if (!fresh) return;                       // ensureIntent already surfaced the reason
-          return openRail(rail, true, fresh);
+          return openRail(rail, true, fresh, phone);
         }
         stamp(rail + ':mintFail:' + (r.status || 0));
         setErr(label + ' could not start — try another method'); return;
@@ -498,6 +503,22 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
           <Text onPress={() => Linking.openURL(TERMS_URL).catch(() => {})} style={{ textDecorationLine: 'underline' }}>Terms of Use</Text></>}
       </Text>)}
     </View>
+
+    <Modal visible={!!venmoAsk} transparent animationType="slide" onRequestClose={() => setVenmoAsk(null)}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => setVenmoAsk(null)}>
+        <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 80 * s }} onPress={() => {}}>
+          <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>YOUR VENMO</Text>
+          <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 22 * s, lineHeight: 34 * s }}>The phone number on your Venmo account. One time — it's also where your winnings can go back to.</Text>
+          <TextInput placeholder="(415) 555-1234" placeholderTextColor={COLORS.creamDim} value={venmoPhone} onChangeText={(t) => setVenmoPhone(t.replace(/[^0-9()\-\s]/g, '').slice(0, 16))} keyboardType="phone-pad" textContentType="telephoneNumber" autoFocus
+            style={{ fontFamily: FONTS.interSemi, fontSize: 30 * s, color: COLORS.cream, backgroundColor: 'rgba(245,241,230,0.08)', borderRadius: 22 * s, paddingVertical: 26 * s, paddingHorizontal: 28 * s }} />
+          <PressBtn onPress={() => { const d = venmoPhone.replace(/\D/g, '').replace(/^1(\d{10})$/, '$1'); if (d.length !== 10) return; const a = venmoAsk; setVenmoAsk(null); openRail(a.rail, false, a.it, d); }}
+            disabled={venmoPhone.replace(/\D/g, '').replace(/^1(\d{10})$/, '$1').length !== 10}
+            style={[ctaBase, { marginHorizontal: 0, marginTop: 26 * s, backgroundColor: BRAND.venmo.bg, opacity: venmoPhone.replace(/\D/g, '').replace(/^1(\d{10})$/, '$1').length === 10 ? 1 : 0.5 }]}>
+            <Text style={{ fontFamily: FONTS.interExtra, fontSize: 34 * s, color: BRAND.venmo.fg, letterSpacing: 0.04 * 34 * s }}>CONTINUE TO VENMO</Text>
+          </PressBtn>
+        </Pressable>
+      </Pressable>
+    </Modal>
 
     <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setPickerOpen(false)}>
