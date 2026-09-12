@@ -33,12 +33,13 @@ import PayLogo, { BRAND } from './components/PayLogo';
 import * as clog from '../clientlog'; // B171: the button timeline goes to the server, not just console.log
 
 const TERMS_URL = 'https://dogmomhq.github.io/sense-legal/terms.html';
-// Coinflow's enum ids; label is what the player sees. No raw card, no ACH — deliberate (DECISIONS 2026-09-10).
+// Coinflow's enum ids; label is what the player sees. Card added 2026-09-11 (hosted form, never raw PAN); no ACH.
 const METHODS = [
   { id: 'applePay', label: 'Apple Pay', cta: 'PAY WITH APPLE PAY' },
   { id: 'paypal',   label: 'PayPal',    cta: 'PAY WITH PAYPAL' },
   { id: 'venmo',    label: 'Venmo',     cta: 'PAY WITH VENMO' },
   { id: 'cashApp',  label: 'Cash App',  cta: 'PAY WITH CASH APP' },
+  { id: 'card',     label: 'Card',      cta: 'PAY WITH CARD' },       // 2026-09-11 CJ: card is ON — Coinflow's hosted card form (3DS, tokenized, test cards documented); server rails list controls visibility
   { id: 'crypto',   label: 'Crypto',    cta: 'PAY WITH CRYPTO' },
 ];
 // Fallbacks only — never MORE permissive than the server, or a chip could be offered that it rejects.
