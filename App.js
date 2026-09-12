@@ -1178,7 +1178,7 @@ export default function App() {
         }
         break;
       }
-      case 'game-expired': case 'async-expired': {  // pending game timed out (5-min rule) — refund stake
+      case 'game-expired': case 'async-expired': {  // pending game timed out (30-min expiry, server sweep) — refund stake
         if (msg.matchId) { /* P2.4: client expiry-refund math deleted — server refunds */ setPending(p => { const n = { ...p }; delete n[msg.matchId]; return n; }); refreshServerBalance(); }
         if (activeMatchRef.current === msg.matchId && (modeRef.current === 'play' || modeRef.current === 'joining')) bailHome('Game expired');
         else showToast('MATCH EXPIRED — ENTRY REFUNDED');

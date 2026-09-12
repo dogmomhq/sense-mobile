@@ -3,7 +3,7 @@
 // Grounded in the line-by-line server audit (2026-05-31). Web + mobile both import THIS — change here, both stay in sync.
 //
 // GOTCHAS baked in (these silently break the client if ignored):
-//  * `tier` in queue/create is the BARE number (1..4). The server prepends paymentMode to build its pool key
+//  * `tier` in queue/create is the BARE ladder index (1..11 today; see GET /api/tiers). The server prepends paymentMode to build its pool key
 //    (e.g. "none:1"). Do NOT send "none:1" yourself.
 //  * Free mode (mobile) sends paymentMode:'none' — bypasses ALL Solana/on-chain code on the server.
 //  * Player name must be UNIQUE — matchmaking keys on it; duplicate names ghost each other.
@@ -15,7 +15,7 @@
 // ---------- TIMING CONSTANTS (mirror server) ----------
 export const TIME_LIMIT_MS = 10000;
 export const COUNTDOWN_MS = 2400;            // 3 ticks x 800ms
-export const ANSWER_TIMEOUT_GRACE_MS = 500;  // safety-net auto-submit at ~10.5s
+export const ANSWER_TIMEOUT_GRACE_MS = 500;  // legacy constant; the app auto-submits -1 at exactly TIME_LIMIT (8.0 s since 2026-08-22)
 
 export type PaymentMode = 'none' | 'solana';
 export type ResultKind = 'win' | 'loss' | 'draw';
