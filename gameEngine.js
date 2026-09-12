@@ -38,17 +38,14 @@ export function getPracticeQuestion(usedIndices, pool = null) {
 
 // Generate computer opponent answer based on difficulty
 export function getComputerAnswer(correctIdx, optionCount, practiceHistory) {
-  const difficulty = getPracticeDifficulty(practiceHistory);
-
-  // Computer correctness: ~60% base, harder when player winning
-  const correctChance = 0.5 + (difficulty * 0.1); // 0.5 to 0.8
+  // CJ 2026-09-12: the computer is right 80% of the time, flat — no difficulty ramp — and when the
+  // player is ALSO right the player should win about 80% of those. Its answer time is drawn 1.2–6.0 s
+  // with a bias to the slow end: a player who answers in ~2 s beats it ~80% of the time.
+  const correctChance = 0.8;
   const isCorrect = Math.random() < correctChance;
   const answer = isCorrect ? correctIdx : getWrongAnswer(correctIdx, optionCount);
-
-  // Computer speed: 1.5s to 6s, faster when difficulty is higher
-  const minTime = 1500 - (difficulty * 200);
-  const maxTime = 6000 - (difficulty * 500);
-  const time = Math.round(minTime + Math.random() * (maxTime - minTime));
+  const u = Math.random();
+  const time = Math.round(1200 + Math.sqrt(u) * 4800); // sqrt skews toward the slow end (median ≈ 4.6 s)
 
   return { answer, time, isCorrect };
 }
@@ -77,9 +74,7 @@ export function determinePracticeResult(playerAnswer, playerTime, computerAnswer
   if (!playerCorrect && computerCorrect) return { result: 'loss', reason: 'wrong_answer' };
   if (!playerCorrect && !computerCorrect) return { result: 'draw', reason: 'both_wrong' };
 
-  // Both correct — faster wins (with 50ms tie threshold)
-  const diff = Math.abs(playerTime - computerTime);
-  if (diff < 50) return { result: 'draw', reason: 'same_speed' };
+  // Both correct — faster wins. CJ 2026-09-12: 1 ms faster wins (was a 50 ms tie window); only an exact tie draws.
   if (playerTime < computerTime) return { result: 'win', reason: 'faster' };
   if (computerTime < playerTime) return { result: 'loss', reason: 'slower' };
   return { result: 'draw', reason: 'same_speed' };
