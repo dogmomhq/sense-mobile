@@ -44,7 +44,8 @@
       "bundleIdentifier": "com.dogmomhq.sensemobile",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Sense uses the camera only for the one-time identity selfie Coinflow asks for before your first withdrawal."
       },
       "entitlements": {
         "aps-environment": "production",

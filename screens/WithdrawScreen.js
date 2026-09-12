@@ -12,7 +12,7 @@
 //   4. step-up (fresh email code, or Apple re-auth for Apple accounts — B129) → POST /api/withdraw.
 // First withdrawal, anything ≥ $500 or a destination linked < 24 h ago waits for CJ's approval — the server says so.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Modal, Platform, Keyboard } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Modal, Platform, Keyboard, Linking } from 'react-native';
 import WebView from 'react-native-webview';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../supabaseClient';
@@ -295,7 +295,15 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
           Minimum {dollars(minCents)}. Cash must be played through once to be withdrawn. Winnings are always withdrawable.</Text>
         {!st.verified ? (
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: COLORS.lime, textAlign: 'center', marginHorizontal: 60 * s, marginBottom: 20 * s, letterSpacing: 0.04 * 24 * s }}>
-            {st.kyc === 'pending' || st.kyc === 'partial-approval' ? 'YOUR VERIFICATION IS BEING REVIEWED' : st.kyc === 'rejected' ? 'VERIFICATION COULD NOT BE COMPLETED — CONTACT SUPPORT' : 'ONE-TIME IDENTITY VERIFICATION FIRST · HANDLED BY COINFLOW, SENSE NEVER SEES YOUR ID'}</Text>
+            {(st.kyc === 'pending' || st.kyc === 'partial-approval') && st.verificationLink ? 'ONE MORE STEP — A QUICK SELFIE TO CONFIRM IT\'S YOU' : st.kyc === 'pending' || st.kyc === 'partial-approval' ? 'YOUR VERIFICATION IS BEING REVIEWED' : st.kyc === 'rejected' ? 'VERIFICATION COULD NOT BE COMPLETED — CONTACT SUPPORT' : 'ONE-TIME IDENTITY VERIFICATION FIRST · HANDLED BY COINFLOW, SENSE NEVER SEES YOUR ID'}</Text>
+        ) : null}
+        {/* B178: the instant database check failed and Coinflow (Persona) needs a selfie. That step needs
+            the camera, which this app's WebView is not entitled to on builds <= 25, so it opens in Safari.
+            The link comes from /api/withdraw/status (Coinflow's 451 verificationLink). */}
+        {!st.verified && st.verificationLink ? (
+          <PressBtn onPress={() => { Linking.openURL(st.verificationLink).catch(() => {}); }} style={{ marginHorizontal: 45 * s, marginBottom: 24 * s, borderRadius: 32 * s, paddingVertical: 30 * s, alignItems: 'center', backgroundColor: COLORS.lime }}>
+            <Text style={{ fontFamily: FONTS.interExtra, fontSize: 32 * s, color: '#10140D', letterSpacing: 0.04 * 32 * s }}>FINISH VERIFICATION</Text>
+          </PressBtn>
         ) : null}
         {/* every method, always — a linked one carries its account, an unlinked one collects it on tap */}
         {METHODS.map((m) => { const d = linkedFor(m.kind)[0];
@@ -351,7 +359,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
             <Pressable onPress={() => linkDone()} hitSlop={16}><Text style={{ fontFamily: FONTS.interExtra, fontSize: 16, color: COLORS.lime, letterSpacing: 1 }}>CLOSE</Text></Pressable>
           </View>
           {linkUrl ? (
-            <WebView source={{ uri: linkUrl }} style={{ flex: 1, backgroundColor: '#fff' }} originWhitelist={['https://*']} javaScriptEnabled domStorageEnabled sharedCookiesEnabled
+            <WebView source={{ uri: linkUrl }} style={{ flex: 1, backgroundColor: '#fff' }} originWhitelist={['https://*']} javaScriptEnabled domStorageEnabled sharedCookiesEnabled mediaCapturePermissionGrantType="grant" allowsInlineMediaPlayback
               onMessage={(e) => { try { const m = JSON.parse(e.nativeEvent.data); if (m && m.method === 'accountLinked') linkDone('Linked — you can withdraw now'); } catch {} }}
               onShouldStartLoadWithRequest={(req) => { if (String(req.url || '').startsWith(LINK_RETURN)) { linkDone('Linked — you can withdraw now'); return false; } return true; }}
               onError={() => { linkDone(); setErr('Could not open verification — try again'); }} />
