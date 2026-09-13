@@ -16,6 +16,7 @@ import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, format
 import * as FileSystem from 'expo-file-system/legacy'; // 1.4.0 video: downloadAsync for question background clips
 import { setServerUrl, connectWS, wsSend, isConnected, isDialing, forceReconnect, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
+import { SEALED_OK, unseal } from './sealed'; // B200: sealed clips (SEALED-CLIP-SPEC-2026-09-13)
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
 import { runAttestation, assertAnswer, getAttestKeyId, loadAttestKey } from './attest'; // P2 attest-once + P3 per-answer assertions — silent, never block
@@ -361,6 +362,8 @@ export default function App() {
   // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
   const startOverrideRef = useRef(null);
   const imgMsRef = useRef(null); // #50: ms from question receipt to image prefetch done (null = not measured)
+  const sealedRef = useRef({}); // B200: matchId -> { uri (sealed download), seq, decrypted:bool, key, iv }
+  const holdCountdownRef = useRef(false); // B200: countdown finished before the key arrived — hold the last beat
   const readySentTsRef = useRef(null); // B60: when we sent {type:'ready'} — drift telemetry (reveal lateness vs the 2400ms plan)
   const onlineRef = useRef(false); const matchIdRef = useRef(null); const pickedRef = useRef(null); const myTimeRef = useRef(null);
   const questionIdxRef = useRef(null); // bank index of the active online question (additive 2026-06-16, for history thumbnails)
@@ -404,6 +407,24 @@ export default function App() {
   // B192: the location gate got a 401 — the Supabase session is gone. Drop the gate and sign out so the
   // SignInGate shows; signing in again re-arms the location check. (CJ was trapped: "it says sign in, but it
   // needs my location, and it won't check my location until I'm signed in.")
+  // B200: decrypt the sealed download with the GO key; then show the clip and, if the countdown already ended,
+  // release the held last beat so the round clock starts with the clip on screen.
+  async function unsealNow(mid) {
+    const s = sealedRef.current[mid]; if (!s || s.decrypted || !s.uri || !s.key) return;
+    s.decrypted = true;
+    try {
+      const r = await unseal(s.uri, s.key, s.iv, s.plain);
+      if (matchIdRef.current !== mid || roundSeqRef.current !== s.seq) return;
+      qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: s.seq });
+      track('sealed_unseal', { ms: r.ms });
+    } catch (e) { s.decrypted = false; setQVidExp(false); track('sealed_unseal_fail', { m: String(e && e.message).slice(0, 60) }); } // show the still rather than a black round
+    finally { if (holdCountdownRef.current) { holdCountdownRef.current = false; startOverrideRef.current = null; setCountdown(false); } delete sealedRef.current[mid]; } // released late: the clock starts NOW (clip visible), not at the 2400 handoff
+  }
+  function countdownDone() {
+    const mid = matchIdRef.current; const s = mid && sealedRef.current[mid];
+    if (s && !(s.decrypted && qVidFileRef.current)) { holdCountdownRef.current = true; return; } // key not here yet — hold on the last beat
+    setCountdown(false);
+  }
   function locGateAuthFail() { setLocGate(false); locOkUntil.current = 0; signOutAuth(); showToast('Session expired — sign in again', 'error'); }
   async function getFreshSupabaseToken() { try { if (supabase) { const { data } = await supabase.auth.getSession(); if (data && data.session) { supabaseTokenRef.current = data.session.access_token; return data.session.access_token; } } } catch (e) {} return supabaseTokenRef.current; }
   // B159: SIGNED-IN ONLY. The first cut showed this to everyone on boot, which covered the app for
@@ -848,13 +869,17 @@ export default function App() {
         // the screen was BLACK until the round ended. Only a network *error* was handled, not
         // a bad *response*. Now any non-success reveals the still, and a hard 3s fallback
         // guarantees the photo appears no matter what the network does.
-        const revealStill = () => { if (roundSeqRef.current === mySeq) setQVidExp(false); };
+        const revealStill = () => { if (roundSeqRef.current === mySeq && !(sealedRef.current[mid] && !sealedRef.current[mid].decrypted && sealedRef.current[mid].uri)) setQVidExp(false); }; // B200: a sealed clip waiting for GO is not a failed download
         const fallbackT = setTimeout(revealStill, 3000); // never black for more than ~3s
-        FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dest).then(r => {
+        const isSealed = !!question.sealed && SEALED_OK; // B200: bytes are ciphertext until the server's GO brings the key
+        const dlDest = isSealed ? FileSystem.cacheDirectory + 'qsealed_' + Date.now() + '.bin' : dest;
+        if (isSealed) sealedRef.current[mid] = { uri: null, plain: dest, seq: mySeq, key: null, iv: null, decrypted: false };
+        FileSystem.downloadAsync(HTTPS_BASE + '/vid/' + question.videoToken, dlDest).then(r => {
           if (r && r.status === 200 && matchIdRef.current === mid && roundSeqRef.current === mySeq) {
             clearTimeout(fallbackT);
-            qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq });
             if (imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt;
+            if (isSealed) { const s = sealedRef.current[mid]; if (s) { s.uri = r.uri; if (s.key) unsealNow(mid); } } // key may already be here (GO beat the download)
+            else { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
           } else {
             revealStill(); // bad status -> show the photo instead of a black screen
           }
@@ -1158,6 +1183,10 @@ export default function App() {
       }
       // ---- shared ----
       case 'rtt-ping': wsSend(rttPong(msg.nonce)); break;
+      case 'go': { // B200: the server's start line — here is the key. Decrypt, show the clip, release the countdown.
+        const s = sealedRef.current[msg.matchId]; if (!s) break;
+        s.key = msg.key; s.iv = msg.iv; if (s.uri) unsealNow(msg.matchId);
+        break; }
       case 'ping': wsSend(pong(msg.nonce)); break;   // room latency probe (web replies pong)
       case 'rtt-result': break;
       case 'match-cancelled':  // a pending async game was cancelled — refund the escrowed stake, drop the card
@@ -1341,7 +1370,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), sealed: SEALED_OK, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
     armJoinWatch(); // B58: the join is in flight — start the silence stopwatch
   }
   // Supabase email one-time-code sign-in
@@ -1559,7 +1588,7 @@ export default function App() {
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp, oppTier,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, askGpsForDeposit, dobOnFile,
-      locGate, locGateDone, locGateSkip, locGateAuthFail, getFreshSupabaseToken, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157 / B192
+      locGate, locGateDone, locGateSkip, locGateAuthFail, getFreshSupabaseToken, countdownDone, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157 / B192
       balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
@@ -1744,7 +1773,7 @@ export default function App() {
       </View>
     )}
     {toast ? <View style={st.toastWrap} pointerEvents="none"><View style={st.toast}><Text style={st.toastText}>{toast}</Text></View></View> : null}
-    {countdown && mode==='play' && <Countdown onDone={()=>setCountdown(false)} />}
+    {countdown && mode==='play' && <Countdown onDone={countdownDone} />}
   </ImageBackground></AWrap></ErrorBoundary>);
 }
 

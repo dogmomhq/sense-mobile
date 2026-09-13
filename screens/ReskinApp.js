@@ -359,7 +359,7 @@ export default function ReskinApp({ g }) {
       // B60: deadline-checked flip (was a single setTimeout — LPM deferred it ~2.1s,
       // revealing the question late while the scored clock stayed honest → integrity draws)
       const t0 = monoNow(); let done = false; let rafId = null; // P2.3 monotonic
-      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = monoNow(); g.setCountdown(false); };
+      const fire = () => { if (done) return; done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); timingDbg.current.flipTs = monoNow(); if (g.countdownDone) g.countdownDone(); else g.setCountdown(false); }; // B200: sealed clips may hold the flip until the key lands
       const iv = setInterval(() => { if (monoNow() - t0 >= 2400) fire(); }, 50);
       const rafLoop = () => { if (done) return; if (monoNow() - t0 >= 2400) { fire(); return; } rafId = requestAnimationFrame(rafLoop); };
       rafId = requestAnimationFrame(rafLoop);
