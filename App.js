@@ -447,6 +447,22 @@ export default function App() {
   // Warm the first practice round of the session while the player is on the home screen, so
   // the very first PLAY is instant instead of paying for the question fetch + clip download.
   useEffect(() => { if (tab === 'home' && !online) { const t = setTimeout(() => prefetchPractice(), 800); return () => clearTimeout(t); } }, [tab, online]);
+  // B193 (root cause of CJ's 2026-09-12 lockout): supabase-js refreshes the 1-hour login token on a JS timer,
+  // and iOS suspends JS while the app is in the background — so after an hour away the token was dead and
+  // nothing re-fetched it until a request failed. Supabase's documented RN pattern: start the refresher when
+  // the app is foregrounded, stop it when backgrounded, and re-read the session on every foreground.
+  useEffect(() => {
+    if (!supabase) return;
+    const onState = (st) => {
+      try {
+        if (st === 'active') { supabase.auth.startAutoRefresh(); supabase.auth.getSession().then(({ data }) => { const s = data && data.session; if (s) supabaseTokenRef.current = s.access_token; }).catch(() => {}); }
+        else supabase.auth.stopAutoRefresh();
+      } catch (e) {}
+    };
+    onState(AppState.currentState || 'active');
+    const sub = AppState.addEventListener('change', onState);
+    return () => { try { sub.remove(); } catch (e) {} };
+  }, []);
   useEffect(() => {
     let sub;
     (async () => {
