@@ -16,7 +16,8 @@ import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, format
 import * as FileSystem from 'expo-file-system/legacy'; // 1.4.0 video: downloadAsync for question background clips
 import { setServerUrl, connectWS, wsSend, isConnected, isDialing, forceReconnect, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
-import { SEALED_OK, unseal } from './sealed'; // B200: sealed clips (SEALED-CLIP-SPEC-2026-09-13)
+import { SEALED_OK, unseal } from './sealed';
+import Constants from 'expo-constants'; // B200: sealed clips (SEALED-CLIP-SPEC-2026-09-13)
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
 import { runAttestation, assertAnswer, getAttestKeyId, loadAttestKey } from './attest'; // P2 attest-once + P3 per-answer assertions — silent, never block
@@ -1370,7 +1371,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), sealed: SEALED_OK, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), sealed: SEALED_OK, nativeBuild: (Constants && Constants.nativeBuildVersion) || null, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
     armJoinWatch(); // B58: the join is in flight — start the silence stopwatch
   }
   // Supabase email one-time-code sign-in
