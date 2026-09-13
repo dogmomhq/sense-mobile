@@ -123,6 +123,7 @@ jobs:
           [ "$READY" = true ] || echo "::warning::GATE INCONCLUSIVE — simulator never reached the server"
       - name: "GATE INCONCLUSIVE (runner network) — no verdict"
         if: steps.netready.outputs.ready != 'true'
+        continue-on-error: true   # 2026-09-13 (CJ: "4 run failed emails"): the step still reads 'failure' so reskin-ota.yml sees INCONCLUSIVE, but the JOB no longer fails — GitHub stops emailing about runner-network flakes. Real app failures still fail the job and page CJ.
         run: exit 3
       - name: "GATE: practice happy path"
         id: gate
@@ -135,6 +136,7 @@ jobs:
           echo "=== GATE flow 1: practice happy path ==="
           maestro test .maestro/ios-practice.yaml
       - name: Soak flows (kill / background / 5-game loop)
+        if: steps.netready.outputs.ready == 'true'
         # Runs AFTER the gate has already reported. A red here still alerts (below) but no
         # longer holds the OTA verdict hostage for 15 minutes.
         run: |
