@@ -11,7 +11,7 @@ import { COLORS, FONTS, useScale } from './theme';
 import USA from '../assets/usa-states.json';
 
 const ALL = Object.keys(USA.states).filter((k) => k !== 'DC');
-export default function LocationGate({ httpsBase, supabaseToken, onDone, onSkip, canSkip = false }) {
+export default function LocationGate({ httpsBase, supabaseToken, getToken, onAuthFail, onDone, onSkip, canSkip = false }) {
   const s = useScale();
   const [rules, setRules] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -33,10 +33,20 @@ export default function LocationGate({ httpsBase, supabaseToken, onDone, onSkip,
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      // B192 (CJ locked out 2026-09-12): the token prop is a snapshot from render; after an hour of play it can be
+      // expired while the app still thinks it is signed in. Ask for a fresh one right before the call.
+      let tok = supabaseToken || '';
+      if (getToken) { try { tok = (await getToken()) || tok; } catch (e) {} }
       const r = await fetch(`${httpsBase}/api/gps-fix`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supabaseToken: supabaseToken || '', lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }) });
+        body: JSON.stringify({ supabaseToken: tok, lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }) });
       const j = await r.json().catch(() => null);
-      if (!r.ok || !j || !j.ok) { setBusy(false); setErr(r.status === 401 ? 'Sign in first, then check your location.' : 'Couldn’t verify your location — try again.'); return; }
+      if (r.status === 401) {
+        // The gate must never trap a signed-out player behind itself: drop the gate and send them to sign-in.
+        setBusy(false); setErr('Your session expired — sign in again.');
+        if (onAuthFail) onAuthFail(); else if (onSkip) onSkip();
+        return;
+      }
+      if (!r.ok || !j || !j.ok) { setBusy(false); setErr('Couldn’t verify your location — try again.'); return; }
       setVerdict({ state: j.state, allowed: j.allowed });
       setBusy(false);
       if (j.allowed !== false) onDone && onDone(j);   // allowed or unknown-state: through. Blocked: stay, show why.

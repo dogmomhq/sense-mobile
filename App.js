@@ -401,6 +401,11 @@ export default function App() {
   const locOkUntil = useRef(0);
   function locGateDone() { locOkUntil.current = Date.now() + LOC_GATE_MS; setLocGate(false); }
   function locGateSkip() { setLocGate(false); }
+  // B192: the location gate got a 401 — the Supabase session is gone. Drop the gate and sign out so the
+  // SignInGate shows; signing in again re-arms the location check. (CJ was trapped: "it says sign in, but it
+  // needs my location, and it won't check my location until I'm signed in.")
+  function locGateAuthFail() { setLocGate(false); locOkUntil.current = 0; signOutAuth(); showToast('Session expired — sign in again', 'error'); }
+  async function getFreshSupabaseToken() { try { if (supabase) { const { data } = await supabase.auth.getSession(); if (data && data.session) { supabaseTokenRef.current = data.session.access_token; return data.session.access_token; } } } catch (e) {} return supabaseTokenRef.current; }
   // B159: SIGNED-IN ONLY. The first cut showed this to everyone on boot, which covered the app for
   // guests - and the OTA gate's simulator practice round is a guest, so B157/B158 failed the gate and
   // auto-rolled back. A guest cannot play for money, so there is nothing to check: the gate appears
@@ -1538,7 +1543,7 @@ export default function App() {
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp, oppTier,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, askGpsForDeposit, dobOnFile,
-      locGate, locGateDone, locGateSkip, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157
+      locGate, locGateDone, locGateSkip, locGateAuthFail, getFreshSupabaseToken, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157 / B192
       balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,
