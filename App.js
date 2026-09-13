@@ -1476,7 +1476,7 @@ export default function App() {
     // and queues; the balance check below is React state (async), so two taps in one frame both
     // passed and queued TWICE = two stakes locked. onlineRef is a ref (set synchronously by
     // playOnline just below), so if we're already in an online flow, refuse the second tap.
-    if (onlineRef.current) return;
+    if (onlineRef.current) { showToast('Finishing your last match — one sec'); track('play_refused_online_ref', {}); return; } // never a silent no-op again (2026-09-13)
     track('play_online', { stake });
     if (balance < stake) { showToast('Not enough credits'); return; }
     stakeRef.current = stake;
@@ -1570,7 +1570,16 @@ export default function App() {
   function doRematch() { requestRematch(); setRematchReq(true); }
   function shareCode(code) { try { Share.share({ message: `Play me on Sense — join with code ${code}` }); } catch (e) {} }
   function leaveChallenge() { try { disconnectWS(); } catch(e){} onlineRef.current=false; isChallengeRef.current=false; setOnline(false); closeChallenge(); setJoinCode(''); }
-  function navTo(t) { setShowActions(false); fadeTo(() => { setMode(null); setTab(t); }); }
+  // 2026-09-13 (CJ: "PLAY NOW is broken"): HISTORY from the results screen went through here, which never
+  // cleared onlineRef — so startPaidOnline's double-tap guard (`if (onlineRef.current) return`) silently
+  // refused every later PLAY NOW until the app was killed. Leaving a finished match by ANY door now resets
+  // the online refs exactly like goHome does.
+  function navTo(t) {
+    setShowActions(false);
+    if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch (e) {} }
+    onlineRef.current = false; isChallengeRef.current = false; activeMatchRef.current = null; matchIdRef.current = null;
+    fadeTo(() => { setMode(null); setTab(t); setOnline(false); });
+  }
 
   wsHandlerRef.current = handleOnlineMessage;
   modeRef.current = mode;
