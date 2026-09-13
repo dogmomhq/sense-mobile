@@ -5,7 +5,7 @@
 //   ws error                 → App.js must reference `msg.<signal>`
 import fs from 'fs';
 const SERVER = process.env.SENSE_SERVER || 'https://web-production-c6ec6.up.railway.app';
-const OWNERS = { http: { '/api/deposit/intent': 'screens/DepositCoinflow.js' }, ws: { error: 'App.js' } };
+const OWNERS = { http: { '/api/deposit/intent': 'screens/DepositCoinflow.js' }, ws: { error: 'App.js', go: 'App.js' } }; // go: sealed clips (B200) — App.js reads msg.key / msg.iv
 let c;
 try { const r = await fetch(SERVER + '/api/contract'); if (!r.ok) throw new Error('http ' + r.status); c = await r.json(); }
 catch (e) { console.error(`CONTRACT: could not read ${SERVER}/api/contract (${e.message}) — refusing to publish blind`); process.exit(1); }
