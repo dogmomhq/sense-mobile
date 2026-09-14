@@ -93,6 +93,14 @@ function initAnalytics(replay) {
   } catch (e) { PH = null; }
 }
 function identify(id, props) { try { if (PH && id) PH.identify(String(id), props || {}); } catch (e) {} }
+// B207 (CJ 2026-09-14 "keep replay without breaking"): replay screenshots the screen on change, and a
+// playing clip changes every frame — that capture work was the B74 main-thread stall. So replay records
+// everything EXCEPT the round: paused the moment the play screen mounts (countdown + clip), resumed when
+// it unmounts (results / home). The native module exposes stop/startRecording; the JS SDK does not.
+function replayPause(on) {
+  if (!PH || Platform.OS === 'web') return;
+  try { const R = require('posthog-react-native-session-replay'); (on ? R.stopRecording() : R.startRecording(true)).catch(() => {}); } catch (e) {}
+}
 function captureError(err, ctx) { try { if (!PH) return; if (PH.captureException) PH.captureException(err, ctx || {}); else PH.capture('$exception', { $exception_message: String((err && err.message) || err), $exception_type: (err && err.name) || 'Error', ...(ctx || {}) }); } catch (e) {} }
 class ErrorBoundary extends React.Component {
   constructor(p) { super(p); this.state = { hasError: false }; }
@@ -280,6 +288,7 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [phReady, setPhReady] = useState(0); // B171: bumped once analytics has been constructed, so PHProvider attaches
   const [mode, setMode] = useState(null);
+  useEffect(() => { replayPause(mode === 'play'); }, [mode]); // B207: no replay capture while a round is on screen
   const [countdown, setCountdown] = useState(false);
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
   const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
