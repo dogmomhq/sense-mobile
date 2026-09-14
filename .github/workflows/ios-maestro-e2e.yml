@@ -134,7 +134,16 @@ jobs:
           xcrun simctl io "$UDID" recordVideo --codec h264 -f shots/run.mp4 & echo $! > /tmp/vid.pid
           xcrun simctl spawn "$UDID" log stream --style compact --predicate 'process == "sensemobile"' > shots/app.log 2>&1 & echo $! > /tmp/log.pid
           echo "=== GATE flow 1: practice happy path ==="
-          maestro test .maestro/ios-practice.yaml
+          # 2026-09-14: up to 3 attempts. Run 369 (B203) rolled back a good OTA: the runner's simulator
+          # network stalled (3 relaunches to reach net-ready), the PRACTICE tap fired into the stall and
+          # did nothing — the run-191 signature. A relaunch clears it; a real app break fails all three.
+          for i in 1 2 3; do
+            maestro test .maestro/ios-practice.yaml && exit 0
+            echo "::warning::practice gate attempt $i red — relaunching the app (simulator network stall pattern)"
+            xcrun simctl terminate "$UDID" com.dogmomhq.sensemobile || true; sleep 3
+            xcrun simctl launch "$UDID" com.dogmomhq.sensemobile || true; sleep 8
+          done
+          exit 1
       - name: Soak flows (kill / background / 5-game loop)
         if: steps.netready.outputs.ready == 'true'
         # Runs AFTER the gate has already reported. A red here still alerts (below) but no
