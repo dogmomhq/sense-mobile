@@ -46,8 +46,10 @@ await client.connect();
 try {
   await client.query('BEGIN');
   for (const [id, h, who] of [[r.id, robot.handle, 'robot'], [b.id, bot.handle, 'bot']]) {
-    await client.query(`INSERT INTO users (account_id, handle, dob) VALUES ($1,$2,'1990-01-01')
-                        ON CONFLICT (account_id) DO UPDATE SET handle=EXCLUDED.handle, dob=EXCLUDED.dob`, [id, h]);
+    // 2026-09-14: terms_accepted_at seeded too — the 9/12 consent gate refuses PLAY NOW (needDob+needTerms)
+    // without it, the app opens the age/terms modal, and the paid flow's taps land on nothing (run 377).
+    await client.query(`INSERT INTO users (account_id, handle, dob, terms_accepted_at) VALUES ($1,$2,'1990-01-01',NOW())
+                        ON CONFLICT (account_id) DO UPDATE SET handle=EXCLUDED.handle, dob=EXCLUDED.dob, terms_accepted_at=COALESCE(users.terms_accepted_at, NOW())`, [id, h]);
     await client.query(`INSERT INTO credit_accounts (account_id, handle, balance) VALUES ($1,$2,300)
                         ON CONFLICT (account_id) DO UPDATE SET balance=300, handle=EXCLUDED.handle`, [id, h]);
     await client.query(`INSERT INTO credit_ledger (account_id, type, amount, balance_after, note)
@@ -66,4 +68,4 @@ writeFileSync('/tmp/e2e-ctx.json', JSON.stringify({
   robotHandle: robot.handle, botHandle: bot.handle,
   robotEmail: robot.email, botEmail: bot.email, botPassword: bot.password,
 }, null, 2));
-console.log('seeded: DOB 1990-01-01, 300c each, attest valid, e2e_accounts flag set');
+console.log('seeded: DOB 1990-01-01, terms accepted, 300c each, attest valid, e2e_accounts flag set');
