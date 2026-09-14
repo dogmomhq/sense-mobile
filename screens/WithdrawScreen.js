@@ -312,7 +312,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     finally { setBusy(false); inFlightRef.current = false; }
   }
   async function cancel(id) {
-    try { const r = await fetch(`${httpsBase}/api/withdraw/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabaseToken, withdrawalId: id }) }); const j = await r.json().catch(() => ({})); if (onToast) onToast(j.ok ? 'Cancelled — credits are back' : humanError(j.error), j.ok ? undefined : 'error'); load(true); } catch {}
+    try { const r = await fetch(`${httpsBase}/api/withdraw/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabaseToken, withdrawalId: id }) }); const j = await r.json().catch(() => ({})); if (onToast) onToast(j.ok ? 'Cancelled — credits are back' : humanError(j.error), j.ok ? undefined : 'error'); if (j.ok && onRefresh) onRefresh(); load(true); } catch {} // B204 (CJ 2026-09-14 video): balance header sat stale after cancel until HOME re-fetched it — submit already refreshes, cancel did not
   }
 
   const fieldStyle = { borderWidth: 2 * s, borderColor: 'rgba(215,248,74,0.5)', borderRadius: 16 * s, paddingVertical: 26 * s, paddingHorizontal: 32 * s, color: COLORS.cream, fontFamily: FONTS.interBold, fontSize: 34 * s, letterSpacing: 0.04 * 34 * s, backgroundColor: 'rgba(16,20,13,0.55)' };

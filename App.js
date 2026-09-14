@@ -365,6 +365,12 @@ export default function App() {
   // since countdown-end, and the server clamps it to [100ms, 10s] regardless.
   const startOverrideRef = useRef(null);
   const imgMsRef = useRef(null); // #50: ms from question receipt to image prefetch done (null = not measured)
+  // B204 (CJ 2026-09-14: "we have these? you've known these and made me find them?"). The client event log
+  // (B171) was built for the deposit sheet and never wired to gameplay — 1,449 events logged, every one about
+  // deposits, so a dead PLAY NOW / black clip / refused tap left no trace and CJ had to film it. Every round
+  // now files its own timeline, and the app reports its capabilities once per launch.
+  const gsRef = useRef(null);                       // one session id per round
+  const glog = (name, meta) => { try { clog.logEvent('game', gsRef.current, name, Date.now(), meta || null); } catch (e) {} };
   const sealedRef = useRef({}); // B200: matchId -> { uri (sealed download), seq, decrypted:bool, key, iv }
   const holdCountdownRef = useRef(false); // B200: countdown finished before the key arrived — hold the last beat
   const readySentTsRef = useRef(null); // B60: when we sent {type:'ready'} — drift telemetry (reveal lateness vs the 2400ms plan)
@@ -683,6 +689,23 @@ export default function App() {
   }
   useEffect(() => { installId().catch(() => {}); }, []); // B151: mint the install id before the first register
   useEffect(() => { clog.configure({ httpsBase: HTTPS_BASE }); }, []); // B171: base url for the client event log (build tag + token are set as they become known)
+  // B204 HEALTH BEACON: one event per launch saying what this install can actually DO. This is how the sealed-clip
+  // module failure was found (native=? sealedOk=false in the server log) — now every native dependency and
+  // permission reports itself, so a build that silently loses a capability is visible without anyone playing.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      let loc = 'unknown', push = 'unknown';
+      try { const L = require('expo-location'); const p = await L.getForegroundPermissionsAsync(); loc = (p && p.status) || 'unknown'; } catch (e) {}
+      try { const N = require('expo-notifications'); const p = await N.getPermissionsAsync(); push = (p && p.status) || 'unknown'; } catch (e) {}
+      let audio = false; try { audio = !!require('expo-audio').createAudioPlayer; } catch (e) {}
+      clog.logEvent('health', null, 'launch', Date.now(), {
+        build: BUILD_TAG, native: (Constants && Constants.nativeBuildVersion) || null, ver: (Constants && Constants.expoConfig && Constants.expoConfig.version) || null,
+        sealed: SEALED_OK, audio, loc, push, sound: soundOn, platform: Platform.OS, os: Platform.Version,
+      });
+      clog.flush();
+    }, 2500); // after the session + permissions have settled
+    return () => clearTimeout(t);
+  }, []);
   useEffect(() => { const t = setTimeout(() => { try { claimDeviceAccount(() => prefetchPractice()); } catch (e) {} }, 3000); return () => clearTimeout(t); }, []); // B120: 3s lets the stored account / Supabase session restore first
   function startPractice() {
     track('practice_start');
@@ -847,6 +870,7 @@ export default function App() {
         // (anyone could forge a ready and void your match); with a token, a client that
         // reconnected between question and ready can still prove who it is and keep its
         // download-time credit instead of silently forfeiting it.
+        glog('ready', { mid });
         wsSend({ type: 'ready', matchId: mid, name: myName(),
           token: (accountRef.current && accountRef.current.token) || undefined,
           supabaseToken: supabaseTokenRef.current || undefined });
@@ -881,13 +905,15 @@ export default function App() {
           if (r && r.status === 200 && matchIdRef.current === mid && roundSeqRef.current === mySeq) {
             clearTimeout(fallbackT);
             if (imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt;
+            glog('clip_ok', { ms: Date.now() - qReceivedAt, sealed: isSealed });
             if (isSealed) { const s = sealedRef.current[mid]; if (s) { s.uri = r.uri; if (s.key) unsealNow(mid); } } // key may already be here (GO beat the download)
             else { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
           } else {
+            glog('clip_failed', { status: r && r.status, stale: matchIdRef.current !== mid || roundSeqRef.current !== mySeq }); // B204: a black/still round leaves a trace
             revealStill(); // bad status -> show the photo instead of a black screen
           }
           begin();
-        }).catch(() => { clearTimeout(fallbackT); revealStill(); begin(); });
+        }).catch((e) => { clearTimeout(fallbackT); glog('clip_failed', { err: String(e && e.message).slice(0, 80) }); revealStill(); begin(); });
       } catch (e) { setQVidExp(false); begin(); }
     } else {
       try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
@@ -1139,6 +1165,7 @@ export default function App() {
         if (msg.matchId && activeMatchRef.current === msg.matchId) setOppPending(true);
         break;
       case 'async-result': {
+        glog('result', { r: msg.you && msg.you.result, me: msg.you && msg.you.time, opp: msg.opponent && msg.opponent.time, why: msg.reason });
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
         const oppNm = (msg.opponent && msg.opponent.name) || (pending[msg.matchId] && pending[msg.matchId].opponent) || oppName || 'Opponent';
         const myT = (pending[msg.matchId] && pending[msg.matchId].myTime != null) ? pending[msg.matchId].myTime : myTimeRef.current;
@@ -1365,6 +1392,7 @@ export default function App() {
     }, 4000);
   }
   async function sendQueueMsg(src) {
+    gsRef.current = clog.newSession('g'); glog('queue', { src, stake: stakeRef.current });
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
     // RESKIN: the tier selector queues into the matching server pool (1..4 per the
@@ -1478,7 +1506,7 @@ export default function App() {
     // and queues; the balance check below is React state (async), so two taps in one frame both
     // passed and queued TWICE = two stakes locked. onlineRef is a ref (set synchronously by
     // playOnline just below), so if we're already in an online flow, refuse the second tap.
-    if (onlineRef.current) { showToast('Finishing your last match — one sec'); track('play_refused_online_ref', {}); return; } // never a silent no-op again (2026-09-13)
+    if (onlineRef.current) { showToast('Finishing your last match — one sec'); track('play_refused_online_ref', {}); try { clog.logEvent('game', gsRef.current, 'play_refused', Date.now(), { why: 'online_ref' }); clog.flush(); } catch (e) {} return; } // never a silent no-op again (2026-09-13)
     track('play_online', { stake });
     if (balance < stake) { showToast('Not enough credits'); return; }
     stakeRef.current = stake;
