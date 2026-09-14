@@ -44,13 +44,13 @@ const METHODS = [
   // Needs a native module + Apple entitlement → native build (backlog).
   // 2026-09-14 (CJ): Sense charges nothing — these are Coinflow's own processing cuts, and the fee
   // line under the keypad shows the live quote (processingCents) so the number always adds up.
-  { kind: 'paypal', title: 'PayPal',       fee: '2% processing',       speed: 'INSTANT'  },
-  { kind: 'venmo',  title: 'Venmo',        fee: '2% processing',       speed: 'INSTANT'  },
-  { kind: 'card',   title: 'Debit card',   fee: '$2 or 2% processing', speed: 'INSTANT'  },
-  { kind: 'bank',   title: 'Bank account', fee: '$1 processing',       speed: '1–3 DAYS' },
+  { kind: 'paypal', title: 'PayPal',       fee: '2% processing',       speed: 'WITHIN 24H' },
+  { kind: 'venmo',  title: 'Venmo',        fee: '2% processing',       speed: 'WITHIN 24H' },
+  { kind: 'card',   title: 'Debit card',   fee: '$2 or 2% processing', speed: 'WITHIN 24H' },
+  { kind: 'bank',   title: 'Bank account', fee: '$1 processing',       speed: 'WITHIN 24H' },
 ];
 const methodFor = (k) => METHODS.find((m) => m.kind === k) || { title: k, fee: '', speed: '' };
-const speedLabel = (sp) => sp === 'card' || sp === 'asap' || sp === 'paypal' || sp === 'venmo' ? 'INSTANT' : sp === 'same_day' ? 'SAME DAY' : '1–3 DAYS';
+const speedLabel = () => 'WITHIN 24H'; // 2026-09-14 CJ: nothing is promised as instant — every payout is 'within 24 hours'
 const kindLabel = (k) => (METHODS.find((m) => m.kind === k) || {}).title || k;
 
 function humanError(code, j) {
@@ -522,7 +522,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => { Keyboard.dismiss(); setPaypalSheet(false); }}>
           <Pressable style={{ backgroundColor: '#10140D', borderTopLeftRadius: 40 * s, borderTopRightRadius: 40 * s, padding: 45 * s, paddingBottom: 80 * s }} onPress={() => {}}>
             <Text style={{ fontFamily: FONTS.interExtra, fontSize: 30 * s, color: COLORS.lime, letterSpacing: 0.06 * 30 * s, marginBottom: 12 * s }}>LINK PAYPAL</Text>
-            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 22 * s, lineHeight: 34 * s }}>The email on your PayPal account. Payouts land there instantly.</Text>
+            <Text style={{ fontFamily: FONTS.interSemi, fontSize: 24 * s, color: COLORS.creamDim, marginBottom: 22 * s, lineHeight: 34 * s }}>The email on your PayPal account. Payouts land there within 24 hours.</Text>
             <TextInput placeholder="you@example.com" placeholderTextColor={COLORS.creamDim} value={paypalEmail} onChangeText={setPaypalEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoFocus style={fieldStyle} onSubmitEditing={linkPaypal} returnKeyType="done" />
             {err ? (<Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: RED, marginTop: 16 * s }}>{err}</Text>) : null}
             <PressBtn onPress={linkPaypal} disabled={busy || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(paypalEmail.trim())} style={[cta(!busy && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(paypalEmail.trim())), { marginHorizontal: 0, marginTop: 26 * s }]}>
