@@ -37,7 +37,8 @@ import { COLORS, FONTS, useScale, useSenseFonts, getSafeTop } from './theme';
 // One-time: DOB is immutable server-side. Terms checkbox text is a placeholder until CJ
 // supplies the final terms copy.
 // B51: when CJ supplies the hosted terms URL, set it here — the link goes live, no other change.
-const TERMS_URL = 'https://dogmomhq.github.io/sense-legal/terms.html'; // CJ 2026-09-02: interim Terms of Play (Artaev's final ToS replaces this page in place, no app change)
+const TERMS_URL = 'https://dogmomhq.github.io/sense-legal/terms.html';
+const SUPPORT_EMAIL = ''; // B208: HELP row → mailto once CJ names the support address; empty = opens the terms page // CJ 2026-09-02: interim Terms of Play (Artaev's final ToS replaces this page in place, no app change)
 function DobModal({ error, onSubmit, onCancel }) {
   const s = useScale();
   const [mm, setMm] = useState(''); const [dd, setDd] = useState(''); const [yy, setYy] = useState('');
@@ -736,6 +737,11 @@ export default function ReskinApp({ g }) {
           step={g.signinStep} busy={g.signinBusy}
           onSendCode={g.sendCode} onVerify={g.verifyCode} onApple={g.signInWithApple} onSignOut={g.signOutAuth}
           onRename={g.doRename}
+          // B208 (bug hunt): these three rows were silent no-ops (no handlers passed). PRIVACY opens the privacy
+          // page (sense-legal; 404 until Artaev's text lands → falls back to the terms page), HELP opens mail.
+          onPrivacy={() => Linking.openURL('https://dogmomhq.github.io/sense-legal/privacy.html').catch(() => Linking.openURL(TERMS_URL).catch(() => {}))}
+          onTerms={() => Linking.openURL(TERMS_URL).catch(() => {})}
+          onHelp={() => Linking.openURL(SUPPORT_EMAIL ? 'mailto:' + SUPPORT_EMAIL + '?subject=Sense%20help%20(' + encodeURIComponent(handle || 'guest') + ')' : TERMS_URL).catch(() => {})}
           onDeleteAccount={() => {
             // Apple 5.1.1(v): permanent, double-confirmed. Credits are forfeited (free credits era).
             const doIt = async () => { const ok = await g.deleteAccountNow(); if (ok) g.setTab('home'); };

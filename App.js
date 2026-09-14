@@ -756,7 +756,7 @@ export default function App() {
       } else {
         // AUDIT FIX #2: plain wsSend silently DROPS on a closed socket (answer lost -> timeout loss).
         // Freeze the message now, then reconnect-if-needed and send; identity lets the server verify us on the fresh socket.
-        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const _drift = (readySentTsRef.current != null && startRef.current > readySentTsRef.current) ? Math.round(startRef.current - readySentTsRef.current - 2400) : null; const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current, _drift); ensureConn(() => wsSend(ansMsg)); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs */ assertAnswer(_amid, idx, _at).then((a) => { if (a) ensureConn(() => wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion })); }).catch(() => {}); }  // async matchmaking — B188: the assertion goes through ensureConn too (plain wsSend drops on a just-reconnected socket → server logged 97 'missing assertion' rows, 80 on CJ's own phone; that is why ASSERT_MISSING_ENFORCE could never be armed) (#50: imgMs rides along, null omitted)
+        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const _drift = (readySentTsRef.current != null && startRef.current > readySentTsRef.current) ? Math.round(startRef.current - readySentTsRef.current - 2400) : null; const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current, _drift); ensureConn(() => { wsSend(ansMsg); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs. B208 (bug hunt): the assertion is chained INSIDE the answer's open-callback — connectWS keeps ONE armed intent (latest wins), so when the socket was still dialing at tap time the assertion's ensureConn overwrote the answer's and only the assertion ever went out (the answer was silently dropped → timeout). */ assertAnswer(_amid, idx, _at).then((a) => { if (a) ensureConn(() => wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion })); }).catch(() => {}); }); }  // async matchmaking — B188: the assertion goes through ensureConn too (plain wsSend drops on a just-reconnected socket → server logged 97 'missing assertion' rows, 80 on CJ's own phone; that is why ASSERT_MISSING_ENFORCE could never be armed) (#50: imgMs rides along, null omitted)
         const mid = matchIdRef.current;
         // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
@@ -1532,6 +1532,7 @@ export default function App() {
     if (grd.n > 3) {                        // tried enough — stop hammering, hand control back
       showToast('Couldn\u2019t find a match — tap Play to try again');
       activeMatchRef.current = null; matchIdRef.current = null;
+      onlineRef.current = false; // B208 (bug hunt): sent home with the online flag still up → every later PLAY NOW refused with "Finishing your last match" (the 9/13 dead-button class)
       fadeTo(() => { setMode(null); setTab('home'); });
       return;
     }
@@ -1578,7 +1579,7 @@ export default function App() {
   }
   function requeueOnline(src) {
     const s = stakeRef.current || 0;
-    if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); fadeTo(() => { setMode(null); setTab('home'); }); return; }
+    if (s > 0 && balance < s) { showToast('Not enough credits'); setShowActions(false); onlineRef.current = false; matchIdRef.current = null; activeMatchRef.current = null; /* B208: same dead-PLAY-NOW class */ fadeTo(() => { setMode(null); setTab('home'); }); return; }
     if (s > 0) applyCredit(-s, 'entry', s + ' entry');   // replay escrows the stake too — every paid entry charges
     activeMatchRef.current = null; matchIdRef.current = null; // B61: runback = the old game stops being "current" NOW. Its result often races this very tap (2026-07-27: settle + runback in the same second); with the ref cleared the late result takes the async-result else-branch (banner) instead of re-foregrounding over the joining screen — the hijack that orphaned a fresh queue into a 50c timeout loss.
     setNotice(null); setOppName('Rival'); setOppTier(null); setMode('joining'); startQueue(src || 'runback');

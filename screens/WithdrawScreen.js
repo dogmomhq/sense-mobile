@@ -93,6 +93,7 @@ function statusLabel(w) {
 export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedInEmail = '', balance = '$0.00', onToast, onRefresh, onDone }) {
   const s = useScale();
   const [st, setSt] = useState(null);          // /api/withdraw/status
+  const stRef = useRef(null);                  // B208: latest status for callbacks that outlive a render (the post-KYC resume)
   const [loadErr, setLoadErr] = useState('');
   const [linkUrl, setLinkUrl] = useState(null); // hosted KYC + link page open
   const [linkMethod, setLinkMethod] = useState(null);
@@ -130,7 +131,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
       const r = await fetch(`${httpsBase}/api/withdraw/status${fresh ? '?fresh=1' : ''}`, { headers: hdr }); const j = await r.json().catch(() => null);
       if (!alive.current) return;
       if (!r.ok || !j) { setLoadErr(humanError(j && j.error)); return; }
-      setSt(j);
+      setSt(j); stRef.current = j;
       if (dest && !(j.destinations || []).find((d) => d.token === dest.token)) setDest(null);
     } catch { if (alive.current) setLoadErr('Network error — pull to retry'); }
   }, [httpsBase, supabaseToken, dest]);
@@ -149,7 +150,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
     setQuote(null);
     if (!dest || !amountOk) return;
     quoteTimer.current = setTimeout(async () => {
-      try { const r = await fetch(`${httpsBase}/api/withdraw/quote?token=${encodeURIComponent(dest.token)}&cents=${cents}`, { headers: hdr }); const j = await r.json().catch(() => null); if (alive.current && j && j.ok) setQuote({ feeCents: j.feeCents, netCents: j.netCents, receiveCents: j.receiveCents, speed: j.speed }); } catch {}
+      try { const r = await fetch(`${httpsBase}/api/withdraw/quote?token=${encodeURIComponent(dest.token)}&cents=${cents}`, { headers: hdr }); const j = await r.json().catch(() => null); if (alive.current && j && j.ok) setQuote({ feeCents: j.feeCents, processingCents: j.processingCents, netCents: j.netCents, receiveCents: j.receiveCents, speed: j.speed }); /* B208: processingCents was dropped here, so B205's fee line read NO FEE */ } catch {}
     }, 400);
     return () => { if (quoteTimer.current) clearTimeout(quoteTimer.current); };
   }, [dest, cents, amountOk]);
@@ -229,6 +230,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
   function useDestination(d) { setErr(''); setDest(d); setAmount(''); setPhase('amount'); }
   function tapMethod(m) {
     setErr('');
+    const st = stRef.current; // B208 (bug hunt): the KYC resume fired tapMethod from a setTimeout that closed over the PRE-verification state, so the sheet re-opened right after the VERIFIED toast
     if (!st || !st.enabled) return;
     const linked = linkedFor(m.kind)[0];
     if (linked) { useDestination(linked); return; }
