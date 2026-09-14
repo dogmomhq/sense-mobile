@@ -42,10 +42,12 @@ const METHODS = [
   // not a link-a-card step — and our money is paid out from the merchant side, so it can never work
   // there. The real route is native: PassKit disbursement sheet → POST /withdraw/apple-pay → our payout.
   // Needs a native module + Apple entitlement → native build (backlog).
-  { kind: 'paypal', title: 'PayPal',       fee: '3% or $2 min',  speed: 'INSTANT'  },
-  { kind: 'venmo',  title: 'Venmo',        fee: '3% or $2 min',  speed: 'INSTANT'  },
-  { kind: 'card',   title: 'Debit card',   fee: '3% or $2 min',  speed: 'INSTANT'  },
-  { kind: 'bank',   title: 'Bank account', fee: 'No fee',        speed: '1–3 DAYS' },
+  // 2026-09-14 (CJ): Sense charges nothing — these are Coinflow's own processing cuts, and the fee
+  // line under the keypad shows the live quote (processingCents) so the number always adds up.
+  { kind: 'paypal', title: 'PayPal',       fee: '2% processing',       speed: 'INSTANT'  },
+  { kind: 'venmo',  title: 'Venmo',        fee: '2% processing',       speed: 'INSTANT'  },
+  { kind: 'card',   title: 'Debit card',   fee: '$2 or 2% processing', speed: 'INSTANT'  },
+  { kind: 'bank',   title: 'Bank account', fee: '$1 processing',       speed: '1–3 DAYS' },
 ];
 const methodFor = (k) => METHODS.find((m) => m.kind === k) || { title: k, fee: '', speed: '' };
 const speedLabel = (sp) => sp === 'card' || sp === 'asap' || sp === 'paypal' || sp === 'venmo' ? 'INSTANT' : sp === 'same_day' ? 'SAME DAY' : '1–3 DAYS';
@@ -339,7 +341,7 @@ export default function WithdrawScreen({ httpsBase, supabaseToken = '', signedIn
         {amount && !amountOk ? <Text style={{ fontFamily: FONTS.interBold, fontSize: 24 * s, color: RED, textAlign: 'center', marginHorizontal: 51 * s, marginTop: 16 * s }}>{cents < minCents ? 'Minimum ' + dollars(minCents) : 'Up to ' + dollars(withdrawable) + ' is withdrawable right now'}</Text> : null}
         {quote ? (
           <Text style={{ fontFamily: FONTS.interBold, fontSize: 28 * s, color: COLORS.cream, textAlign: 'center', marginHorizontal: 45 * s, marginTop: 20 * s, marginBottom: 26 * s }}>
-            {quote.feeCents ? `FEE ${dollars(quote.feeCents)} · ` : 'NO FEE · '}YOU RECEIVE <Text style={{ color: COLORS.lime }}>{dollars(quote.receiveCents != null ? quote.receiveCents : quote.netCents != null ? quote.netCents : cents)}</Text> · {speedLabel(quote.speed)}</Text>
+            {(() => { const f = (quote.processingCents || 0) + (quote.feeCents || 0); return f ? `FEE ${dollars(f)} · ` : 'NO FEE · '; })()}YOU RECEIVE <Text style={{ color: COLORS.lime }}>{dollars(quote.receiveCents != null ? quote.receiveCents : quote.netCents != null ? quote.netCents : cents)}</Text> · {speedLabel(quote.speed)}</Text>
         ) : <View style={{ height: 26 * s }} />}
 
         {phase === 'code' ? (
