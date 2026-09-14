@@ -699,7 +699,7 @@ export default function App() {
       try { const N = require('expo-notifications'); const p = await N.getPermissionsAsync(); push = (p && p.status) || 'unknown'; } catch (e) {}
       let audio = false; try { audio = !!require('expo-audio').createAudioPlayer; } catch (e) {}
       clog.logEvent('health', null, 'launch', Date.now(), {
-        build: BUILD_TAG, native: (Constants && Constants.nativeBuildVersion) || null, ver: (Constants && Constants.expoConfig && Constants.expoConfig.version) || null,
+        build: clog.buildTag(), native: (Constants && Constants.nativeBuildVersion) || null, ver: (Constants && Constants.expoConfig && Constants.expoConfig.version) || null,
         sealed: SEALED_OK, audio, loc, push, sound: soundOn, platform: Platform.OS, os: Platform.Version,
       });
       clog.flush();
