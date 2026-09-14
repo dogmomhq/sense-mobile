@@ -289,7 +289,11 @@ export default function ReskinApp({ g }) {
   // own useVideoPlayer on the same file (= new player at 0:00 every mount). Now ReskinApp
   // owns the single player and the screens just attach VideoViews to it. B87 contract
   // (volume 0 forever, currentTime=0 at reveal, watchdog) lives on in QuestionScreen.
-  const vidPlayer = useVideoPlayer(null, (p) => { p.loop = true; p.muted = false; });
+  // B203 (CJ 2026-09-14: the game pauses my music even with sounds off): an UNMUTED expo-video player takes
+  // the iOS audio session with the default `auto` mixing mode, which interrupts Spotify/Apple Music — and the
+  // clip plays silently under the countdown on EVERY round (B84), so it happened every game whatever the Sound
+  // toggle said. Our clips are audio-stripped and volume stays 0 forever (B87), so muting costs nothing.
+  const vidPlayer = useVideoPlayer(null, (p) => { p.loop = true; p.muted = true; try { p.audioMixingMode = 'mixWithOthers'; } catch (e) {} });
   useEffect(() => { AsyncStorage.getItem('sense_avatar').then((v) => { if (v) setAvatarKey(v); }).catch(() => {}); }, []);
   const pickAvatar = (k) => { setAvatarKey(k); AsyncStorage.setItem('sense_avatar', k).catch(() => {}); };
   // B49 (CJ): age + terms come BEFORE the card form — a declined card must never
