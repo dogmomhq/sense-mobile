@@ -1,0 +1,86 @@
+appId: com.dogmomhq.sensemobile
+# PAID E2E — robot side (CREATOR). Run-10 shape, forensics from runs 8+9:
+#  * A paid async creator gets NO practice-style countdown. The server opens the
+#    10s answer window ~3s after the queue message lands (run 9: settle fired at
+#    queue+13.0s exactly). Every Maestro step between PLAY NOW and the answer
+#    taps eats that window (run 9 burned it on a 5.2s stake-pill assert plus
+#    waitForAnimationToEnd 9000, which NEVER returns early — the timer ring
+#    animates continuously). So: ZERO steps between PLAY NOW and the volley.
+#  * Volley = 14 guarded taps at (30%,75%) = answer idx 0 (grid row 1 spans
+#    74.5-82% of screen height). Safe on every screen it can land on:
+#      joining    Cancel link is centered; 30% x misses it. Worst case a hit
+#                 cancels the queue -> bot exits 5, no wager, clean abort.
+#      countdown  zero tappables (CountdownScreen.js verified).
+#      question   first tap locks idx 0; the grid disables after lock.
+#      waiting    its PLAY AGAIN tops at 76.3% height — 75% stays above it,
+#                 and the notVisible guard skips taps once it is on screen.
+#      results    its PLAY AGAIN spans 82.9-89.7% — 75% is well clear.
+#    NEVER tap the 84% row in this flow: that row sits inside PLAY AGAIN on
+#    both the waiting and results screens — it created the stray re-queued
+#    games that broke runs 8 and 9.
+#  * Outcome regex: the draw layout renders a big 'DRAW' stamp (ResultsScreen.js:849)
+#    and does NOT render the DEAD HEAT eyebrow — run-10 screenshot proved it. Bot
+#    and robot both answer idx 0, so the two expected endings are a both-wrong
+#    draw or a robot win. PLAY AGAIN must NOT be in this regex (the post-answer
+#    waiting screen shows it while the match is still unsettled).
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "PLAY NOW"
+    timeout: 45000
+- extendedWaitUntil:
+    visible: '\$\d+\.\d\d'
+    timeout: 20000
+- takeScreenshot: shots/paid-01-home
+- tapOn: "PLAY NOW"
+- repeat:
+    times: 14
+    commands:
+      - runFlow:
+          when:
+            notVisible: "PLAY AGAIN"
+          commands:
+            - tapOn:
+                point: "30%,75%"
+- takeScreenshot: shots/paid-02-post-volley
+# B61: act 1 ends at PLAY AGAIN (visible on BOTH waiting and results screens), not
+# the outcome stamp — when the runback tap beats the settle (the target race),
+# match 1's results screen NEVER renders (banner instead) and an outcome wait here
+# would hang 120s. Match 1's settle is verified in the DB assert, not on screen.
+- takeScreenshot: shots/paid-03-outcome
+# ===== ACT 2 (B61 regression net): RUNBACK AT SETTLE =====
+# Reproduces the 2026-07-27 live glitch: PLAY AGAIN tapped the moment it appears —
+# on the WAITING screen that is BEFORE the settle lands, so match 1's result arrives
+# while we're joining match 2 (the exact hijack race). Post-B61 the result must
+# banner, the fresh queue must survive, and a full second match must play out.
+# A client that dies home here can never show outcome 2 -> timeout RED; DB assert
+# (EXPECT_MATCHES=2, zero strays) is the deterministic backstop. Bot loops with
+# MATCHES=2. NOTE: the outcome regex above may have matched match 1's results if
+# settle beat our tap — then this taps PLAY AGAIN on results instead: a looser
+# race, still a valid runback-at-settle.
+- extendedWaitUntil:
+    visible: "PLAY AGAIN"
+    timeout: 15000
+- tapOn: "PLAY AGAIN"
+- assertNotVisible: "PLAY NOW"
+- takeScreenshot: shots/paid-05-runback
+- repeat:
+    times: 14
+    commands:
+      - runFlow:
+          when:
+            notVisible: "PLAY AGAIN"
+          commands:
+            - tapOn:
+                point: "30%,75%"
+- takeScreenshot: shots/paid-06-post-volley-2
+- extendedWaitUntil:
+    visible: "YOU WIN|SO CLOSE|YOU LOST|DRAW"
+    timeout: 120000
+- takeScreenshot: shots/paid-07-outcome-2
+- tapOn: "HOME"
+- extendedWaitUntil:
+    visible: "PLAY NOW"
+    timeout: 15000
+- takeScreenshot: shots/paid-08-home

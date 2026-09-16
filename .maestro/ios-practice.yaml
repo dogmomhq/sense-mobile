@@ -1,0 +1,41 @@
+# Happy path: home -> PRACTICE FREE -> countdown -> question -> answer -> results -> HOME
+appId: com.dogmomhq.sensemobile
+---
+# stopApp:false (2026-09-09): keep the process that just passed the network-readiness probe. A cold
+# relaunch on the runner can hit the simulator TLS stall (run 191: home rendered, tap did nothing,
+# app.log = handshake loop) and read as an app failure.
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible: "PRACTICE FREE"
+    timeout: 45000
+- takeScreenshot: shots/01-home
+- tapOn: "PRACTICE FREE"
+# the countdown pill reads "PRACTICE · FREE" (middle dot) — the home button has no dot. Waiting on the
+# dot means "the round actually started"; the old "PRACTICE.*FREE" matched the home button itself.
+- extendedWaitUntil:
+    visible: "PRACTICE · FREE"
+    timeout: 20000
+- takeScreenshot: shots/02-countdown
+- waitForAnimationToEnd:
+    timeout: 9000
+- takeScreenshot: shots/03-question
+# 2x2 answer grid sits in the bottom fade — tap all four cells; first hit locks, rest are ignored
+- tapOn:
+    point: "30%,75%"
+- tapOn:
+    point: "70%,75%"
+- tapOn:
+    point: "30%,84%"
+- tapOn:
+    point: "70%,84%"
+- extendedWaitUntil:
+    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|PLAY AGAIN"
+    timeout: 40000
+- takeScreenshot: shots/04-results
+- tapOn: "HOME"
+- extendedWaitUntil:
+    visible: "PRACTICE FREE"
+    timeout: 15000
+- takeScreenshot: shots/05-back-home
