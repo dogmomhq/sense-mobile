@@ -1137,7 +1137,7 @@ export default function App() {
         break;
       }
       // ---- async matchmaking ----
-      case 'async-opponent-found': setOppName(msg.opponentName || 'Rival'); setOppTier(msg.opponentTier != null ? Number(msg.opponentTier) : null); break;
+      case 'async-opponent-found': if (msg.matchId && msg.matchId !== activeMatchRef.current) break; /* B209: a late opponent-found for the game we just left must not name the opponent of the new one */ setOppName(msg.opponentName || 'Rival'); setOppTier(msg.opponentTier != null ? Number(msg.opponentTier) : null); break;
       case 'async-question':
         // B43 GHOST GUARD: a question while we're NOT in online play means a stale/replayed
         // queue reached the server (any vector). Never hijack the screen — cancel for an
