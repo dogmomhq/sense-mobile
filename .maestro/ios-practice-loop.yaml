@@ -12,12 +12,10 @@ appId: com.dogmomhq.sensemobile
       - extendedWaitUntil:
           visible: "PRACTICE · FREE"
           timeout: 20000
-      - waitForAnimationToEnd:
-          timeout: 9000
       - extendedWaitUntil:
           visible:
             id: "answer-0"
-          timeout: 6000
+          timeout: 12000
       - tapOn:
           id: "answer-0"
       - extendedWaitUntil:
