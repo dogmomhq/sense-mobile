@@ -23,7 +23,7 @@ export default function AnswerGrid({ answers = [], onAnswer, lockedIndex = null,
         const locked = lockedIndex != null;
         const isLocked = lockedIndex === i;
         return (
-          <Pressable key={i} disabled={disabled || locked}
+          <Pressable key={i} disabled={disabled || locked} testID={'answer-' + i} accessibilityLabel={label} // B212: the simulator gate taps by id — point taps missed the grid after the reskin and every gate round timed out
             onPressIn={() => { pressStamp.current = { i, ts: now() }; }}
             onPress={() => {
               const st = pressStamp.current; pressStamp.current = null;

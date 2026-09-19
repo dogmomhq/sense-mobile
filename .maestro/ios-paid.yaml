@@ -41,8 +41,13 @@ appId: com.dogmomhq.sensemobile
           when:
             notVisible: "PLAY AGAIN"
           commands:
-            - tapOn:
-                point: "30%,75%"
+            - runFlow:
+                when:
+                  visible:
+                    id: "answer-0"
+                commands:
+                  - tapOn:
+                      id: "answer-0"
 - takeScreenshot: shots/paid-02-post-volley
 # B61: act 1 ends at PLAY AGAIN (visible on BOTH waiting and results screens), not
 # the outcome stamp — when the runback tap beats the settle (the target race),
@@ -72,8 +77,13 @@ appId: com.dogmomhq.sensemobile
           when:
             notVisible: "PLAY AGAIN"
           commands:
-            - tapOn:
-                point: "30%,75%"
+            - runFlow:
+                when:
+                  visible:
+                    id: "answer-0"
+                commands:
+                  - tapOn:
+                      id: "answer-0"
 - takeScreenshot: shots/paid-06-post-volley-2
 - extendedWaitUntil:
     visible: "YOU WIN|SO CLOSE|YOU LOST|DRAW"

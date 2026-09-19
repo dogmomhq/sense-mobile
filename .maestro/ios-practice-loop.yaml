@@ -14,14 +14,12 @@ appId: com.dogmomhq.sensemobile
           timeout: 20000
       - waitForAnimationToEnd:
           timeout: 9000
+      - extendedWaitUntil:
+          visible:
+            id: "answer-0"
+          timeout: 6000
       - tapOn:
-          point: "30%,75%"
-      - tapOn:
-          point: "70%,75%"
-      - tapOn:
-          point: "30%,84%"
-      - tapOn:
-          point: "70%,84%"
+          id: "answer-0"
       - extendedWaitUntil:
           visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN|PLAY NOW"
           timeout: 40000
