@@ -12,17 +12,13 @@ appId: com.dogmomhq.sensemobile
       - extendedWaitUntil:
           visible: "PRACTICE · FREE"
           timeout: 20000
-      - extendedWaitUntil:
-          visible:
-            id: "answer-0"
-          timeout: 12000
       - repeat:
-          times: 7
+          times: 9
           commands:
             - tapOn:
-                id: "answer-0"
+                point: "30%,90%"
             - waitForAnimationToEnd:
-                timeout: 500
+                timeout: 350
       - extendedWaitUntil:
           visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN|PLAY NOW"
           timeout: 40000

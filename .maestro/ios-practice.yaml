@@ -25,18 +25,18 @@ appId: com.dogmomhq.sensemobile
 # the countdown (2026-09-19, three red runs). The overlay is a plain view the robot cannot see. So: tap the first
 # answer every ~500 ms for ~3.5 s — taps during the 2.4 s countdown land on the overlay and do nothing, the first
 # tap after the handoff locks the answer, later taps are ignored by the grid. Robust to any render lag.
-- extendedWaitUntil:
-    visible:
-      id: "answer-0"
-    timeout: 12000
+# Element lookup is too slow/unreliable on the runner while the clip plays (2026-09-19: the round ended before the
+# robot 'saw' the grid). Tap by POINT — measured from real screenshots: top answer row ~90% down, second ~94%
+# (the reskin grid sits 120px above the safe area). Tap through the countdown and into the round; the first tap
+# after the handoff locks the answer, the rest are ignored by the grid.
 - takeScreenshot: shots/03-question
 - repeat:
-    times: 7
+    times: 9
     commands:
       - tapOn:
-          id: "answer-0"
+          point: "30%,90%"
       - waitForAnimationToEnd:
-          timeout: 500
+          timeout: 350
 - takeScreenshot: shots/03b-tapped
 - extendedWaitUntil:
     visible: "PLAY AGAIN"
