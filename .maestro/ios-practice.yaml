@@ -29,14 +29,15 @@ appId: com.dogmomhq.sensemobile
 # robot 'saw' the grid). Tap by POINT — measured from real screenshots: top answer row ~90% down, second ~94%
 # (the reskin grid sits 120px above the safe area). Tap through the countdown and into the round; the first tap
 # after the handoff locks the answer, the rest are ignored by the grid.
+# Runner taps are slow (~1 s each): 9 taps ran past the results screen and one hit the HISTORY tab (run 35465017302).
+# The countdown is 2.4 s, so: settle 3 s after the countdown pill appears, then tap the answer TWICE and stop.
+- waitForAnimationToEnd:
+    timeout: 3000
 - takeScreenshot: shots/03-question
-- repeat:
-    times: 9
-    commands:
-      - tapOn:
-          point: "30%,90%"
-      - waitForAnimationToEnd:
-          timeout: 350
+- tapOn:
+    point: "30%,90%"
+- tapOn:
+    point: "30%,90%"
 - takeScreenshot: shots/03b-tapped
 - extendedWaitUntil:
     visible: "PLAY AGAIN"
