@@ -65,7 +65,8 @@ const CHECKOUT_THEME = {
   primary: '#D4F23C', ctaColor: '#D4F23C', style: 'rounded', fontSize: '18px', fontWeight: '600',
 };
 
-import { installId, installIdSync } from '../installId'; // B151: shared with App.js (register/queue carry it too)
+import { installId, installIdSync } from '../installId';
+import { deviceIntegrity, deviceCheckToken, TAMPER_MSG } from '../integrity'; // B210 // B151: shared with App.js (register/queue carry it too)
 
 // ── B160: prefetch ───────────────────────────────────────────────────────────────────────────────
 // The button used to start its work when the sheet appeared, so the first second of the sheet was
@@ -83,8 +84,10 @@ export function prefetchDepositIntent({ httpsBase, supabaseToken, amountCents = 
   const idem = `${nonce}-${amountCents}`;
   const promise = (async () => {
     const deviceId = await installId();
+    if (deviceIntegrity().tampered) return { ok: false, error: 'device_tampered' }; // B210
+    const dcToken = await deviceCheckToken();
     const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ supabaseToken, amountCents, idempotencyKey: idem, deviceId, method: 'applePay', build: clog.buildTag() || undefined }) });
+      body: JSON.stringify({ supabaseToken, amountCents, idempotencyKey: idem, deviceId, dcToken: dcToken || undefined, method: 'applePay', build: clog.buildTag() || undefined }) });
     const j = await res.json().catch(() => null);
     return (res.ok && j && j.ok && !j.deduped) ? j : null;     // a deduped/in-flight row needs the component's polling, not a silent adopt
   })().catch(() => null);
@@ -92,6 +95,7 @@ export function prefetchDepositIntent({ httpsBase, supabaseToken, amountCents = 
 }
 
 function humanError(code, j) {
+  if (code === 'device_tampered') return TAMPER_MSG; // B210
   switch (code) {
     case 'cooldown': case 'rate_limited': return 'Too many attempts — try again in an hour';
     case 'in_flight': return 'A deposit is already processing — give it a minute';
@@ -242,7 +246,8 @@ export default function DepositCoinflow({ httpsBase, supabaseToken = '', signedI
         if (!alive.current) return null;
         if (pj && pj.ok) { const next = { ...pj }; setIntent(next); setErr(''); return next; }
       }
-      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents), deviceId: await installId(), method: method.id, build: clog.buildTag() || undefined }; // B171: stamp the bundle on the deposits row
+      if (deviceIntegrity().tampered) { setErr(TAMPER_MSG); return null; } // B210
+      const body = { supabaseToken, amountCents: cents, idempotencyKey: idemKey(cents), deviceId: await installId(), dcToken: (await deviceCheckToken()) || undefined, method: method.id, build: clog.buildTag() || undefined }; // B171: stamp the bundle on the deposits row
       const res = await fetch(`${httpsBase}/api/deposit/intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j = await res.json().catch(() => ({}));
       if (!alive.current) return null;

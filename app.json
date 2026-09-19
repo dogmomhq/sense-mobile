@@ -35,7 +35,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Sense checks your location before paid games to confirm real-money play is allowed in your state. Checked at most once every 3 hours. Never used for ads or tracking."
+          "locationWhenInUsePermission": "Sense checks your location before paid games to confirm real-money play is allowed in your state. Checked when you play or add funds for real money, at most once an hour otherwise. Never used for ads or tracking."
         }
       ]
     ],

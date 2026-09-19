@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy'; // 1.4.0 video: downloadA
 import { setServerUrl, connectWS, wsSend, isConnected, isDialing, forceReconnect, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
 import { SEALED_OK, unseal } from './sealed';
+import { deviceIntegrity, deviceCheckToken, DEVICECHECK_OK, TAMPER_MSG } from './integrity'; // B210
 import Constants from 'expo-constants'; // B200: sealed clips (SEALED-CLIP-SPEC-2026-09-13)
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
@@ -436,11 +437,28 @@ export default function App() {
       qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: s.seq });
       track('sealed_unseal', { ms: r.ms });
     } catch (e) { s.decrypted = false; setQVidExp(false); track('sealed_unseal_fail', { m: String(e && e.message).slice(0, 60) }); } // show the still rather than a black round
-    finally { if (holdCountdownRef.current) { holdCountdownRef.current = false; startOverrideRef.current = null; setCountdown(false); } delete sealedRef.current[mid]; } // released late: the clock starts NOW (clip visible), not at the 2400 handoff
+    finally { if (holdCapRef.current) { clearTimeout(holdCapRef.current); holdCapRef.current = null; } if (holdCountdownRef.current) { holdCountdownRef.current = false; startOverrideRef.current = null; setCountdown(false); } delete sealedRef.current[mid]; } // released late: the clock starts NOW (clip visible), not at the 2400 handoff
+  }
+  // B210 (bug hunt M1): a sealed download that FAILS (bad status / network) used to leave sealedRef[mid] in place, so
+  // countdownDone held the last beat forever and the stale hold then truncated the NEXT round's countdown. Abort =
+  // forget the seal, show the still, release the hold. A 3 s cap on the hold covers a GO that never arrives.
+  const holdCapRef = useRef(null);
+  function sealedAbort(mid, why) {
+    const s = sealedRef.current[mid]; if (!s) return;
+    delete sealedRef.current[mid];
+    track('sealed_abort', { why: String(why || '').slice(0, 40) });
+    if (matchIdRef.current === mid) { setQVidExp(false); }
+    if (holdCountdownRef.current) { holdCountdownRef.current = false; startOverrideRef.current = null; setCountdown(false); }
+    if (holdCapRef.current) { clearTimeout(holdCapRef.current); holdCapRef.current = null; }
   }
   function countdownDone() {
     const mid = matchIdRef.current; const s = mid && sealedRef.current[mid];
-    if (s && !(s.decrypted && qVidFileRef.current)) { holdCountdownRef.current = true; return; } // key not here yet — hold on the last beat
+    if (s && !(s.decrypted && qVidFileRef.current)) {
+      holdCountdownRef.current = true;
+      if (holdCapRef.current) clearTimeout(holdCapRef.current);
+      holdCapRef.current = setTimeout(() => { holdCapRef.current = null; if (holdCountdownRef.current && sealedRef.current[mid]) sealedAbort(mid, 'hold_cap'); }, 3000); // never held longer than 3 s
+      return; // key not here yet — hold on the last beat
+    }
     setCountdown(false);
   }
   function locGateAuthFail() { setLocGate(false); locOkUntil.current = 0; signOutAuth(); showToast('Session expired — sign in again', 'error'); }
@@ -710,6 +728,7 @@ export default function App() {
       clog.logEvent('health', null, 'launch', Date.now(), {
         build: clog.buildTag(), native: (Constants && Constants.nativeBuildVersion) || null, ver: (Constants && Constants.expoConfig && Constants.expoConfig.version) || null,
         sealed: SEALED_OK, audio, loc, push, sound: soundOn, platform: Platform.OS, os: Platform.Version,
+        tamper: deviceIntegrity(), dc: DEVICECHECK_OK, // B210
       });
       clog.flush();
     }, 2500); // after the session + permissions have settled
@@ -919,10 +938,11 @@ export default function App() {
             else { qVidFileRef.current = r.uri; setQVid({ uri: r.uri, seq: mySeq }); }
           } else {
             glog('clip_failed', { status: r && r.status, stale: matchIdRef.current !== mid || roundSeqRef.current !== mySeq }); // B204: a black/still round leaves a trace
+            if (isSealed) sealedAbort(mid, 'status_' + (r && r.status)); // B210
             revealStill(); // bad status -> show the photo instead of a black screen
           }
           begin();
-        }).catch((e) => { clearTimeout(fallbackT); glog('clip_failed', { err: String(e && e.message).slice(0, 80) }); revealStill(); begin(); });
+        }).catch((e) => { clearTimeout(fallbackT); glog('clip_failed', { err: String(e && e.message).slice(0, 80) }); if (isSealed) sealedAbort(mid, 'download_error'); revealStill(); begin(); });
       } catch (e) { setQVidExp(false); begin(); }
     } else {
       try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
@@ -1402,6 +1422,11 @@ export default function App() {
   }
   async function sendQueueMsg(src) {
     gsRef.current = clog.newSession('g'); glog('queue', { src, stake: stakeRef.current });
+    if (RESKIN_CREDITS && deviceIntegrity().tampered) { // B210: a jailbroken/hooked device never enters a paid game
+      glog('play_refused', { why: 'tamper', r: deviceIntegrity().reasons }); clog.flush();
+      showToast(TAMPER_MSG, 'error'); bailHome(null); return;
+    }
+    const dcTok = RESKIN_CREDITS ? await deviceCheckToken() : null;
     let supaTok = supabaseTokenRef.current || undefined;
     if (supaTok) { try { const { data } = await supabase.auth.getSession(); if (data && data.session) { supaTok = data.session.access_token; supabaseTokenRef.current = supaTok; } } catch (e) {} } // refresh if needed
     // RESKIN: the tier selector queues into the matching server pool (1..4 per the
@@ -1410,7 +1435,7 @@ export default function App() {
     // server escrows tier-1 (50c). Snap to the ladder first so display and escrow can never disagree.
     if (RESKIN && !RESKIN_TIER_BY_CENTS[stakeRef.current]) { stakeRef.current = 50; setStake(50); }
     const qTier = RESKIN ? (RESKIN_TIER_BY_CENTS[stakeRef.current] || 1) : 1;
-    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), sealed: SEALED_OK, nativeBuild: (Constants && Constants.nativeBuildVersion) || null, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
+    wsSend({ ...queue(myName(), qTier, { paymentMode: RESKIN_CREDITS ? 'credits' : 'none' }), sealed: SEALED_OK, nativeBuild: (Constants && Constants.nativeBuildVersion) || null, token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supaTok, preferredHandle: myName(), deviceId: (await installId()) || undefined, dcToken: dcTok || undefined, src: src || 'tap', attestKeyId: getAttestKeyId() || undefined, joinId: joinTicket() }); // B43: tag WHY this queue fired (tap/runback/auto/gps/dob) — server logs it for ghost forensics
     armJoinWatch(); // B58: the join is in flight — start the silence stopwatch
   }
   // Supabase email one-time-code sign-in
