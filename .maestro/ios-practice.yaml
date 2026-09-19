@@ -12,33 +12,23 @@ appId: com.dogmomhq.sensemobile
     timeout: 45000
 - takeScreenshot: shots/01-home
 - tapOn: "PRACTICE FREE"
-# the countdown pill reads "PRACTICE · FREE" (middle dot) — the home button has no dot. Waiting on the
-# dot means "the round actually started"; the old "PRACTICE.*FREE" matched the home button itself.
-- extendedWaitUntil:
-    visible: "PRACTICE · FREE"
-    timeout: 20000
-- takeScreenshot: shots/02-countdown
-# 2026-09-19 (CJ watched the video): waitForAnimationToEnd sat through the WHOLE 8-s round (the ring never stops
-# animating), so by the time the flow looked for an answer the round was over — every gate round ended TIMED OUT.
-# Now: wait for the answer grid to appear (countdown 2.4 s + clip start), then tap the first answer by id.
-# the answer grid mounts UNDER the opaque countdown, so "answer-0 visible" is true too early and a single tap hits
-# the countdown (2026-09-19, three red runs). The overlay is a plain view the robot cannot see. So: tap the first
-# answer every ~500 ms for ~3.5 s — taps during the 2.4 s countdown land on the overlay and do nothing, the first
-# tap after the handoff locks the answer, later taps are ignored by the grid. Robust to any render lag.
-# Element lookup is too slow/unreliable on the runner while the clip plays (2026-09-19: the round ended before the
-# robot 'saw' the grid). Tap by POINT — measured from real screenshots: top answer row ~90% down, second ~94%
-# (the reskin grid sits 120px above the safe area). Tap through the countdown and into the round; the first tap
-# after the handoff locks the answer, the rest are ignored by the grid.
-# Runner taps are slow (~1 s each): 9 taps ran past the results screen and one hit the HISTORY tab (run 35465017302).
-# The countdown is 2.4 s, so: settle 3 s after the countdown pill appears, then tap the answer TWICE and stop.
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: shots/03-question
+# 2026-09-19 (five red runs, all watched): every Maestro command costs 1-3 s on the GitHub Mac while the clip plays,
+# so ANY assert/wait between the PRACTICE tap and the answer tap runs the 10.4-s round out. Tap the second answer
+# row (30%,94%) six times with nothing in between: on a fast runner the later taps land after the 2.4-s countdown,
+# on a slow one the early taps do; the grid locks on the first hit and ignores the rest. 94% is empty on the
+# results screen (HOME ends ~92%), so a late tap can't navigate away.
 - tapOn:
-    point: "30%,90%"
+    point: "30%,94%"
 - tapOn:
-    point: "30%,90%"
-- takeScreenshot: shots/03b-tapped
+    point: "30%,94%"
+- tapOn:
+    point: "30%,94%"
+- tapOn:
+    point: "30%,94%"
+- tapOn:
+    point: "30%,94%"
+- tapOn:
+    point: "30%,94%"
 - extendedWaitUntil:
     visible: "PLAY AGAIN"
     timeout: 40000
