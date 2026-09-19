@@ -31,8 +31,15 @@ import { ensurePushRegistration, getPushStatus, requestPushPermission } from './
 // require: if the native module were ever missing, the app must not crash at launch.
 try {
   const N = require('expo-notifications');
+  // B211 (CJ 2026-09-19: "I won a bunch in a row and got no notifications"): remote result pushes were suppressed
+  // whenever the app was open, on the theory that the result shows in-app — but HOME/HISTORY hang up the socket
+  // (B201-era), so a result landing while the player sits on Home had no live channel AND a swallowed push.
+  // Now: show the Apple banner for any push that names a match UNLESS that match's results are on screen right now.
   N.setNotificationHandler({ handleNotification: async (n) => {
-    const w = !!(n && n.request && n.request.content && n.request.content.data && n.request.content.data.localWin);
+    const d = (n && n.request && n.request.content && n.request.content.data) || {};
+    const onScreen = globalThis.__senseShowing || {};
+    const dup = d.matchId && ((onScreen.mode === 'results' && onScreen.matchId === d.matchId) || (globalThis.__senseLocalShown && globalThis.__senseLocalShown.has(String(d.matchId))));
+    const w = !!d.localWin || (!!d.matchId && !dup) || (!d.matchId && !d.localWin); // localWin, result-for-another-match, or any non-match push (deposit, expiry, admin)
     return { shouldShowAlert: w, shouldShowBanner: w, shouldShowList: w, shouldPlaySound: w, shouldSetBadge: false };
   } });
 } catch (e) {}
@@ -290,6 +297,7 @@ export default function App() {
   const [phReady, setPhReady] = useState(0); // B171: bumped once analytics has been constructed, so PHProvider attaches
   const [mode, setMode] = useState(null);
   useEffect(() => { replayPause(mode === 'play'); }, [mode]); // B207: no replay capture while a round is on screen
+  useEffect(() => { globalThis.__senseShowing = { mode, matchId: matchIdRef.current }; }, [mode, matchId]); // B211: the push handler checks this
   const [countdown, setCountdown] = useState(false);
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
   const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
@@ -1027,7 +1035,7 @@ export default function App() {
   }
   async function pushBanner(res, oppNm, mid, stakeC) {
     track('push_banner', { res, mid }); // B67: proves the background-result path ran at all
-    if (await tryLocalResultNotification(res, stakeC, oppNm)) return; // notifications ON -> Apple for EVERY result; the custom bar is the no-permission fallback only (B66)
+    if (await tryLocalResultNotification(res, stakeC, oppNm)) { (globalThis.__senseLocalShown = globalThis.__senseLocalShown || new Set()).add(String(mid)); return; } // B211: remote push for this match is then a duplicate // notifications ON -> Apple for EVERY result; the custom bar is the no-permission fallback only (B66)
     const id = Date.now() + '-' + mid, word = res==='win'?'Won':res==='loss'?'Lost':'Draw';
     // BUG 2 FIX (2026-06-13): a backlog of background results used to stack one full-width
     // banner PER match with no cap/dedup, covering the screen and blocking the Home/nav
