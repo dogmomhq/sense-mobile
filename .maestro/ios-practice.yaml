@@ -21,18 +21,33 @@ appId: com.dogmomhq.sensemobile
 # 2026-09-19 (CJ watched the video): waitForAnimationToEnd sat through the WHOLE 8-s round (the ring never stops
 # animating), so by the time the flow looked for an answer the round was over — every gate round ended TIMED OUT.
 # Now: wait for the answer grid to appear (countdown 2.4 s + clip start), then tap the first answer by id.
+# the answer grid mounts UNDER the opaque countdown, so "answer-0 visible" is true too early and the tap hits the
+# countdown; wait for the opaque countdown to unmount (2400 ms handoff), then tap.
+- extendedWaitUntil:
+    visible:
+      id: "countdown-opaque"
+    timeout: 8000
+- extendedWaitUntil:
+    notVisible:
+      id: "countdown-opaque"
+    timeout: 8000
 - extendedWaitUntil:
     visible:
       id: "answer-0"
-    timeout: 12000
+    timeout: 4000
 - takeScreenshot: shots/03-question
 - tapOn:
     id: "answer-0"
+- takeScreenshot: shots/03b-tapped
 - extendedWaitUntil:
-    visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|PLAY AGAIN"
+    visible: "PLAY AGAIN"
     timeout: 40000
 - takeScreenshot: shots/04-results
-# an unanswered round is a FAILED gate, not a pass: the practice rival never times out, so this text means WE did
+# an unanswered round is a FAILED gate, not a pass: the practice rival never times out, so this text means WE did.
+# Results animate in over ~2 s — give the table time to draw before asserting.
+- extendedWaitUntil:
+    visible: "CORRECT ANSWER"
+    timeout: 8000
 - assertNotVisible: "TIMED OUT"
 
 - tapOn: "HOME"

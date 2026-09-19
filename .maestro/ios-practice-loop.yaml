@@ -14,8 +14,16 @@ appId: com.dogmomhq.sensemobile
           timeout: 20000
       - extendedWaitUntil:
           visible:
+            id: "countdown-opaque"
+          timeout: 8000
+      - extendedWaitUntil:
+          notVisible:
+            id: "countdown-opaque"
+          timeout: 8000
+      - extendedWaitUntil:
+          visible:
             id: "answer-0"
-          timeout: 12000
+          timeout: 4000
       - tapOn:
           id: "answer-0"
       - extendedWaitUntil:

@@ -269,7 +269,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
+    <View testID="countdown-opaque" style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>{/* B212: the simulator gate waits for this to unmount before tapping an answer */}
       <StatusBar barStyle="light-content" />
       <Animated.View style={{ flex: 1, transform: [{ translateX: shake.x }, { translateY: shake.y }] }}>
         {/* eye photo: cover-crop CENTRED on the real screen, zoomed 1.35x about
