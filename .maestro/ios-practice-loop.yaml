@@ -14,18 +14,15 @@ appId: com.dogmomhq.sensemobile
           timeout: 20000
       - extendedWaitUntil:
           visible:
-            id: "countdown-opaque"
-          timeout: 8000
-      - extendedWaitUntil:
-          notVisible:
-            id: "countdown-opaque"
-          timeout: 8000
-      - extendedWaitUntil:
-          visible:
             id: "answer-0"
-          timeout: 4000
-      - tapOn:
-          id: "answer-0"
+          timeout: 12000
+      - repeat:
+          times: 7
+          commands:
+            - tapOn:
+                id: "answer-0"
+            - waitForAnimationToEnd:
+                timeout: 500
       - extendedWaitUntil:
           visible: "YOU WIN|SO CLOSE|YOU LOST|DEAD HEAT|TIMED OUT|DRAW|PLAY AGAIN|PLAY NOW"
           timeout: 40000

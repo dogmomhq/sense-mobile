@@ -21,23 +21,22 @@ appId: com.dogmomhq.sensemobile
 # 2026-09-19 (CJ watched the video): waitForAnimationToEnd sat through the WHOLE 8-s round (the ring never stops
 # animating), so by the time the flow looked for an answer the round was over — every gate round ended TIMED OUT.
 # Now: wait for the answer grid to appear (countdown 2.4 s + clip start), then tap the first answer by id.
-# the answer grid mounts UNDER the opaque countdown, so "answer-0 visible" is true too early and the tap hits the
-# countdown; wait for the opaque countdown to unmount (2400 ms handoff), then tap.
-- extendedWaitUntil:
-    visible:
-      id: "countdown-opaque"
-    timeout: 8000
-- extendedWaitUntil:
-    notVisible:
-      id: "countdown-opaque"
-    timeout: 8000
+# the answer grid mounts UNDER the opaque countdown, so "answer-0 visible" is true too early and a single tap hits
+# the countdown (2026-09-19, three red runs). The overlay is a plain view the robot cannot see. So: tap the first
+# answer every ~500 ms for ~3.5 s — taps during the 2.4 s countdown land on the overlay and do nothing, the first
+# tap after the handoff locks the answer, later taps are ignored by the grid. Robust to any render lag.
 - extendedWaitUntil:
     visible:
       id: "answer-0"
-    timeout: 4000
+    timeout: 12000
 - takeScreenshot: shots/03-question
-- tapOn:
-    id: "answer-0"
+- repeat:
+    times: 7
+    commands:
+      - tapOn:
+          id: "answer-0"
+      - waitForAnimationToEnd:
+          timeout: 500
 - takeScreenshot: shots/03b-tapped
 - extendedWaitUntil:
     visible: "PLAY AGAIN"
