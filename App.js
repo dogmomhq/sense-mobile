@@ -16,7 +16,7 @@ import { getPracticeQuestion, getComputerAnswer, determinePracticeResult, format
 import * as FileSystem from 'expo-file-system/legacy'; // 1.4.0 video: downloadAsync for question background clips
 import { setServerUrl, connectWS, wsSend, isConnected, isDialing, forceReconnect, disconnectWS, onConnState } from './websocket.js';
 import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, PREVIEW_SERVER_WS } from './protocol';
-import { SEALED_OK, unseal } from './sealed';
+import { SEALED_OK, SEALED_WHY, unseal } from './sealed';
 import { deviceIntegrity, deviceCheckToken, DEVICECHECK_OK, TAMPER_MSG } from './integrity'; // B210
 import Constants from 'expo-constants'; // B200: sealed clips (SEALED-CLIP-SPEC-2026-09-13)
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
@@ -735,7 +735,7 @@ export default function App() {
       let audio = false; try { audio = !!require('expo-audio').createAudioPlayer; } catch (e) {}
       clog.logEvent('health', null, 'launch', Date.now(), {
         build: clog.buildTag(), native: (Constants && Constants.nativeBuildVersion) || null, ver: (Constants && Constants.expoConfig && Constants.expoConfig.version) || null,
-        sealed: SEALED_OK, audio, loc, push, sound: soundOn, platform: Platform.OS, os: Platform.Version,
+        sealed: SEALED_OK, sealedWhy: SEALED_OK ? undefined : (SEALED_WHY || 'unknown'), audio, loc, push, sound: soundOn, platform: Platform.OS, os: Platform.Version,
         tamper: deviceIntegrity(), dc: DEVICECHECK_OK, // B210
       });
       clog.flush();
