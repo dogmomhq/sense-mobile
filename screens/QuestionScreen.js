@@ -20,6 +20,7 @@ const DEMO_PHOTO = require('../assets/cheetah.jpeg');
 const TIMEDEBUG = typeof window !== 'undefined' && window.location && /[?&]timedebug=1/.test(window.location.search || '');
 
 export default function QuestionScreen({
+  onFirstFrame = null,                      // B215: fired once the clip's first frame is on screen (App.js sends READY + starts 3-2-1)
   secondsLeft = null,                       // freeze the ring at this time; null = run live
   startTsRef = null,                        // ref holding the AUTHORITATIVE round-start t0 (App.js startRef — the same timestamp the scored clientTime subtracts from). When provided, the live ring derives secondsLeft = ROUND_S - (Date.now()-t0)/1000 from it every frame, so display and score cannot diverge.
   answers = ['CHEETAH', 'LEOPARD', 'JAGUAR', 'COUGAR'],
@@ -170,7 +171,8 @@ export default function QuestionScreen({
         // leaks: the layer is composited + playing from round start, and at reveal
         // the video layer changes NOTHING.
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: 1 }}>
-          <VideoView player={player} style={{ width, height }} contentFit="cover" nativeControls={false} />
+          <VideoView player={player} style={{ width, height }} contentFit="cover" nativeControls={false}
+            onFirstFrameRender={() => { try { onFirstFrame && onFirstFrame(); } catch (e) {} }} /> {/* B215: the round starts only after this fires */}
         </View>
       ) : null}
 

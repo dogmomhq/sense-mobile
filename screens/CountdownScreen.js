@@ -65,7 +65,10 @@ function Radial({ w, h, cx, cy, rx, ry, stops, opacity = 1 }) {
 // (rAF after the opaque tree unmounts) — the integration anchors the scoring
 // t0 to the frame the question actually APPEARS, not the scheduled timer and
 // not the GO beat start (rev3). The scheduled flip stays as the fallback t0.
-export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onHandoff, freezeBeat = null }) {
+// B215 (CJ 2026-09-23): `hold` = the clip is not drawing yet. The overlay stays opaque with a LOADING pulse and NO
+// beats run; the 3-2-1 starts the moment hold flips false (App.js flips it on the video's first rendered frame,
+// after sending READY). The round therefore cannot begin on a black clip.
+export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onDone, onHandoff, freezeBeat = null, hold = false }) {
   const s = useScale();
   // full-bleed takeover (no header), but the stake pill must clear the island.
   const safeTop = getSafeTop();
@@ -161,6 +164,13 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
   }, [landFX]);
 
   useEffect(() => {
+    if (hold) { // B215: waiting for the first drawn frame — opaque, silent, no beats
+      const loop = Animated.loop(Animated.sequence([
+        Animated.timing(breathe, { toValue: 0.15, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(breathe, { toValue: 0, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])); loop.start();
+      return () => { loop.stop(); };
+    }
     if (freezeBeat != null) {   // deterministic hold (preview / pixel-diff)
       if (freezeBeat === 'go') { // OPAQUE GO beat held mid-flash (rev3)
         wrapBeat.current[0] = 'go'; force();
@@ -232,7 +242,7 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
     loopRaf = requestAnimationFrame(rafLoop);
     return () => { stopped = true; clearInterval(iv); if (loopRaf) cancelAnimationFrame(loopRaf);
       timers.current.forEach(clearTimeout); if (goRaf.current) cancelAnimationFrame(goRaf.current); };
-  }, []);
+  }, [hold]); // B215: re-runs once when hold releases → beats start then
 
   const glyphWrap = (i) => {
     const g = GLYPH[wrapBeat.current[i]];
@@ -310,8 +320,13 @@ export default function CountdownScreen({ stakeLabel = '$1.00 · WIN $1.90', onD
           shadowColor: COLORS.lime, shadowOffset: { width: 0, height: 0 }, shadowRadius: 18 * s, shadowOpacity: 0.45,
           opacity: shockO, transform: [{ scale: shockS }] }} />
         {/* glyphs */}
-        {glyphWrap(0)}
-        {glyphWrap(1)}
+        {!hold && glyphWrap(0)}
+        {!hold && glyphWrap(1)}
+        {hold ? ( // B215: LOADING pulse where the digits will appear
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: py - 24 * s, alignItems: 'center', zIndex: 12, opacity: Animated.add(0.45, Animated.multiply(breathe, 3)) }}>
+            <Text testID="countdown-loading" style={{ color: COLORS.cream, fontFamily: FONTS.interExtra, fontSize: 30 * s, letterSpacing: 0.12 * 30 * s }}>LOADING</Text>
+          </Animated.View>
+        ) : null}
         {/* stake pill (locked prototype chrome) */}
         <View style={{ position: 'absolute', top: pillTop, left: 0, right: 0, alignItems: 'center', zIndex: 30 }}>
           <View style={{ backgroundColor: 'rgba(16,20,13,0.78)', borderWidth: 1.5 * s,

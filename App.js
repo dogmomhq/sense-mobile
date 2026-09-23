@@ -299,6 +299,11 @@ export default function App() {
   useEffect(() => { replayPause(mode === 'play'); }, [mode]); // B207: no replay capture while a round is on screen
   useEffect(() => { globalThis.__senseShowing = { mode, matchId: matchIdRef.current }; }, [mode, matchId]); // B211: the push handler checks this
   const [countdown, setCountdown] = useState(false);
+  // B215 (CJ 2026-09-23): cdHold = the countdown overlay is up but the clip is not drawing yet. No READY has been
+  // sent, no 3-2-1 runs, no clock anywhere. Released by clipDrawing() when the video's first frame renders.
+  const [cdHold, setCdHold] = useState(false);
+  const holdRef = useRef(null); // { mid, t0, timer } while holding
+  const CLIP_WAIT_MS = 5000;    // give up on the clip after this and back out of the round (server refunds; inside the server's 6 s READY window)
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
   const [sound, setSound] = useState(true); // 1c (2026-07-10): sound DEFAULT ON
   const [q, setQ] = useState(null);
@@ -458,6 +463,40 @@ export default function App() {
     if (matchIdRef.current === mid) { setQVidExp(false); }
     if (holdCountdownRef.current) { holdCountdownRef.current = false; startOverrideRef.current = null; setCountdown(false); }
     if (holdCapRef.current) { clearTimeout(holdCapRef.current); holdCapRef.current = null; }
+  }
+  function sendReady(mid) {
+    try {
+      // 2026-08-24: identity now rides the ready. The server stopped trusting msg.name
+      // (anyone could forge a ready and void your match); with a token, a client that
+      // reconnected between question and ready can still prove who it is and keep its
+      // download-time credit instead of silently forfeiting it.
+      glog('ready', { mid });
+      wsSend({ type: 'ready', matchId: mid, name: myName(),
+        token: (accountRef.current && accountRef.current.token) || undefined,
+        supabaseToken: supabaseTokenRef.current || undefined });
+      readySentTsRef.current = mono(); // P2.3: paired with startRef in the drift calc — same clock or drift_ms is garbage
+    } catch (e) {}
+  }
+  // B215: the clip's first frame is on screen → READY now, 3-2-1 now. Idempotent per match.
+  function clipDrawing() {
+    const h = holdRef.current; const mid = matchIdRef.current;
+    if (!h || !mid || h.mid !== mid) return;
+    holdRef.current = null; if (h.timer) clearTimeout(h.timer);
+    glog('clip_drawing', { mid, ms: Date.now() - h.t0 });
+    sendReady(mid);
+    setCdHold(false); // ReskinApp starts the 2400 ms countdown clock on this flip
+  }
+  // B215: no first frame within CLIP_WAIT_MS → this round does not start. Tell the server (it refunds / hands the
+  // game to the next player — 2026-09-23 rule, no draws for a load failure) and go home with a plain message.
+  function clipGaveUp(mid) {
+    const h = holdRef.current; if (!h || h.mid !== mid || matchIdRef.current !== mid) return;
+    holdRef.current = null;
+    glog('clip_failed', { why: 'no_frame', ms: Date.now() - h.t0 });
+    track('clip_gave_up', { ms: Date.now() - h.t0 });
+    try { wsSend({ type: 'clip-failed', matchId: mid, name: myName(), token: (accountRef.current && accountRef.current.token) || undefined, supabaseToken: supabaseTokenRef.current || undefined }); } catch (e) {}
+    setCdHold(false); setCountdown(false);
+    showToast('Connection issue — the clip didn\u2019t load. Nothing was charged. Tap PLAY to try again.', 'error');
+    goHome();
   }
   function countdownDone() {
     const mid = matchIdRef.current; const s = mid && sealedRef.current[mid];
@@ -901,17 +940,15 @@ export default function App() {
     const begin = () => {
       if (began || matchIdRef.current !== mid) return; // stale callback from an old match must not start/ready this one
       began = true;
-      if (mid !== 'room') { try {
-        // 2026-08-24: identity now rides the ready. The server stopped trusting msg.name
-        // (anyone could forge a ready and void your match); with a token, a client that
-        // reconnected between question and ready can still prove who it is and keep its
-        // download-time credit instead of silently forfeiting it.
-        glog('ready', { mid });
-        wsSend({ type: 'ready', matchId: mid, name: myName(),
-          token: (accountRef.current && accountRef.current.token) || undefined,
-          supabaseToken: supabaseTokenRef.current || undefined });
-        readySentTsRef.current = mono(); // P2.3: paired with startRef in the drift calc — same clock or drift_ms is garbage
-      } catch (e) {} }
+      // B215: a plain (unsealed) video round holds here — READY goes out from clipDrawing() when the first frame is
+      // on screen, and only then does the 3-2-1 run. Sealed rounds keep READY-at-download (the key comes at GO).
+      const holdForFrame = mid !== 'room' && wantVid && !(sealedRef.current[mid]);
+      if (holdForFrame) {
+        if (holdRef.current && holdRef.current.timer) clearTimeout(holdRef.current.timer);
+        holdRef.current = { mid, t0: qReceivedAt, timer: setTimeout(() => clipGaveUp(mid), Math.max(500, CLIP_WAIT_MS - (Date.now() - qReceivedAt))) };
+        setCdHold(true);
+      } else setCdHold(false);
+      if (mid !== 'room' && !holdForFrame) sendReady(mid);
       try { sfx('silence'); } catch (e) {} // B99: warm the iOS audio session ~150ms before beat 3 (kills the cold-start latency on the first sound)
       setCountdown(true); fadeTo(() => { setQVid(p => (p && p.seq === roundSeqRef.current) ? p : null); setQVidExp(wantVid); setQPoster(wantVid && question.videoToken ? (HTTPS_BASE + '/vposter/' + question.videoToken) : null); setMode('play'); }); // B100: old clip dropped only when the new round paints
     };
@@ -947,10 +984,11 @@ export default function App() {
           } else {
             glog('clip_failed', { status: r && r.status, stale: matchIdRef.current !== mid || roundSeqRef.current !== mySeq }); // B204: a black/still round leaves a trace
             if (isSealed) sealedAbort(mid, 'status_' + (r && r.status)); // B210
+            if (holdRef.current && holdRef.current.mid === mid) { clipGaveUp(mid); return; } // B215: no clip → no round (don't wait out the 6 s)
             revealStill(); // bad status -> show the photo instead of a black screen
           }
           begin();
-        }).catch((e) => { clearTimeout(fallbackT); glog('clip_failed', { err: String(e && e.message).slice(0, 80) }); if (isSealed) sealedAbort(mid, 'download_error'); revealStill(); begin(); });
+        }).catch((e) => { clearTimeout(fallbackT); glog('clip_failed', { err: String(e && e.message).slice(0, 80) }); if (isSealed) sealedAbort(mid, 'download_error'); if (holdRef.current && holdRef.current.mid === mid) { clipGaveUp(mid); return; } revealStill(); begin(); });
       } catch (e) { setQVidExp(false); begin(); }
     } else {
       try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
@@ -964,7 +1002,7 @@ export default function App() {
     questionIdxRef.current = (question.questionIdx != null ? question.questionIdx : null);
     setQ({ text: question.text, image: img, options: question.options, correctIdx: null, questionIdx: questionIdxRef.current });
     setPicked(null); setResult(null); setComp(null); setMyTime(null); setShowActions(false); setOppPending(false); // B59: new round — no confirmed wait yet
-    if (mid === 'room') begin(); else setTimeout(begin, wantVid ? 800 : 3000); // B100: video rounds cap the gate at 800ms — tap feels instant, the clip finishes during fade+countdown
+    if (mid === 'room' || wantVid) begin(); else setTimeout(begin, 3000); // B215: video rounds stage at once and HOLD the countdown until the first frame draws (was: 800 ms cap, clip finished 'during the countdown' — or didn't, = black rounds)
   }
   // shared: record a settled online/challenge match + bump online stats + clear pending
   function logMatch(mid, res, reason, myT, oppT, correctIdx, oppNm, stk, qIdx) {
@@ -1200,6 +1238,14 @@ export default function App() {
         // may ReskinApp swap the frozen question for the WaitingScreen, which kills the
         // 0.7s YOU-LOCKED flash before an instant result (bug 1, CJ video 2026-07-19).
         if (msg.matchId && activeMatchRef.current === msg.matchId) setOppPending(true);
+        break;
+      case 'async-rematch': // 2026-09-23: my opponent's clip never drew — they dropped out, my game continues under a new id at the front of the queue
+        if (msg.from && msg.to) {
+          if (activeMatchRef.current === msg.from) activeMatchRef.current = msg.to;
+          if (matchIdRef.current === msg.from) { matchIdRef.current = msg.to; setMatchId(msg.to); }
+          setPending(p => { if (!p[msg.from]) return p; const n = { ...p, [msg.to]: { ...p[msg.from], matchId: msg.to } }; delete n[msg.from]; return n; });
+          glog('rematch', { from: msg.from, to: msg.to });
+        }
         break;
       case 'async-result': {
         glog('result', { r: msg.you && msg.you.result, me: msg.you && msg.you.time, opp: msg.opponent && msg.opponent.time, why: msg.reason });
@@ -1671,7 +1717,7 @@ export default function App() {
       tab, mode, countdown, q, qVid, qVidExp, qPoster, picked, elapsed, result, comp, oppName, online, oppPending,
       matchId, myTime, notice, toast, toastKind, banners, pending, matchLog, onlineRec, rec, pracLog, wsUp, oppTier,
       dobAsk, dobErr, submitDob, cancelDob, askDobForDeposit, askGpsForDeposit, dobOnFile,
-      locGate, locGateDone, locGateSkip, locGateAuthFail, getFreshSupabaseToken, countdownDone, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157 / B192
+      locGate, locGateDone, locGateSkip, locGateAuthFail, getFreshSupabaseToken, countdownDone, cdHold, clipDrawing, httpsBase: HTTPS_BASE, supabaseToken: supabaseTokenRef.current, // B157 / B192
       balance, stake, ledger, serverLedger, sound, displayName, showActions, rank, fetchRank, playerAuthHeaders,
       authEmail, authSince, signinEmail, signinCode, signinStep, signinBusy,
       isChallenge: isChallengeRef.current,

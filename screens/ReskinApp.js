@@ -358,6 +358,7 @@ export default function ReskinApp({ g }) {
   // tappable from 2400.0ms; a <=150ms residual flash rides over it and onDone
   // (~2550ms) just unmounts the empty overlay.
   useEffect(() => {
+    if (g.countdown && g.mode === 'play' && g.cdHold) { setCdOverlay(true); return; } // B215: overlay up, clip not drawing yet — no clock runs
     if (g.countdown && g.mode === 'play') {
       setCdOverlay(true);
       timingDbg.current = {};
@@ -370,7 +371,7 @@ export default function ReskinApp({ g }) {
       rafId = requestAnimationFrame(rafLoop);
       return () => { done = true; clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); };
     }
-  }, [g.countdown, g.mode]);
+  }, [g.countdown, g.mode, g.cdHold]);
 
   // WAITING-SCREEN GRACE TIMER (bug fix 2026-06-13). The instant the player answers
   // a paid online match (g.picked set, still mode 'play'), arm a WAIT_GRACE_MS timer.
@@ -593,6 +594,7 @@ export default function ReskinApp({ g }) {
         <QuestionScreen key={String(g.matchId || '') + (g.q.text || '')}
           answers={g.q.options} photo={typeof g.q.image === 'string' ? { uri: g.q.image } : g.q.image}
           videoUri={g.qVid ? g.qVid.uri : null} videoExpected={!!g.qVidExp} posterUri={g.qPoster || null} player={vidPlayer}
+          onFirstFrame={g.clipDrawing}
           stake={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
           streak={streakVal} balance={balanceShown} ringMode={RING_MODE} avatar={avatarSource(avatarKey)}
           secondsLeft={g.countdown ? ROUND_S : (answered ? secLeft : null)} // B76: was baked 10 - conceal ring showed 10 then snapped to 8
@@ -795,6 +797,7 @@ export default function ReskinApp({ g }) {
       {(cdOverlay || g.countdown) && g.mode === 'play' && g.q ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 80 }}>
           <CountdownScreen stakeLabel={g.online ? stakeLabel(g.stakeRef.current || stakeCents) : 'PRACTICE · FREE'}
+            hold={!!g.cdHold}
             onDone={() => setCdOverlay(false)}
             onHandoff={(ts) => {
               // rev3 (2026-06-12): anchor t0 to the 2400ms HANDOFF frame — the
