@@ -90,13 +90,13 @@ if (ASC_B64) {
     const cutoff = Date.now() - HOURS * 3600000;
     const shots = await asc(`/v1/apps/${appId}/betaFeedbackScreenshotSubmissions?limit=50&sort=-createdDate&include=build,tester`).catch((e) => ({ data: [], err: e.message }));
     const cr = await asc(`/v1/apps/${appId}/betaFeedbackCrashSubmissions?limit=50&sort=-createdDate&include=build,tester`).catch((e) => ({ data: [], err: e.message }));
-    const recent = (arr) => (arr.data || []).filter((x) => new Date(x.attributes.createdDate).getTime() > cutoff);
+    const recent = (arr) => (arr.data || []).filter((x) => HOURS >= 720 || new Date(x.attributes.createdDate).getTime() > cutoff); // a 30-day+ window = list everything (first run / catch-up)
     const rs = recent(shots), rc = recent(cr);
     const build = (x, inc) => { const b = (inc || []).find((i) => i.type === 'builds' && x.relationships && x.relationships.build && x.relationships.build.data && i.id === x.relationships.build.data.id); return b ? b.attributes.version : '?'; };
     line(`- Screenshot feedback (new): **${rs.length}**${shots.err ? ' — API error: ' + shots.err : ''}`);
     for (const s of rs) { const a = s.attributes; line(`  - ${a.createdDate.slice(0, 16)} build ${build(s, shots.included)} · ${a.deviceModel || ''} ${a.osVersion || ''} · "${(a.comment || '').replace(/\s+/g, ' ').slice(0, 200)}"${(a.screenshots || []).length ? ` · ${a.screenshots.length} screenshot(s)` : ''}`); }
     line(`- Crash reports (new): **${rc.length}**${cr.err ? ' — API error: ' + cr.err : ''}`);
-    for (const c of rc) { const a = c.attributes; line(`  - ${a.createdDate.slice(0, 16)} build ${build(c, cr.included)} · ${a.deviceModel || ''} ${a.osVersion || ''} · ${(a.comment || a.crashLog ? 'has log' : '')}`); }
+    for (const c of rc) { const a = c.attributes; line(`  - ${a.createdDate.slice(0, 16)} build ${build(c, cr.included)} · ${a.deviceModel || ''} ${a.osVersion || ''} · ${a.comment ? '"' + String(a.comment).replace(/\s+/g, ' ').slice(0, 160) + '"' : ''} ${a.crashLog ? '· log attached' : ''} (${c.id})`); }
     const allShots = (shots.data || []).length, allCr = (cr.data || []).length;
     line(`- All-time in the inbox: ${allShots} screenshot submissions, ${allCr} crash submissions`);
     tfSummary = `${rs.length} feedback, ${rc.length} crashes`;
