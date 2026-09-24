@@ -1,0 +1,40 @@
+name: Daily digest
+# CJ 2026-09-24: every morning — who played, anything that would have been "a bug CJ finds", anticheat rows, money,
+# TestFlight feedback + Apple crash logs. Written to the `digests` branch and pushed to CJ's phone as one line.
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 09:00 New York (EDT)
+  workflow_dispatch:
+    inputs:
+      hours: { description: 'Window in hours', default: '24' }
+      push:  { description: 'Push the summary to CJ (1/0)', default: '1' }
+permissions:
+  contents: write
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: reskin-ui, sparse-checkout: 'e2e', sparse-checkout-cone-mode: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd e2e && npm install --no-audit --no-fund
+      - name: Build digest
+        env:
+          SENSE_DB_URL: ${{ secrets.SENSE_DB_URL }}
+          SENSE_ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
+          ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          DIGEST_HOURS: ${{ github.event.inputs.hours || '24' }}
+          DIGEST_PUSH: ${{ github.event.inputs.push || '1' }}
+        run: cd e2e && node digest.mjs
+      - name: Save to the digests branch
+        run: |
+          set -e
+          git config user.name digest-bot; git config user.email digest@sense
+          git fetch origin digests || true
+          git checkout -B digests origin/digests 2>/dev/null || git checkout --orphan digests
+          git reset -q
+          mkdir -p digests && cp e2e/digests/*.md digests/
+          git add digests && git -c commit.gpgsign=false commit -qm "digest $(date -u +%F)" || echo "nothing new"
+          git push origin digests
