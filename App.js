@@ -302,6 +302,7 @@ export default function App() {
   // B215 (CJ 2026-09-23): cdHold = the countdown overlay is up but the clip is not drawing yet. No READY has been
   // sent, no 3-2-1 runs, no clock anywhere. Released by clipDrawing() when the video's first frame renders.
   const [cdHold, setCdHold] = useState(false);
+  const ansRetryRef = useRef(null); const ansAckRef = useRef(null); // B217: answer resend-until-ack
   const holdRef = useRef(null); // { mid, t0, timer } while holding
   const CLIP_WAIT_MS = 5000;    // give up on the clip after this and back out of the round (server refunds; inside the server's 6 s READY window)
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
@@ -822,7 +823,18 @@ export default function App() {
       } else {
         // AUDIT FIX #2: plain wsSend silently DROPS on a closed socket (answer lost -> timeout loss).
         // Freeze the message now, then reconnect-if-needed and send; identity lets the server verify us on the fresh socket.
-        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const _drift = (readySentTsRef.current != null && startRef.current > readySentTsRef.current) ? Math.round(startRef.current - readySentTsRef.current - 2400) : null; const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current, _drift); ensureConn(() => { wsSend(ansMsg); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs. B208 (bug hunt): the assertion is chained INSIDE the answer's open-callback — connectWS keeps ONE armed intent (latest wins), so when the socket was still dialing at tap time the assertion's ensureConn overwrote the answer's and only the assertion ever went out (the answer was silently dropped → timeout). */ assertAnswer(_amid, idx, _at).then((a) => { if (a) ensureConn(() => wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion })); }).catch(() => {}); }); }  // async matchmaking — B188: the assertion goes through ensureConn too (plain wsSend drops on a just-reconnected socket → server logged 97 'missing assertion' rows, 80 on CJ's own phone; that is why ASSERT_MISSING_ENFORCE could never be armed) (#50: imgMs rides along, null omitted)
+        { const _amid = matchIdRef.current, _at = Math.round(playerTime); const _drift = (readySentTsRef.current != null && startRef.current > readySentTsRef.current) ? Math.round(startRef.current - readySentTsRef.current - 2400) : null; const ansMsg = asyncAnswer(_amid, idx, _at, wsIdentity(), imgMsRef.current, _drift);
+          // B217 (CJ 2026-09-24, match bsqak5v8: tapped at 0.96 s, the server never received the answer, timed out, lost):
+          // the answer is RESENT every 1.5 s until the server's answer-ack lands (reconnecting first if the socket is dead),
+          // for up to 12 s. The time is frozen at the tap; a duplicate is harmless (server keeps the first and re-acks).
+          glog('answer_sent', { mid: _amid, t: _at, try: 1 });
+          if (ansRetryRef.current) clearInterval(ansRetryRef.current);
+          ansAckRef.current = null; let _try = 1; const _t0 = Date.now();
+          ansRetryRef.current = setInterval(() => {
+            if (ansAckRef.current === _amid || matchIdRef.current !== _amid || Date.now() - _t0 > 12000) { clearInterval(ansRetryRef.current); ansRetryRef.current = null; if (ansAckRef.current !== _amid && matchIdRef.current === _amid) glog('answer_unacked', { mid: _amid, tries: _try }); return; }
+            _try++; glog('answer_sent', { mid: _amid, t: _at, try: _try }); ensureConn(() => wsSend(ansMsg));
+          }, 1500);
+          ensureConn(() => { wsSend(ansMsg); /* P3 (B45): Secure Enclave signs what we just claimed — sent AFTER the answer so it adds zero ms to timing; silent no-op on old binaries/unattested installs. B208 (bug hunt): the assertion is chained INSIDE the answer's open-callback — connectWS keeps ONE armed intent (latest wins), so when the socket was still dialing at tap time the assertion's ensureConn overwrote the answer's and only the assertion ever went out (the answer was silently dropped → timeout). */ assertAnswer(_amid, idx, _at).then((a) => { if (a) ensureConn(() => wsSend({ type: 'answer-assert', matchId: _amid, answerIndex: idx, clientTime: _at, keyId: a.keyId, assertion: a.assertion })); }).catch(() => {}); }); }  // async matchmaking — B188: the assertion goes through ensureConn too (plain wsSend drops on a just-reconnected socket → server logged 97 'missing assertion' rows, 80 on CJ's own phone; that is why ASSERT_MISSING_ENFORCE could never be armed) (#50: imgMs rides along, null omitted)
         const mid = matchIdRef.current;
         // questionIdx carried so the PENDING card (and later the settled card) can show the question-image thumbnail
         setPending(p => ({ ...p, [mid]: { opponent: oppName || 'Searching…', myTime: Math.round(playerTime), ts: Date.now(), createdAt: Date.now(), stake: stakeRef.current, questionIdx: questionIdxRef.current } }));
@@ -1225,6 +1237,7 @@ export default function App() {
         }
         autoRequeueRef.current.n = 0; loadQuestion(msg.matchId, msg.question); refreshServerBalance(); break; // a real question = we matched; clear the auto-requeue guard. server escrowed the stake before sending the question.
       case 'answer-ack': { // local time already frozen on tap — the echo never touches timing.
+        if (msg.matchId && ansAckRef.current !== msg.matchId) { ansAckRef.current = msg.matchId; glog('answer_acked', { mid: msg.matchId, dup: !!msg.duplicate }); } // B217: stops the resend loop
         // 2026-07-17: questionIdx now rides the ack (post-answer) — capture it and heal the
         // pending card created on tap (which had no idx to use).
         if (msg.questionIdx != null) {
@@ -1248,6 +1261,7 @@ export default function App() {
         }
         break;
       case 'async-result': {
+        if (msg.matchId && ansRetryRef.current) { ansAckRef.current = msg.matchId; clearInterval(ansRetryRef.current); ansRetryRef.current = null; } // B217: a result proves the answer landed
         glog('result', { r: msg.you && msg.you.result, me: msg.you && msg.you.time, opp: msg.opponent && msg.opponent.time, why: msg.reason });
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
         const oppNm = (msg.opponent && msg.opponent.name) || (pending[msg.matchId] && pending[msg.matchId].opponent) || oppName || 'Opponent';
