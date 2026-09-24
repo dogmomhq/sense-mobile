@@ -171,8 +171,9 @@ export default function QuestionScreen({
         // leaks: the layer is composited + playing from round start, and at reveal
         // the video layer changes NOTHING.
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width, height, opacity: 1 }}>
+          {/* B215: onFirstFrameRender — the round starts only after this fires */}
           <VideoView player={player} style={{ width, height }} contentFit="cover" nativeControls={false}
-            onFirstFrameRender={() => { try { onFirstFrame && onFirstFrame(); } catch (e) {} }} /> {/* B215: the round starts only after this fires */}
+            onFirstFrameRender={() => { try { onFirstFrame && onFirstFrame(); } catch (e) {} }} />
         </View>
       ) : null}
 
