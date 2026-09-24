@@ -54,7 +54,20 @@
 - Deposits touched: expired ×252 ($4172.00), settled ×64 ($880.00), created ×7 ($70.00), failed ×22 ($255.00) · Withdrawals touched: paid ×5, requested ×2, cancelled ×7
 
 ## TestFlight inbox (App Store Connect)
-- Screenshot feedback (new): **1**
+- Screenshot feedback (new): **10**
   - 2026-09-06T22:30 build 22 · iPhone17_1 26.5.2 · "" · 1 screenshot(s)
-- Crash reports (new): **0**
+  - 2026-07-20T02:59 build 18 · iPhone17_1 26.5.2 · "Can you see this " · 1 screenshot(s)
+  - 2026-07-18T22:33 build 18 · iPhone17_1 26.5.2 · "See this? " · 1 screenshot(s)
+  - 2026-06-18T17:52 build 7 · iPhone17_1 26.5 · "" · 1 screenshot(s)
+  - 2026-06-13T02:00 build 6 · iPhone17_1 26.5 · "Test did you get this ? What did I send pic of" · 1 screenshot(s)
+  - 2026-06-13T00:39 build 6 · iPhone17_1 26.5 · "Shouldn’t say free here? I just paid $1 is this a free game?" · 1 screenshot(s)
+  - 2026-06-12T23:33 build 6 · iPhone17_1 26.5 · "Are these being deducted when? We need to display ledger with balance " · 1 screenshot(s)
+  - 2026-06-11T03:48 build 7 · iPhone17_1 26.5 · "Test feedback " · 1 screenshot(s)
+  - 2026-06-11T03:47 build 7 · iPhone17_1 26.5 · "This feedback it’s been waiting a while for pp" · 1 screenshot(s)
+  - 2026-06-11T03:41 build 7 · iPhone17_1 26.5 · "Can you see this feedback?" · 1 screenshot(s)
+- Crash reports (new): **4**
+  - 2026-06-13T06:47 build 3 · iPhone17_1 26.5 · "Crashed "  (APLh9NVKnOqlRgq0J5oo1NE)
+  - 2026-06-13T05:03 build 3 · iPhone17_1 26.5 · "Broken"  (AMkE68JTmaYNAeMghmBeXlQ)
+  - 2026-06-13T01:34 build 3 · iPhone17_1 26.5 · "Broken "  (AGdjnlXI0IdAV-bqhhfHScw)
+  - 2026-06-13T01:21 build 3 · iPhone17_1 26.5 · "Broken"  (AFxF60cGdbVgmCUykHnFfzM)
 - All-time in the inbox: 10 screenshot submissions, 4 crash submissions
