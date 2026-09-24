@@ -29,7 +29,9 @@ jobs:
           DIGEST_PUSH: ${{ github.event.inputs.push || '1' }}
         run: cd e2e && node digest.mjs
       - name: Save to the digests branch
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}, REPO: ${{ github.repository }} }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           node - <<'EOF'
           const fs = require('fs'); const H = { Authorization: 'Bearer ' + process.env.GH_TOKEN, 'Content-Type': 'application/json', 'User-Agent': 'digest' };
