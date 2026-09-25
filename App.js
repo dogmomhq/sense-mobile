@@ -307,6 +307,25 @@ export default function App() {
   // sent, no 3-2-1 runs, no clock anywhere. Released by clipDrawing() when the video's first frame renders.
   const [cdHold, setCdHold] = useState(false);
   const ansRetryRef = useRef(null); const ansAckRef = useRef(null); // B217: answer resend-until-ack
+  // B220 (CJ 2026-09-24, "what about the disconnect?"): DEAD-SOCKET FAST DETECT. During an online round the server pings
+  // this socket ~10×/s (timing observe mode) from READY until our answer, so 1.5 s of total silence in that window means
+  // the socket is a zombie — iOS would take 10 s+ to admit it. We redial at once so the tap lands on a live socket (B217
+  // resends until acked either way). Cheap: one 500 ms tick, armed only between READY and the answer.
+  const lastServerMsgRef = useRef(0); const lastAnsMsgRef = useRef(null); const roundLiveRef = useRef(false);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (!roundLiveRef.current || !onlineRef.current) return;
+      if (isDialing()) return; // a redial is already in flight
+      const quiet = Date.now() - lastServerMsgRef.current;
+      if (lastServerMsgRef.current && quiet > 1500 && isConnected()) {
+        glog('socket_stale', { quietMs: quiet, mid: matchIdRef.current, answered: !!lastAnsMsgRef.current });
+        lastServerMsgRef.current = Date.now(); // one redial per silence window
+        forceReconnect();
+        ensureConn(() => {}); // fresh socket; the answer (if it comes) rides B217's resend-until-ack, which also re-binds the seat
+      }
+    }, 500);
+    return () => clearInterval(iv);
+  }, []);
   const holdRef = useRef(null); // { mid, t0, timer } while holding
   const CLIP_WAIT_MS = 5000;    // give up on the clip after this and back out of the round (server refunds; inside the server's 6 s READY window)
   const [rec, setRec] = useState({ wins:0, losses:0, draws:0 });
@@ -480,6 +499,7 @@ export default function App() {
         token: (accountRef.current && accountRef.current.token) || undefined,
         supabaseToken: supabaseTokenRef.current || undefined });
       readySentTsRef.current = mono(); // P2.3: paired with startRef in the drift calc — same clock or drift_ms is garbage
+      roundLiveRef.current = mid !== 'room'; lastServerMsgRef.current = Date.now(); // B220: the server pings 10×/s from READY until our answer — silence now means a dead socket
     } catch (e) {}
   }
   // B215: the clip's first frame is on screen → READY now, 3-2-1 now. Idempotent per match.
@@ -851,6 +871,7 @@ export default function App() {
           // B217 (CJ 2026-09-24, match bsqak5v8: tapped at 0.96 s, the server never received the answer, timed out, lost):
           // the answer is RESENT every 1.5 s until the server's answer-ack lands (reconnecting first if the socket is dead),
           // for up to 12 s. The time is frozen at the tap; a duplicate is harmless (server keeps the first and re-acks).
+          lastAnsMsgRef.current = ansMsg; roundLiveRef.current = false; // B220: pings stop at the answer; B217's resend-until-ack owns delivery from here
           glog('answer_sent', { mid: _amid, t: _at, try: 1 });
           if (ansRetryRef.current) clearInterval(ansRetryRef.current);
           ansAckRef.current = null; let _try = 1; const _t0 = Date.now();
@@ -923,6 +944,7 @@ export default function App() {
       .catch((e) => { console.log('[practice]', e.message); showToast('Practice needs a connection — try again.', 'error'); });
   }
   function goHome() {
+    roundLiveRef.current = false; lastAnsMsgRef.current = null; // B220
     if (onlineRef.current || isChallengeRef.current) { try { disconnectWS(); } catch(e){} }
     onlineRef.current = false; isChallengeRef.current = false;
     activeMatchRef.current = null; matchIdRef.current = null; // BUG 2 FIX: drop the foreground match so late dup events for a left match can't re-foreground/bounce
@@ -1030,6 +1052,7 @@ export default function App() {
       try { Image.prefetch(img).then(() => { if (matchIdRef.current === mid && imgMsRef.current == null) imgMsRef.current = Date.now() - qReceivedAt; begin(); }).catch(begin); } catch (e) {}
     }
     activeMatchRef.current = mid; matchIdRef.current = mid; pickedRef.current = null; myTimeRef.current = null;
+    roundLiveRef.current = false; lastAnsMsgRef.current = null; lastServerMsgRef.current = Date.now(); // B220: armed at READY (pings start then)
     setMatchId(mid);
     // questionIdx (2026-07-17 cheat-surface fix): the server NO LONGER sends the bank
     // index with a live question — a proxy reader could look up the answer in the bundled
@@ -1210,6 +1233,7 @@ export default function App() {
     if (isConnected()) go(); else ensureConn(go);
   }
   function handleOnlineMessage(msg) {
+    lastServerMsgRef.current = Date.now(); // B220: any traffic proves the socket is alive
     switch (msg.type) {
       // ---- device-bound account ----
       case 'registered': {
@@ -1285,6 +1309,7 @@ export default function App() {
         }
         break;
       case 'async-result': {
+        if (msg.matchId === matchIdRef.current) { roundLiveRef.current = false; lastAnsMsgRef.current = null; } // B220
         if (msg.matchId && ansRetryRef.current) { ansAckRef.current = msg.matchId; clearInterval(ansRetryRef.current); ansRetryRef.current = null; } // B217: a result proves the answer landed
         glog('result', { r: msg.you && msg.you.result, me: msg.you && msg.you.time, opp: msg.opponent && msg.opponent.time, why: msg.reason });
         const res = msg.you.result, oppT = (msg.opponent.serverTime != null ? msg.opponent.serverTime : msg.opponent.time);
