@@ -773,14 +773,34 @@ export default function App() {
       try { const L = require('expo-location'); const p = await L.getForegroundPermissionsAsync(); loc = (p && p.status) || 'unknown'; } catch (e) {}
       try { const N = require('expo-notifications'); const p = await N.getPermissionsAsync(); push = (p && p.status) || 'unknown'; } catch (e) {}
       let audio = false; try { audio = !!require('expo-audio').createAudioPlayer; } catch (e) {}
+      // B218 (CJ 2026-09-24, "what about my crashes?"): UNCLEAN-EXIT beacon. While the app is in the foreground it keeps a
+      // heartbeat in storage (screen, match, time, build); on background / clean exit the heartbeat is cleared. If a launch
+      // finds a heartbeat still armed, the previous process died in the FOREGROUND — a crash, a memory kill, or the OS
+      // terminating it mid-round — and that is reported here with what the player was doing. Background kills are normal
+      // iOS behaviour and are deliberately NOT counted. Lands in the daily digest ("Crashes / unclean exits").
+      let unclean = null; try { const raw = await AsyncStorage.getItem('sense_fg_heartbeat'); if (raw) { unclean = JSON.parse(raw); } } catch (e) {}
+      if (unclean) { try { clog.logEvent('game', null, 'unclean_exit', Date.now(), { screen: unclean.screen || null, mid: unclean.mid || null, build: unclean.build || null, lastBeatAgoS: Math.round((Date.now() - (unclean.at || Date.now())) / 1000), online: !!unclean.online }); } catch (e) {} }
       clog.logEvent('health', null, 'launch', Date.now(), {
         build: clog.buildTag(), native: (Constants && Constants.nativeBuildVersion) || null, ver: (Constants && Constants.expoConfig && Constants.expoConfig.version) || null,
         sealed: SEALED_OK, sealedWhy: SEALED_OK ? undefined : (SEALED_WHY || 'unknown'), audio, loc, push, sound: soundOn, platform: Platform.OS, os: Platform.Version,
         tamper: deviceIntegrity(), dc: DEVICECHECK_OK, // B210
+        sim: !(Constants && Constants.isDevice), // B218: simulator installs are not real players (digest filter)
+        uncleanExit: unclean ? (unclean.screen || 'unknown') : null,
       });
       clog.flush();
     }, 2500); // after the session + permissions have settled
     return () => clearTimeout(t);
+  }, []);
+  // B218: foreground heartbeat (see the unclean-exit beacon above). Armed while active, cleared on background/inactive.
+  const hbState = useRef({ mode: null, mid: null, online: false }); hbState.current = { mode, mid: matchIdRef.current, online: !!onlineRef.current };
+  useEffect(() => {
+    let alive = AppState.currentState === 'active' || AppState.currentState == null;
+    const beat = () => { if (!alive) return; const h = hbState.current; AsyncStorage.setItem('sense_fg_heartbeat', JSON.stringify({ at: Date.now(), screen: h.mode || 'home', mid: h.mid || null, online: h.online, build: clog.buildTag() })).catch(() => {}); };
+    const clear = () => { AsyncStorage.removeItem('sense_fg_heartbeat').catch(() => {}); };
+    const sub = AppState.addEventListener('change', (st) => { alive = st === 'active'; if (alive) beat(); else clear(); });
+    const t0 = setTimeout(beat, 4000); // after the launch beacon has read (and reported) any previous heartbeat
+    const iv = setInterval(beat, 5000);
+    return () => { sub.remove(); clearTimeout(t0); clearInterval(iv); };
   }, []);
   useEffect(() => { const t = setTimeout(() => { try { claimDeviceAccount(() => prefetchPractice()); } catch (e) {} }, 3000); return () => clearTimeout(t); }, []); // B120: 3s lets the stored account / Supabase session restore first
   function startPractice() {
