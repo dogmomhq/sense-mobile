@@ -19,6 +19,10 @@ import { queue, asyncAnswer, answer as roomAnswer, rttPong, pong, cancelMatch, P
 import { SEALED_OK, SEALED_WHY, unseal } from './sealed';
 import { deviceIntegrity, deviceCheckToken, DEVICECHECK_OK, TAMPER_MSG } from './integrity'; // B210
 import Constants from 'expo-constants'; // B200: sealed clips (SEALED-CLIP-SPEC-2026-09-13)
+// B219 / build 29 (CJ 2026-09-24 "we don't have a crash reporter?"): Sentry native + JS crash reporting. The SDK is in the
+// binary from build 29; it only STARTS when a DSN is present in app.json `extra.sentryDsn` (OTA-settable), so a build
+// without a Sentry project simply runs without it. Free tier: 5k events/month.
+let Sentry = null; try { const dsn = Constants && Constants.expoConfig && Constants.expoConfig.extra && Constants.expoConfig.extra.sentryDsn; if (dsn) { Sentry = require('@sentry/react-native'); Sentry.init({ dsn, enableAutoSessionTracking: true, tracesSampleRate: 0, sendDefaultPii: false, release: 'sense@' + ((Constants.expoConfig && Constants.expoConfig.version) || '0') + '+' + (Constants.nativeBuildVersion || '0') }); } } catch (e) { Sentry = null; }
 import { createChallenge, acceptChallenge, requestRematch, closeChallenge, handleChallengeMessage, onChallengeChange, getChallenge } from './challengeService.js';
 import { supabase } from './supabaseClient';
 import { runAttestation, assertAnswer, getAttestKeyId, loadAttestKey } from './attest'; // P2 attest-once + P3 per-answer assertions — silent, never block
@@ -109,7 +113,7 @@ function replayPause(on) {
   if (!PH || Platform.OS === 'web') return;
   try { const R = require('posthog-react-native-session-replay'); (on ? R.stopRecording() : R.startRecording(true)).catch(() => {}); } catch (e) {}
 }
-function captureError(err, ctx) { try { if (!PH) return; if (PH.captureException) PH.captureException(err, ctx || {}); else PH.capture('$exception', { $exception_message: String((err && err.message) || err), $exception_type: (err && err.name) || 'Error', ...(ctx || {}) }); } catch (e) {} }
+function captureError(err, ctx) { try { if (Sentry) { try { Sentry.captureException(err instanceof Error ? err : new Error(String(err)), { extra: ctx || {} }); } catch (_) {} } if (!PH) return; if (PH.captureException) PH.captureException(err, ctx || {}); else PH.capture('$exception', { $exception_message: String((err && err.message) || err), $exception_type: (err && err.name) || 'Error', ...(ctx || {}) }); } catch (e) {} }
 class ErrorBoundary extends React.Component {
   constructor(p) { super(p); this.state = { hasError: false }; }
   static getDerivedStateFromError() { return { hasError: true }; }
