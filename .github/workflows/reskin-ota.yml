@@ -77,7 +77,7 @@ jobs:
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/dispatched-at
           curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ios-maestro-e2e.yml/dispatches" \
             -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            -d '{"ref":"reskin-ui","inputs":{"run_paid":"false"}}' && echo "e2e dispatched"
+            -d '{"ref":"reskin-ui","inputs":{"run_paid":"false","gate_only":"true"}}' && echo "e2e dispatched (gate only — 2026-09-26: GitHub Mac minutes bill at 10×; soak moves to the self-hosted Mac)"
       - name: Wait for the simulator verdict (gate)
         if: github.event.inputs.skip_gate != 'true' && steps.classify.outputs.gate != 'skip'
         env:
