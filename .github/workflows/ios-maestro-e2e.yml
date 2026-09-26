@@ -16,12 +16,16 @@ on:
         description: "B164: sign the robot in, open the deposit sheet, stamp the pay button's load timeline on screen (no wager)"
         required: false
         default: "false"
+      gate_only:
+        description: "Run only the practice gate (small artifact: one video + shots)"
+        required: false
+        default: "false"
       sim_location:
         description: "Simulator GPS as lat,lon. Default Fort Lauderdale FL (allowed). Try 42.3314,-83.0458 (Detroit MI) to prove the blocked-state refusal."
         required: false
         default: "26.1224,-80.1373"
-  schedule:
-    - cron: '0 9 * * *'   # 2am PT — quiet window; nightly always includes paid
+  # schedule removed 2026-09-26 (CJ: the month's free minutes went on this — macOS runners bill 10×).
+  # Comes back on the self-hosted Mac (runs-on: [self-hosted, macOS]) where minutes are free.
 
 permissions:
   contents: write
@@ -145,7 +149,7 @@ jobs:
           done
           exit 1
       - name: Soak flows (kill / background / 5-game loop)
-        if: steps.netready.outputs.ready == 'true'
+        if: steps.netready.outputs.ready == 'true' && github.event.inputs.gate_only != 'true'
         # Runs AFTER the gate has already reported. A red here still alerts (below) but no
         # longer holds the OTA verdict hostage for 15 minutes.
         run: |
