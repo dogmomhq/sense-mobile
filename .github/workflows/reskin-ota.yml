@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       message: { description: "Update message", required: false, default: "reskin OTA" }
+      skip_gate: { description: "EMERGENCY ONLY: skip the simulator gate + auto-rollback", required: false, default: "false" }
 
 permissions:
   actions: write
@@ -19,17 +20,113 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            /*
+            !/maestro-shots/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci || npm install
+      - name: GATE 0 — no undefined identifiers (B163)
+        # B161 shipped `useEffect` without importing it. That crashed EVERY signed-in player at boot
+        # and the simulator gate could not see it: the gate plays as a guest, and the component that
+        # threw only mounts for a signed-in account. A ReferenceError is a static fact — catch it
+        # before anything is published, not after a phone finds it.
+        run: |
+          npm i --no-save --no-audit --no-fund eslint@8 eslint-plugin-react@7 eslint-plugin-react-hooks@4 @babel/eslint-parser@7 @babel/preset-react@7
+          npx eslint --no-eslintrc -c .eslintrc.undef.json --rule '{"no-unused-vars":"off"}' \
+            App.js ./*.js screens/*.js screens/components/*.js
+      - name: GATE 0b — every server signal has an app handler (B168)
+        # The needGps-on-deposit dead end was a contract defect: server right, app right, the agreement
+        # between them broken. The server publishes what it emits at /api/contract; this refuses to ship
+        # a bundle that does not read one of those signals where it lands.
+        run: node scripts-contract-check.mjs
       - name: Publish OTA update (channel/branch preview)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@latest update --branch preview --message "${{ github.event.inputs.message }}" --non-interactive
-      - name: Kick E2E (practice-only) against the fresh OTA
+        run: |
+          # OTA GATE (2026-09-06): remember the update group that is live RIGHT NOW so a red
+          # simulator run can put it back. B117 shipped a crash that lived for four days because
+          # the post-OTA robot was red-and-ignored; now red = automatic rollback + alert.
+          PREV=$(npx --yes eas-cli@latest update:list --branch preview --limit 1 --json --non-interactive 2>/dev/null | jq -r '(.currentPage // .)[0].group // empty')
+          echo "PREV_GROUP=$PREV" >> "$GITHUB_ENV"; echo "previous live group: ${PREV:-<none>}"
+          npx --yes eas-cli@latest update --branch preview --message "${{ github.event.inputs.message }}" --non-interactive
+      - name: Classify the change (2026-09-19 — skip the simulator when nothing runtime changed)
+        id: classify
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Compare against the head of the last SUCCESSFUL OTA publish. If every changed file is test-rig,
+          # CI, docs or dashboard, the static gates above are the whole gate: no simulator boot, no 20 min.
+          PREV_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/reskin-ota.yml/runs?status=success&per_page=1" \
+            | jq -r '.workflow_runs[0].head_sha // empty')
+          git fetch --depth=200 origin reskin-ui >/dev/null 2>&1 || true
+          if [ -z "$PREV_SHA" ] || ! git cat-file -e "$PREV_SHA" 2>/dev/null; then echo "no baseline → full gate"; echo "gate=full" >> "$GITHUB_OUTPUT"; exit 0; fi
+          CHANGED=$(git diff --name-only "$PREV_SHA" HEAD)
+          echo "changed since $PREV_SHA:"; echo "$CHANGED"
+          RISKY=$(echo "$CHANGED" | grep -Ev '^(\.maestro/|e2e/|\.github/|docs?/|.*\.md$|scripts-contract-check\.mjs$|snapshots?/|maestro-shots/)' || true)
+          if [ -z "$RISKY" ]; then echo "only rig/docs/CI changed → gate skipped"; echo "gate=skip" >> "$GITHUB_OUTPUT"; else echo "runtime files changed:"; echo "$RISKY"; echo "gate=full" >> "$GITHUB_OUTPUT"; fi
+      - name: Kick E2E (practice-only) against the fresh OTA
+        if: steps.classify.outputs.gate != 'skip'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/dispatched-at
           curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ios-maestro-e2e.yml/dispatches" \
             -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            -d '{"ref":"reskin-ui","inputs":{"run_paid":"false"}}' && echo "e2e dispatched"
+            -d '{"ref":"reskin-ui","inputs":{"run_paid":"false","gate_only":"true"}}' && echo "e2e dispatched (gate only — 2026-09-26: GitHub Mac minutes bill at 10×; soak moves to the self-hosted Mac)"
+      - name: Wait for the simulator verdict (gate)
+        if: github.event.inputs.skip_gate != 'true' && steps.classify.outputs.gate != 'skip'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SINCE=$(cat /tmp/dispatched-at); RUN=""
+          for i in $(seq 1 24); do
+            RUN=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ios-maestro-e2e.yml/runs?event=workflow_dispatch&created=>=$SINCE&per_page=1" | jq -r '.workflow_runs[0].id // empty')
+            [ -n "$RUN" ] && break; sleep 5
+          done
+          [ -n "$RUN" ] || { echo "::error::could not find the dispatched E2E run"; exit 1; }
+          echo "E2E_RUN=$RUN" >> "$GITHUB_ENV"; echo "watching run $RUN"
+          # Watch the GATE STEP only (one practice round). The soak flows keep running after the
+          # verdict and alert on their own; they no longer hold the OTA hostage.
+          for i in $(seq 1 60); do   # up to 20 min
+            J=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN/jobs")
+            G=$(echo "$J" | jq -r '[.jobs[].steps[] | select(.name | startswith("GATE: "))][0] // empty')
+            I=$(echo "$J" | jq -r '[.jobs[].steps[] | select(.name | startswith("GATE INCONCLUSIVE"))][0] // empty')
+            GS=$(echo "$G" | jq -r '.status // empty'); GC=$(echo "$G" | jq -r '.conclusion // empty')
+            IC=$(echo "$I" | jq -r '.conclusion // empty')
+            RS=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN" | jq -r .status)
+            # INCONCLUSIVE = the simulator never reached the server (runner infra). No verdict on the
+            # app, so NO rollback — alert instead. Only a real practice-round failure rolls back.
+            if [ "$IC" = "failure" ]; then echo "INCONCLUSIVE=1" >> "$GITHUB_ENV"; echo "::error::gate inconclusive — simulator network never came up; NOT rolling back"; exit 1; fi
+            if [ "$GS" = "completed" ] && [ "$GC" != "skipped" ]; then echo "gate verdict: $GC"; [ "$GC" = "success" ] && exit 0 || exit 1; fi
+            if [ "$RS" = "completed" ]; then echo "INCONCLUSIVE=1" >> "$GITHUB_ENV"; echo "::error::run finished before the gate ran (setup failure) — NOT rolling back"; exit 1; fi
+            sleep 20
+          done
+          echo "::error::gate did not report in 20 min"; exit 1
+      - name: AUTO-ROLLBACK the OTA (simulator was red)
+        if: failure() && github.event.inputs.skip_gate != 'true' && env.INCONCLUSIVE != '1'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
+        run: |
+          if [ -n "$PREV_GROUP" ]; then
+            npx --yes eas-cli@latest update:republish --group "$PREV_GROUP" --message "AUTO-ROLLBACK: sim red after '${{ github.event.inputs.message }}'" --non-interactive && echo "rolled back to $PREV_GROUP"
+            MSG="OTA AUTO-ROLLED BACK — '${{ github.event.inputs.message }}' failed the simulator. Previous bundle is live again."
+          else
+            MSG="OTA GATE RED — '${{ github.event.inputs.message }}' failed the simulator and NO previous group was found to roll back to. Check now."
+          fi
+          curl -s -X POST "https://web-production-c6ec6.up.railway.app/api/admin/push/send" \
+            -H "content-type: application/json" -H "x-admin-key: $ADMIN_KEY" \
+            -d "{\"accountId\":\"d29a779f-e908-4786-9e61-2fdf90d6d2fa\",\"title\":\"$MSG\",\"body\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${E2E_RUN:-${{ github.run_id }}}\"}" || true
+      - name: Alert — gate inconclusive (runner network), bundle left live
+        if: failure() && env.INCONCLUSIVE == '1'
+        env:
+          ADMIN_KEY: ${{ secrets.SENSE_ADMIN_KEY }}
+        run: |
+          curl -s -X POST "https://web-production-c6ec6.up.railway.app/api/admin/push/send" \
+            -H "content-type: application/json" -H "x-admin-key: $ADMIN_KEY" \
+            -d "{\"accountId\":\"d29a779f-e908-4786-9e61-2fdf90d6d2fa\",\"title\":\"OTA gate INCONCLUSIVE — '${{ github.event.inputs.message }}' is live but unverified (sim network)\",\"body\":\"Re-run reskin-ota.yml or check your phone. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${E2E_RUN:-${{ github.run_id }}}\"}" || true
