@@ -21,7 +21,7 @@
 
 ## Money
 - Conservation: **OK** (gap 0¢, leaking 0, in-flight >1h 0¢, stuck settling 0)
-- Deposits touched: created ×1 ($10.00), failed ×2 ($20.00) · Withdrawals touched: none
+- Deposits touched: failed ×1 ($10.00) · Withdrawals touched: none
 
 ## TestFlight inbox (App Store Connect)
 - Screenshot feedback (new): **0**
