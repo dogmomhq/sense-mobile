@@ -1,4 +1,4 @@
-# Sense daily digest — 2026-09-28 (last 24 h, UTC)
+# Sense daily digest — 2026-09-29 (last 24 h, UTC)
 
 ## Play
 - Real players seen: **0** (none)
