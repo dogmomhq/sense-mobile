@@ -1,4 +1,4 @@
-# Sense daily digest — 2026-10-02 (last 24 h, UTC)
+# Sense daily digest — 2026-10-03 (last 24 h, UTC)
 
 ## Play
 - Real players seen: **0** (none)
@@ -9,8 +9,8 @@
 - **Clip failed to load / round backed out: 0**
 - **Answers that needed a resend or were never acked: 0**
 - **Lost answers (READY landed, no answer ever arrived, timed out): 2**
-  - ChaosA9 in bc2sz4rt at 10:48:22
-  - ChaosA9 in uicweqzy at 10:47:26
+  - ChaosA10 in med36sha at 10:07:25
+  - ChaosA10 in 74axyw8k at 10:08:23
 - **Crashes / unclean exits reported by the app: 0**
 - **Clip-failed hand-offs (server): 0**
 - **Refunds to real players: 0**
@@ -21,7 +21,7 @@
 
 ## Money
 - Conservation: **OK** (gap 0¢, leaking 0, in-flight >1h 0¢, stuck settling 0)
-- Deposits touched: created ×2 ($20.00), expired ×1 ($10.00), failed ×1 ($10.00), settled ×2 ($20.00) · Withdrawals touched: none
+- Deposits touched: created ×2 ($20.00), expired ×2 ($20.00), failed ×1 ($10.00), settled ×2 ($20.00) · Withdrawals touched: none
 
 ## TestFlight inbox (App Store Connect)
-- ASC pull failed: 403 {"errors":[{"id":"JPZN5V64LRPYERUDWQPZX4KSJM","status":"403","code":"FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED","title":"A required agreement is missing or has expired.","detail":"This request 
+- ASC pull failed: 403 {"errors":[{"id":"D5GILQ7TFFGGXGEUFKUTGQ3DUU","status":"403","code":"FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED","title":"A required agreement is missing or has expired.","detail":"This request 
